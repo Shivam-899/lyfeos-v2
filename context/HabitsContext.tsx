@@ -1,0 +1,278 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
+export type TrackMethod = "task" | "amount" | "time";
+export type HabitType = "build" | "quit";
+
+export interface HabitColor {
+  bg: string;
+  icon: string;
+  id: string;
+}
+
+export const HABIT_COLORS: HabitColor[] = [
+  { id: "green", bg: "#B8F0C8", icon: "#34C759" },
+  { id: "purple", bg: "#DDD6FE", icon: "#8B5CF6" },
+  { id: "yellow", bg: "#FEF08A", icon: "#F59E0B" },
+  { id: "orange", bg: "#FED7AA", icon: "#F97316" },
+  { id: "pink", bg: "#FBCFE8", icon: "#EC4899" },
+  { id: "blue", bg: "#BFDBFE", icon: "#3B82F6" },
+  { id: "teal", bg: "#CCFBF1", icon: "#14B8A6" },
+  { id: "red", bg: "#FEE2E2", icon: "#EF4444" },
+];
+
+export const HABIT_EMOJIS = ["📚", "🏃", "💧", "🧘", "🎯", "🍎", "💪", "🌙", "☕", "🎨", "🎵", "🌿"];
+
+export interface Habit {
+  id: string;
+  name: string;
+  type: HabitType;
+  trackMethod: TrackMethod;
+  colorId: string;
+  emoji: string;
+  targetAmount?: number;
+  targetTimeSeconds?: number;
+  weekDays: number[];
+  createdAt: string;
+}
+
+export interface HabitLog {
+  id: string;
+  habitId: string;
+  date: string;
+  completed: boolean;
+  amount?: number;
+  timeSeconds?: number;
+}
+
+interface HabitsContextType {
+  habits: Habit[];
+  habitLogs: HabitLog[];
+  addHabit: (habit: Omit<Habit, "id" | "createdAt">) => void;
+  updateHabit: (habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt">>) => void;
+  deleteHabit: (habitId: string) => void;
+  logHabit: (habitId: string, date: string, data: Partial<HabitLog>) => void;
+  getHabitLog: (habitId: string, date: string) => HabitLog | undefined;
+  getHabitsForDate: (date: string, weekDay: number) => Habit[];
+  getStreak: (habitId: string) => { current: number; best: number };
+  getCompletionRate: (habitId: string) => number;
+}
+
+const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
+
+const DATA_VERSION = "v2_empty";
+const VERSION_KEY = "@lyfeos_version";
+const HABITS_KEY = "@lyfeos_habits_v2";
+const HABIT_LOGS_KEY = "@lyfeos_habit_logs_v2";
+
+export function HabitsProvider({ children }: { children: React.ReactNode }) {
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const version = await AsyncStorage.getItem(VERSION_KEY);
+        if (version !== DATA_VERSION) {
+          // Clear old mock data, start fresh
+          await AsyncStorage.multiRemove([
+            "@lyfeos_habits",
+            "@lyfeos_habit_logs",
+            "@lyfeos_todos",
+            "@lyfeos_food",
+            "@lyfeos_water",
+          ]);
+          await AsyncStorage.setItem(VERSION_KEY, DATA_VERSION);
+          setHabits([]);
+          setHabitLogs([]);
+        } else {
+          const [h, l] = await Promise.all([
+            AsyncStorage.getItem(HABITS_KEY),
+            AsyncStorage.getItem(HABIT_LOGS_KEY),
+          ]);
+          setHabits(h ? JSON.parse(h) : []);
+          setHabitLogs(l ? JSON.parse(l) : []);
+        }
+      } catch {
+        setHabits([]);
+        setHabitLogs([]);
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  const persist = useCallback(async (h: Habit[], l: HabitLog[]) => {
+    await Promise.all([
+      AsyncStorage.setItem(HABITS_KEY, JSON.stringify(h)),
+      AsyncStorage.setItem(HABIT_LOGS_KEY, JSON.stringify(l)),
+    ]);
+  }, []);
+
+  const addHabit = useCallback((habit: Omit<Habit, "id" | "createdAt">) => {
+    const newHabit: Habit = {
+      ...habit,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      createdAt: new Date().toISOString(),
+    };
+    // Bug 3 fix: read latest habitLogs from inside setHabitLogs updater to avoid stale closure
+    setHabits((prevHabits) => {
+      const next = [...prevHabits, newHabit];
+      setHabitLogs((prevLogs) => { persist(next, prevLogs); return prevLogs; });
+      return next;
+    });
+  }, [persist]);
+
+  const updateHabit = useCallback((habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt">>) => {
+    // Bug 3 fix: read latest habitLogs from inside setHabitLogs updater to avoid stale closure
+    setHabits((prevHabits) => {
+      const next = prevHabits.map((h) => h.id === habitId ? { ...h, ...updates } : h);
+      setHabitLogs((prevLogs) => { persist(next, prevLogs); return prevLogs; });
+      return next;
+    });
+  }, [persist]);
+
+  const deleteHabit = useCallback((habitId: string) => {
+    setHabits((prev) => {
+      const next = prev.filter((h) => h.id !== habitId);
+      setHabitLogs((logs) => {
+        const nextLogs = logs.filter((l) => l.habitId !== habitId);
+        persist(next, nextLogs);
+        return nextLogs;
+      });
+      return next;
+    });
+  }, [persist]);
+
+  const logHabit = useCallback((habitId: string, date: string, data: Partial<HabitLog>) => {
+    setHabitLogs((prev) => {
+      const existingIdx = prev.findIndex((l) => l.habitId === habitId && l.date === date);
+      let next: HabitLog[];
+      if (existingIdx >= 0) {
+        next = [...prev];
+        next[existingIdx] = { ...next[existingIdx], ...data };
+      } else {
+        const newLog: HabitLog = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          habitId,
+          date,
+          completed: false,
+          ...data,
+        };
+        next = [...prev, newLog];
+      }
+      persist(habits, next);
+      return next;
+    });
+  }, [habits, persist]);
+
+  const getHabitLog = useCallback((habitId: string, date: string) => {
+    return habitLogs.find((l) => l.habitId === habitId && l.date === date);
+  }, [habitLogs]);
+
+  const getHabitsForDate = useCallback((date: string, weekDay: number) => {
+    return habits.filter((h) => h.weekDays.includes(weekDay));
+  }, [habits]);
+
+  const getStreak = useCallback((habitId: string) => {
+    const logDates = habitLogs
+      .filter((l) => l.habitId === habitId && l.completed)
+      .map((l) => l.date);
+
+    if (logDates.length === 0) return { current: 0, best: 0 };
+
+    const logSet = new Set(logDates);
+
+    // Bug 12 fix: timezone-safe date subtraction using local date parts
+    function localDateStr(d: Date): string {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    function subtractDay(dateStr: string): string {
+      const [y, mo, d] = dateStr.split("-").map(Number);
+      const dt = new Date(y, mo - 1, d - 1);
+      return localDateStr(dt);
+    }
+    function addDay(dateStr: string): string {
+      const [y, mo, d] = dateStr.split("-").map(Number);
+      const dt = new Date(y, mo - 1, d + 1);
+      return localDateStr(dt);
+    }
+
+    const todayDate = new Date();
+    const today = localDateStr(todayDate);
+    const yesterday = subtractDay(today);
+
+    // Current streak: consecutive days going back from today (or yesterday if today not logged)
+    let current = 0;
+    const startDate = logSet.has(today) ? today : logSet.has(yesterday) ? yesterday : null;
+    if (startDate) {
+      let checkDate = startDate;
+      while (logSet.has(checkDate)) {
+        current++;
+        checkDate = subtractDay(checkDate);
+      }
+    }
+
+    // Best streak: longest consecutive run across all logged dates
+    const sortedDates = [...logSet].sort();
+    let best = 0;
+    let tempStreak = 0;
+    let prevDate: string | null = null;
+    for (const dateStr of sortedDates) {
+      if (prevDate === null) {
+        tempStreak = 1;
+      } else {
+        const expectedNext = addDay(prevDate);
+        tempStreak = dateStr === expectedNext ? tempStreak + 1 : 1;
+      }
+      best = Math.max(best, tempStreak);
+      prevDate = dateStr;
+    }
+
+    return { current, best };
+  }, [habitLogs]);
+
+  const getCompletionRate = useCallback((habitId: string) => {
+    const logs = habitLogs.filter((l) => l.habitId === habitId);
+    if (logs.length === 0) return 0;
+    const completed = logs.filter((l) => l.completed).length;
+    return Math.round((completed / logs.length) * 100);
+  }, [habitLogs]);
+
+  if (!loaded) return null;
+
+  return (
+    <HabitsContext.Provider
+      value={{
+        habits,
+        habitLogs,
+        addHabit,
+        updateHabit,
+        deleteHabit,
+        logHabit,
+        getHabitLog,
+        getHabitsForDate,
+        getStreak,
+        getCompletionRate,
+      }}
+    >
+      {children}
+    </HabitsContext.Provider>
+  );
+}
+
+export function useHabits() {
+  const ctx = useContext(HabitsContext);
+  if (!ctx) throw new Error("useHabits must be used within HabitsProvider");
+  return ctx;
+}
