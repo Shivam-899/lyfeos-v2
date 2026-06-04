@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
+import { StatusBar } from "expo-status-bar";
 import {
   Animated,
   FlatList,
@@ -208,9 +209,10 @@ export default function HabitsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: BG }]}>
+    <View style={[styles.container, { backgroundColor: "#0F0F0F" }]}>
+      <StatusBar style="light" backgroundColor="#0F0F0F" />
       {/* ── Sticky Header ─────────────────────────────────────────────── */}
-      <View style={[styles.header, { paddingTop: topPad + 8, backgroundColor: CARD }]}>
+      <View style={[styles.header, { paddingTop: topPad + 8, backgroundColor: "#0F0F0F" }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Text style={styles.screenTitle}>{activeTab === "rituals" ? "Rituals" : "Activity"}</Text>
@@ -259,6 +261,10 @@ export default function HabitsScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.motivationalSubtitle}>
+          {getMotivationalSubtitle()}
+        </Text>
 
         {/* ── Calendar strip (only for rituals tab) ──────────────────── */}
         {activeTab === "rituals" && (
@@ -420,12 +426,23 @@ export default function HabitsScreen() {
   );
 }
 
+function getMotivationalSubtitle() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    return "Start your day strong 💪";
+  } else if (hour >= 12 && hour < 17) {
+    return "Keep the momentum going 🔥";
+  } else {
+    return "Finish strong tonight 🌙";
+  }
+}
+
 function formatDateLabel(date: Date) {
   return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#0F0F0F" },
 
   // Header
   header: {
@@ -472,24 +489,32 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     elevation: 4,
   },
 
+  motivationalSubtitle: {
+    fontSize: 13,
+    fontWeight: "600" as const,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+
   // Sub-tab switcher
   tabSwitcher: {
     flexDirection: "row",
     marginHorizontal: 20,
     marginBottom: 12,
-    backgroundColor: t.BG,
+    backgroundColor: "#1A1A1A",
     borderRadius: 14,
     padding: 4,
     gap: 4,
     borderWidth: 1,
-    borderColor: t.BORDER,
+    borderColor: "#2A2A2A",
   },
   tabSwitchBtn: {
     flex: 1,
     paddingVertical: 9,
     alignItems: "center",
     borderRadius: 11,
-    backgroundColor: "#2A2A2A",
+    backgroundColor: "transparent",
   },
   tabSwitchBtnActive: {
     backgroundColor: "#FF6B35",

@@ -5,6 +5,7 @@ import {
   Alert,
   Animated,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -235,9 +237,14 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={sStyles.overlay} activeOpacity={1} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ justifyContent: "flex-end" }}>
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[sStyles.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
+          <View style={[sStyles.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+            <KeyboardAwareScrollView
+              enableOnAndroid={true}
+              extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={sStyles.handle} />
               <View style={sStyles.sheetHeader}>
                 <Text style={sStyles.sheetTitle}>{isEditing ? "Edit Task" : "New Task"}</Text>
@@ -245,8 +252,6 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
                   <Ionicons name="close" size={22} color={MUTED} />
                 </TouchableOpacity>
               </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled">
                 {/* Title */}
                 <TextInput
                   style={sStyles.titleInput}
@@ -347,10 +352,9 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
                 >
                   <Text style={sStyles.saveBtnText}>{isEditing ? "Save Changes" : "Add Task"}</Text>
                 </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -548,6 +552,7 @@ export default function TodosScreen() {
     if (!quickTitle.trim()) { setShowAddSheet(true); return; }
     addTodo({ title: quickTitle.trim(), completed: false, priority: "medium", category: "Personal", dueDate: ts });
     setQuickTitle("");
+    Keyboard.dismiss();
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -729,25 +734,30 @@ export default function TodosScreen() {
       )}
 
       {/* ── Quick Add Bar ─────────────────────────────────────────────── */}
-      <View style={[styles.quickBar, { bottom: Platform.OS === "web" ? 90 : insets.bottom + 54 }]}>
-        <TouchableOpacity style={styles.quickBarInput} activeOpacity={0.7} onPress={() => { setEditTodo(null); setShowAddSheet(true); }}>
-          <Ionicons name="add-circle-outline" size={18} color={MUTED} style={{ marginRight: 6 }} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={[styles.quickBarContainer, { bottom: Platform.OS === "web" ? 90 : insets.bottom + 54 }]}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <View style={styles.quickBar}>
+          <TouchableOpacity onPress={() => { setEditTodo(null); setShowAddSheet(true); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="add-circle-outline" size={18} color={MUTED} />
+          </TouchableOpacity>
           <TextInput
-            style={styles.quickBarText}
+            style={[styles.quickBarText, { color: WHITE }]}
             placeholder="Add a quick task..."
             placeholderTextColor={MUTED}
             value={quickTitle}
             onChangeText={setQuickTitle}
             onSubmitEditing={handleQuickAdd}
             returnKeyType="done"
-            onFocus={() => { setEditTodo(null); setShowAddSheet(true); }}
-            editable={false}
+            editable={true}
           />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickBarSend} onPress={handleQuickAdd}>
-          <Ionicons name="arrow-up" size={18} color="#fff" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.quickBarSend} onPress={handleQuickAdd}>
+            <Ionicons name="arrow-up" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
 
       <AddTaskSheet
         visible={showAddSheet}
@@ -909,8 +919,10 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   suggestionChipText: { fontSize: 13, color: t.TEXT, fontWeight: "600" as const },
 
   // Quick add bar
-  quickBar: {
+  quickBarContainer: {
     position: "absolute", left: 12, right: 12,
+  },
+  quickBar: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: t.CARD, borderRadius: 20, borderWidth: 1, borderColor: t.BORDER,
     paddingLeft: 16, paddingRight: 6, paddingVertical: 6,

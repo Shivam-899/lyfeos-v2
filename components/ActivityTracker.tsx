@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import { useActivity } from "@/context/ActivityContext";
 import { useCalories } from "@/context/CaloriesContext";
@@ -68,6 +70,17 @@ const MIND_RECOVERY = [
 ];
 
 const ALL_SPORTS = [...SPORTS_GAMES, ...DAILY_MOVEMENT, ...MIND_RECOVERY];
+
+const POPULAR_ACTIVITIES = [
+  { emoji: "🏃", name: "Running" },
+  { emoji: "🚶", name: "Walking" },
+  { emoji: "🧘", name: "Yoga" },
+  { emoji: "🤸", name: "Stretching" },
+  { emoji: "🏸", name: "Badminton" },
+  { emoji: "🏊", name: "Swimming" },
+  { emoji: "🚴", name: "Cycling" },
+  { emoji: "👣", name: "Steps" },
+];
 
 const INTENSITIES = [
   { key: "light",    label: "Light",    icon: "🟢", desc: "Easy, conversational pace" },
@@ -128,31 +141,7 @@ function PulsingDots() {
   );
 }
 
-// ── Sport grid section ────────────────────────────────────────────────────────
-function SportSection({ title, sports, selected, onSelect }: {
-  title: string;
-  sports: typeof SPORTS_GAMES;
-  selected: string;
-  onSelect: (name: string, emoji: string) => void;
-}) {
-  return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={styles.sportSectionTitle}>{title}</Text>
-      <View style={styles.sportGrid}>
-        {sports.map(s => {
-          const isSelected = selected === s.name;
-          return (
-            <TouchableOpacity key={s.name} style={[styles.sportCell, isSelected && styles.sportCellSelected]}
-              onPress={() => { onSelect(s.name, s.emoji); if (Platform.OS !== "web") Haptics.selectionAsync(); }}>
-              <Text style={styles.sportEmoji}>{s.emoji}</Text>
-              <Text style={[styles.sportLabel, isSelected && { color: ACCENT }]}>{s.name}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
+// SportSection has been replaced by the horizontal tab category switcher & grid layout inChoose Activity card
 
 // ── Recovery nutrient card ────────────────────────────────────────────────────
 function NutrientCard({ emoji, label, value, sub, color, onPress, tooltip }: {
@@ -228,6 +217,29 @@ export function ActivityTracker() {
   const [duration, setDuration] = useState(30);
   const [intensity, setIntensity] = useState<"light" | "moderate" | "intense">("moderate");
   const [customSport, setCustomSport] = useState("");
+
+  // ── Search & Filter Tabs ───────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTab, setSelectedTab] = useState<"all" | "sports" | "movement" | "mind">("all");
+  const [searchLayoutY, setSearchLayoutY] = useState(0);
+
+  const getFilteredActivities = () => {
+    if (searchQuery.trim().length > 0) {
+      const query = searchQuery.toLowerCase().trim();
+      return ALL_SPORTS.filter(s => s.name.toLowerCase().includes(query));
+    }
+    switch (selectedTab) {
+      case "sports":
+        return SPORTS_GAMES;
+      case "movement":
+        return DAILY_MOVEMENT;
+      case "mind":
+        return MIND_RECOVERY;
+      case "all":
+      default:
+        return POPULAR_ACTIVITIES;
+    }
+  };
 
   // ── Steps input ────────────────────────────────────────────────────────────
   const [stepsSheet, setStepsSheet] = useState(false);
@@ -365,28 +377,31 @@ export function ActivityTracker() {
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
+  const loggedTodayCount = activityLogs.filter(log => log.date === today).length;
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: "#0F0F0F" }}>
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
 
         {/* ── Daily Stats Row ──────────────────────────────────────── */}
         <View style={styles.dailyRow}>
-          <View style={[styles.dailyStat, { backgroundColor: CARD }]}>
+          <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomWidth: 3, borderBottomColor: ACCENT, paddingVertical: 16 }]}>
             <Ionicons name="flame" size={18} color={ACCENT} />
             <Text style={[styles.dailyVal, { color: ACCENT }]}>{todayCalsBurned}</Text>
             <Text style={styles.dailyLabel}>kcal burned</Text>
           </View>
-          <View style={[styles.dailyStat, { backgroundColor: CARD }]}>
+          <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomWidth: 3, borderBottomColor: BLUE, paddingVertical: 16 }]}>
             <Ionicons name="timer-outline" size={18} color={BLUE} />
             <Text style={[styles.dailyVal, { color: BLUE }]}>{todayActiveMinutes}</Text>
             <Text style={styles.dailyLabel}>active mins</Text>
           </View>
-          <View style={[styles.dailyStat, { backgroundColor: CARD }]}>
+          <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomWidth: 3, borderBottomColor: GREEN, paddingVertical: 16 }]}>
             <Ionicons name="footsteps-outline" size={18} color={GREEN} />
             <Text style={[styles.dailyVal, { color: GREEN }]}>{(stepsToday?.steps ?? 0).toLocaleString()}</Text>
             <Text style={styles.dailyLabel}>steps today</Text>
@@ -398,16 +413,19 @@ export function ActivityTracker() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardEmoji}>👟</Text>
             <Text style={styles.cardTitle}>Steps Today</Text>
-            <TouchableOpacity style={[styles.logStepsBtn, { backgroundColor: ACCENT }]} onPress={() => setStepsSheet(true)}>
-              <Ionicons name="add" size={14} color="#fff" />
+            <TouchableOpacity style={styles.logStepsBtn} onPress={() => setStepsSheet(true)}>
+              <Ionicons name="add" size={12} color={ACCENT} />
               <Text style={styles.logStepsBtnText}>Log Steps</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.stepsContent}>
-            <StepsRing size={110} progress={(stepsToday?.steps ?? 0) / 10_000}>
-              <Text style={styles.stepsNum}>{stepsToday?.steps?.toLocaleString() ?? "0"}</Text>
-              <Text style={styles.stepsGoalText}>/ 10k</Text>
-            </StepsRing>
+            <View style={{ alignItems: "center" }}>
+              <StepsRing size={88} progress={(stepsToday?.steps ?? 0) / 10_000}>
+                <Text style={[styles.stepsNum, { fontSize: 16 }]}>{stepsToday?.steps?.toLocaleString() ?? "0"}</Text>
+                <Text style={styles.stepsGoalText}>/ 10k</Text>
+              </StepsRing>
+              <Text style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Goal: 10,000 steps</Text>
+            </View>
             <View style={styles.stepsStats}>
               <StepsStat icon="map-outline" color={BLUE}   label="Distance"   value={stepsToday ? `${stepsToday.distanceKm} km` : "0 km"} />
               <StepsStat icon="flame-outline" color={ACCENT} label="Calories"  value={stepsToday ? `${stepsToday.caloriesBurned} kcal` : "0 kcal"} />
@@ -416,22 +434,114 @@ export function ActivityTracker() {
           </View>
         </View>
 
-        {/* ── Activity Type Picker ─────────────────────────────────── */}
-        <View style={[styles.card, { backgroundColor: CARD }]}>
+        {/* ── Activity Type Picker (Choose Activity Redesign) ──────── */}
+        <View
+          style={[styles.card, { backgroundColor: CARD }]}
+          onLayout={(e) => setSearchLayoutY(e.nativeEvent.layout.y)}
+        >
           <View style={styles.cardHeader}>
             <Ionicons name="fitness" size={18} color={ACCENT} />
             <Text style={styles.cardTitle}>Choose Activity</Text>
           </View>
-          <SportSection title="Sports & Games" sports={SPORTS_GAMES} selected={selectedSport}
-            onSelect={(n, e) => { setSelectedSport(n); setSelectedEmoji(e); }} />
-          {selectedSport === "Other Sport" && (
-            <TextInput style={styles.customInput} value={customSport} onChangeText={setCustomSport}
-              placeholder="e.g. Kite surfing, Fencing..." placeholderTextColor={MUTED} />
+
+          {/* Search Bar */}
+          <View style={styles.searchBarContainer}>
+            <Ionicons name="search" size={16} color={MUTED} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchBarInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search any activity or sport..."
+              placeholderTextColor={MUTED}
+              clearButtonMode="while-editing"
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: searchLayoutY - 20, animated: true });
+                }, 150);
+              }}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={16} color={MUTED} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Category Tabs */}
+          {searchQuery.trim().length === 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabsContainer}
+              style={{ marginBottom: 12 }}
+            >
+              {(["all", "sports", "movement", "mind"] as const).map(tab => {
+                const isActive = selectedTab === tab;
+                const label = tab === "all" ? "⭐ All" : tab === "sports" ? "🏅 Sports" : tab === "movement" ? "🚶 Movement" : "🧘 Mind";
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    style={[styles.tabBtn, isActive && styles.tabBtnActive]}
+                    onPress={() => {
+                      setSelectedTab(tab);
+                      if (Platform.OS !== "web") Haptics.selectionAsync();
+                    }}
+                  >
+                    <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           )}
-          <SportSection title="Daily Movement" sports={DAILY_MOVEMENT} selected={selectedSport}
-            onSelect={(n, e) => { setSelectedSport(n); setSelectedEmoji(e); }} />
-          <SportSection title="Mind & Recovery" sports={MIND_RECOVERY} selected={selectedSport}
-            onSelect={(n, e) => { setSelectedSport(n); setSelectedEmoji(e); }} />
+
+          {/* Grid Layout */}
+          {getFilteredActivities().length === 0 ? (
+            <Text style={styles.noResultsText}>No activities found for "{searchQuery}"</Text>
+          ) : (
+            <View style={styles.sportGrid}>
+              {getFilteredActivities().map(s => {
+                const isSelected = selectedSport === s.name;
+                return (
+                  <TouchableOpacity
+                    key={s.name}
+                    style={[styles.sportCell, isSelected && styles.sportCellSelected]}
+                    onPress={() => {
+                      if (selectedSport === s.name) {
+                        setSelectedSport("");
+                        setSelectedEmoji("");
+                      } else {
+                        setSelectedSport(s.name);
+                        setSelectedEmoji(s.emoji);
+                      }
+                      if (Platform.OS !== "web") Haptics.selectionAsync();
+                    }}
+                  >
+                    <Text style={styles.sportEmoji}>{s.emoji}</Text>
+                    <Text style={styles.sportLabel} numberOfLines={1}>
+                      {s.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {selectedSport === "Other Sport" && (
+            <TextInput
+              style={[styles.customInput, { marginTop: 12 }]}
+              value={customSport}
+              onChangeText={setCustomSport}
+              placeholder="e.g. Kite surfing, Fencing..."
+              placeholderTextColor={MUTED}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: searchLayoutY + 120, animated: true });
+                }, 150);
+              }}
+            />
+          )}
         </View>
 
         {/* ── Duration + Intensity ─────────────────────────────────── */}
@@ -511,47 +621,69 @@ export function ActivityTracker() {
           </View>
         )}
 
-        {/* ── Weekly Coach Insight ─────────────────────────────────── */}
-        <View style={[styles.card, { backgroundColor: CARD }]}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.coachIcon}>🧠</Text>
-            <Text style={styles.cardTitle}>Your Weekly Coach Insight</Text>
-          </View>
-          {weeklyCoachInsight ? (
-            <View style={[styles.insightBox, { backgroundColor: PURPLE + "15", borderColor: PURPLE + "33" }]}>
-              <Text style={styles.insightText}>{weeklyCoachInsight.text}</Text>
-              <Text style={styles.insightDate}>Generated {weeklyCoachInsight.generatedAt}</Text>
+        {/* ── Weekly Coach Insight Redesign ────────────────────────── */}
+        <LinearGradient
+          colors={["#FF6B35", "#FF6B3533"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 16, padding: 1, marginBottom: 8 }}
+        >
+          <View style={[styles.card, { backgroundColor: "#1A1A1A", borderWidth: 0 }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="flash" size={18} color={ACCENT} />
+              <Text style={styles.cardTitle}>Your Weekly Coach Insight</Text>
             </View>
-          ) : (
-            <View style={styles.insightEmpty}>
-              <Text style={styles.insightEmptyText}>Log activities this week to receive a personalized coaching insight.</Text>
-            </View>
-          )}
-          <TouchableOpacity style={[styles.insightBtn, { borderColor: PURPLE, backgroundColor: PURPLE + "18" }]}
-            onPress={handleGenerateInsight} disabled={insightLoading}>
-            {insightLoading
-              ? <Text style={[styles.insightBtnText, { color: PURPLE }]}>Generating...</Text>
-              : <>
-                  <Ionicons name="sparkles-outline" size={14} color={PURPLE} />
-                  <Text style={[styles.insightBtnText, { color: PURPLE }]}>
+            {weeklyCoachInsight ? (
+              <View style={[styles.insightBox, { backgroundColor: "#FF6B3512", borderColor: "#FF6B3533" }]}>
+                <Text style={styles.insightText}>{weeklyCoachInsight.text}</Text>
+                <Text style={styles.insightDate}>Generated {weeklyCoachInsight.generatedAt}</Text>
+              </View>
+            ) : (
+              <View style={styles.insightEmpty}>
+                <Text style={styles.insightEmptyText}>Log activities this week to receive a personalized coaching insight.</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.insightBtn, { borderColor: ACCENT, backgroundColor: ACCENT }]}
+              onPress={handleGenerateInsight}
+              disabled={insightLoading}
+            >
+              {insightLoading ? (
+                <Text style={[styles.insightBtnText, { color: "#fff" }]}>Generating...</Text>
+              ) : (
+                <>
+                  <Ionicons name="sparkles" size={14} color="#fff" />
+                  <Text style={[styles.insightBtnText, { color: "#fff" }]}>
                     {weeklyCoachInsight ? "Refresh Insight" : "Get Coach Insight"}
                   </Text>
                 </>
-            }
-          </TouchableOpacity>
-        </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
 
       </ScrollView>
 
-      {/* ── Log Activity FAB ────────────────────────────────────────── */}
-      <TouchableOpacity
-        style={[styles.logActivityFab, { bottom: insets.bottom + 80 }]}
-        onPress={() => scrollViewRef.current?.scrollTo({ y: 280, animated: true })}
-        activeOpacity={0.88}
-      >
-        <Ionicons name="add-circle-outline" size={18} color="#fff" />
-        <Text style={styles.logActivityFabText}>Log Activity</Text>
-      </TouchableOpacity>
+      {/* ── Sticky Bottom Bar ─────────────────────────────────────────── */}
+      <View style={[styles.stickyBottomBar, { paddingBottom: insets.bottom + 8 }]}>
+        <TouchableOpacity
+          style={styles.stickyLogBtn}
+          onPress={() => {
+            if (selectedSport) {
+              handleAnalyze();
+            } else {
+              Alert.alert("Select an activity", "Please choose a sport or activity first.");
+            }
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.stickyLogBtnText}>
+            {loggedTodayCount > 0
+              ? `＋ Log Activity (${loggedTodayCount} logged today)`
+              : "＋ Log Activity"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── Toast ──────────────────────────────────────────────────── */}
       <Toast message={toastMsg} visible={toastVisible} />
@@ -687,9 +819,15 @@ function StepsSheet({ visible, onClose, value, onChange, preview, onLog }: {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ justifyContent: "flex-end" }}>
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[styles.stepsSheet, { backgroundColor: "#181818", paddingBottom: insets.bottom + 24 }]}>
+        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
+          <View style={[styles.stepsSheet, { backgroundColor: "#181818", paddingBottom: insets.bottom + 24 }]}>
+            <KeyboardAwareScrollView
+              enableOnAndroid={true}
+              extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
+              keyboardShouldPersistTaps="handled"
+              style={{ width: "100%" }}
+              contentContainerStyle={{ alignItems: "center" }}
+            >
               <View style={styles.handle} />
               <Text style={styles.stepsSheetTitle}>Log Steps</Text>
               <TextInput style={styles.stepsSheetInput} value={value} onChangeText={onChange}
@@ -721,9 +859,9 @@ function StepsSheet({ visible, onClose, value, onChange, preview, onLog }: {
               <TouchableOpacity style={[styles.logBtn, { backgroundColor: GREEN, marginTop: 16 }]} onPress={onLog}>
                 <Text style={styles.logBtnText}>Log Steps</Text>
               </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -773,8 +911,18 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: "700" as const, color: WHITE, flex: 1 },
 
   // Steps card
-  logStepsBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
-  logStepsBtnText: { fontSize: 12, fontWeight: "700" as const, color: "#fff" },
+  logStepsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ACCENT,
+    backgroundColor: "transparent",
+  },
+  logStepsBtnText: { fontSize: 11, fontWeight: "700" as const, color: ACCENT },
   stepsContent: { flexDirection: "row", alignItems: "center", gap: 20 },
   stepsNum: { fontSize: 20, fontWeight: "800" as const, color: WHITE, textAlign: "center" },
   stepsGoalText: { fontSize: 10, color: MUTED, textAlign: "center" },
@@ -783,13 +931,21 @@ const styles = StyleSheet.create({
   stepsStatVal: { fontSize: 14, fontWeight: "700" as const, flex: 1 },
   stepsStatLabel: { fontSize: 11, color: MUTED },
 
-  // Sports grid
-  sportSectionTitle: { fontSize: 12, fontWeight: "700" as const, color: MUTED, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 10 },
-  sportGrid: { flexDirection: "row", flexWrap: "wrap" as const, gap: 8 },
-  sportCell: { width: "22%", minWidth: 72, maxWidth: 90, alignItems: "center", backgroundColor: CARD2, borderRadius: 14, padding: 10, gap: 4, borderWidth: 1, borderColor: BORDER },
-  sportCellSelected: { borderColor: ACCENT, backgroundColor: ACCENT + "18" },
-  sportEmoji: { fontSize: 32 },
-  sportLabel: { fontSize: 9, fontWeight: "600" as const, color: MUTED, textAlign: "center" },
+  // Redesigned Category switcher, search, and grid styles
+  tabsContainer: { gap: 8, paddingBottom: 6 },
+  tabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: "#1A1A1A", borderWidth: 1, borderColor: BORDER },
+  tabBtnActive: { backgroundColor: ACCENT, borderColor: ACCENT },
+  tabBtnText: { fontSize: 12, fontWeight: "600" as const, color: MUTED },
+  tabBtnTextActive: { color: "#fff", fontWeight: "700" as const },
+  searchBarContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#1A1A1A", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, borderWidth: 1, borderColor: BORDER },
+  searchIcon: { marginRight: 8 },
+  searchBarInput: { flex: 1, color: WHITE, fontSize: 14, padding: 0 },
+  sportGrid: { flexDirection: "row", flexWrap: "wrap" as const, justifyContent: "space-between" },
+  sportCell: { width: "23.5%", aspectRatio: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#1E1E1E", borderRadius: 12, padding: 4, borderWidth: 1.2, borderColor: "transparent", marginBottom: 8 },
+  sportCellSelected: { borderColor: ACCENT, backgroundColor: "#FF6B3512" },
+  sportEmoji: { fontSize: 32, marginBottom: 4 },
+  sportLabel: { fontSize: 11, fontWeight: "600" as const, color: WHITE, textAlign: "center" },
+  noResultsText: { fontSize: 13, color: MUTED, textAlign: "center", paddingVertical: 20 },
   customInput: { backgroundColor: CARD2, borderWidth: 1, borderColor: ACCENT, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: WHITE, marginBottom: 16 },
 
   // Duration & Intensity
@@ -880,9 +1036,9 @@ const styles = StyleSheet.create({
   tipBoxBtnText: { color: "#fff", fontWeight: "700" as const },
 
   // Steps sheet
-  stepsSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, alignItems: "center" },
+  stepsSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, alignItems: "center", width: "100%" },
   stepsSheetTitle: { fontSize: 20, fontWeight: "700" as const, color: WHITE, marginBottom: 20 },
-  stepsSheetInput: { fontSize: 56, fontWeight: "800" as const, color: WHITE, textAlign: "center", letterSpacing: -2, marginBottom: 4 },
+  stepsSheetInput: { fontSize: 56, fontWeight: "800" as const, color: WHITE, textAlign: "center", letterSpacing: -2, marginBottom: 4, width: "100%" },
   stepsSheetUnit: { fontSize: 14, color: MUTED, marginBottom: 20 },
   stepsPreviewRow: { flexDirection: "row", gap: 16, marginBottom: 12 },
   stepsPreviewCell: { alignItems: "center", gap: 2 },
@@ -894,13 +1050,14 @@ const styles = StyleSheet.create({
 
   // Toast
   toast: {
-    position: "absolute" as const, bottom: 20, left: 20, right: 20,
+    position: "absolute" as const, bottom: 90, left: 20, right: 20,
     backgroundColor: "#1A1A1A", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BLUE + "44",
-    alignItems: "center",
+    alignItems: "center", zIndex: 100,
   },
   toastText: { fontSize: 13, fontWeight: "600" as const, color: WHITE, textAlign: "center" },
 
-  // Log Activity FAB
-  logActivityFab: { position: "absolute" as const, right: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#FF6B35", paddingHorizontal: 18, paddingVertical: 12, borderRadius: 28, shadowColor: "#FF6B35", shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 8, zIndex: 20 },
-  logActivityFabText: { fontSize: 14, fontWeight: "700" as const, color: "#fff" },
+  // Sticky bottom bar
+  stickyBottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#0F0F0F", paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: BORDER, zIndex: 10 },
+  stickyLogBtn: { backgroundColor: ACCENT, borderRadius: 14, paddingVertical: 14, alignItems: "center", justifyContent: "center" },
+  stickyLogBtnText: { color: "#ffffff", fontSize: 16, fontWeight: "700" as const },
 });

@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CircularProgress } from "@/components/CircularProgress";
@@ -172,11 +173,15 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ justifyContent: "flex-end" }}>
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[s.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 20 }]}>
+        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
+          <View style={[s.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 20 }]}>
+            <KeyboardAwareScrollView
+              enableOnAndroid={true}
+              extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={s.handle} />
-              <ScrollView showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled">
                 {/* Header */}
                 <View style={s.resultHeader}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -266,10 +271,9 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
                     <Text style={s.resultActionText}>Cancel</Text>
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -335,9 +339,14 @@ function ManualEntrySheet({ visible, defaultMeal, onClose, onSave }: ManualEntry
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ justifyContent: "flex-end" }}>
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[s.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
+          <View style={[s.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+            <KeyboardAwareScrollView
+              enableOnAndroid={true}
+              extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={s.handle} />
               <Text style={s.sheetTitle}>Add Manually</Text>
               <Text style={s.sheetSub}>Enter nutrition details for homemade or unrecognized food</Text>
@@ -390,9 +399,9 @@ function ManualEntrySheet({ visible, defaultMeal, onClose, onSave }: ManualEntry
                 <Ionicons name="save-outline" size={18} color="#fff" />
                 <Text style={s.addLogBtnText}>Save to Log</Text>
               </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -449,9 +458,14 @@ function TextSearchSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ justifyContent: "flex-end" }}>
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[s.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
+          <View style={[s.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+            <KeyboardAwareScrollView
+              enableOnAndroid={true}
+              extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={s.handle} />
               <Text style={s.sheetTitle}>Search Food</Text>
 
@@ -498,9 +512,9 @@ function TextSearchSheet({
                   ))}
                 </ScrollView>
               </View>
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -688,6 +702,7 @@ export default function CaloriesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100, paddingTop: topPad + 8 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {/* ── Post-Activity Banner ────────────────────────────────────── */}
         {postActivityBanner && (() => {

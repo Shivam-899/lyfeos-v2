@@ -2,7 +2,6 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -124,18 +124,20 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
       onRequestClose={handleClose}
     >
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleClose}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.kvContainer}
-        >
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[
-              styles.sheet,
-              {
-                backgroundColor: colors.card,
-                paddingBottom: insets.bottom + 20,
-              },
-            ]}>
+        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
+          <View style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.card,
+              paddingBottom: insets.bottom + 20,
+            },
+          ]}>
+            <KeyboardAwareScrollView
+              enableOnAndroid={true}
+              extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.handle} />
 
               {step === "type" ? (
@@ -176,7 +178,7 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
                   </TouchableOpacity>
                 </>
               ) : (
-                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                <View>
                   <View style={styles.detailHeader}>
                     {!isEditing ? (
                       <TouchableOpacity onPress={() => setStep("type")}>
@@ -346,11 +348,11 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
                   >
                     <Text style={styles.saveBtnText}>{isEditing ? "Save Changes" : "Add Habit"}</Text>
                   </TouchableOpacity>
-                </ScrollView>
+                </View>
               )}
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
