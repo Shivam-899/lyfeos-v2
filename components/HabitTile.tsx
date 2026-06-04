@@ -212,7 +212,7 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={14}
-          color="#555"
+          color={theme.MUTED}
           style={{ marginRight: 8 }}
         />
 

@@ -139,7 +139,7 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
 export default function HabitsScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE } = theme;
+  const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE, isDark } = theme;
   const styles = makeStyles(theme);
   const { habits, addHabit, getHabitsForDate, getHabitLog, getStreak } = useHabits();
 
@@ -209,10 +209,10 @@ export default function HabitsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: "#0F0F0F" }]}>
-      <StatusBar style="light" backgroundColor="#0F0F0F" />
+    <View style={[styles.container, { backgroundColor: BG }]}>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={BG} />
       {/* ── Sticky Header ─────────────────────────────────────────────── */}
-      <View style={[styles.header, { paddingTop: topPad + 8, backgroundColor: "#0F0F0F" }]}>
+      <View style={[styles.header, { paddingTop: topPad + 8, backgroundColor: BG }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Text style={styles.screenTitle}>{activeTab === "rituals" ? "Rituals" : "Activity"}</Text>
@@ -239,24 +239,24 @@ export default function HabitsScreen() {
         {/* ── Sub-tab switcher ─────────────────────────────────────── */}
         <View style={styles.tabSwitcher}>
           <TouchableOpacity
-            style={[styles.tabSwitchBtn, activeTab === "rituals" && styles.tabSwitchBtnActive]}
+            style={[styles.tabSwitchBtn, activeTab === "rituals" ? styles.tabSwitchBtnActive : styles.tabSwitchBtnUnselected]}
             onPress={() => {
               setActiveTab("rituals");
               if (Platform.OS !== "web") Haptics.selectionAsync();
             }}
           >
-            <Text style={[styles.tabSwitchText, activeTab === "rituals" && styles.tabSwitchTextActive]}>
+            <Text style={[styles.tabSwitchText, activeTab === "rituals" ? styles.tabSwitchTextActive : styles.tabSwitchTextUnselected]}>
               ⭐ Rituals
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabSwitchBtn, activeTab === "activity" && styles.tabSwitchBtnActive]}
+            style={[styles.tabSwitchBtn, activeTab === "activity" ? styles.tabSwitchBtnActive : styles.tabSwitchBtnUnselected]}
             onPress={() => {
               setActiveTab("activity");
               if (Platform.OS !== "web") Haptics.selectionAsync();
             }}
           >
-            <Text style={[styles.tabSwitchText, activeTab === "activity" && styles.tabSwitchTextActive]}>
+            <Text style={[styles.tabSwitchText, activeTab === "activity" ? styles.tabSwitchTextActive : styles.tabSwitchTextUnselected]}>
               🏃 Activity
             </Text>
           </TouchableOpacity>
@@ -442,7 +442,7 @@ function formatDateLabel(date: Date) {
 }
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F0F0F" },
+  container: { flex: 1, backgroundColor: t.BG },
 
   // Header
   header: {
@@ -492,7 +492,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   motivationalSubtitle: {
     fontSize: 13,
     fontWeight: "600" as const,
-    color: "#9CA3AF",
+    color: t.SUBTEXT,
     textAlign: "center",
     marginBottom: 12,
   },
@@ -502,19 +502,21 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     flexDirection: "row",
     marginHorizontal: 20,
     marginBottom: 12,
-    backgroundColor: "#1A1A1A",
+    backgroundColor: t.CARD2,
     borderRadius: 14,
     padding: 4,
     gap: 4,
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: t.BORDER,
   },
   tabSwitchBtn: {
     flex: 1,
     paddingVertical: 9,
     alignItems: "center",
     borderRadius: 11,
-    backgroundColor: "transparent",
+  },
+  tabSwitchBtnUnselected: {
+    backgroundColor: t.CARD,
   },
   tabSwitchBtnActive: {
     backgroundColor: "#FF6B35",
@@ -524,7 +526,8 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  tabSwitchText: { fontSize: 13, fontWeight: "600" as const, color: "#9CA3AF" },
+  tabSwitchText: { fontSize: 13, fontWeight: "600" as const },
+  tabSwitchTextUnselected: { color: t.TEXT },
   tabSwitchTextActive: { color: "#ffffff", fontWeight: "700" as const },
 
   // List
@@ -645,7 +648,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   // Celebration overlay
   celebOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.85)",
+    backgroundColor: t.isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.95)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 999,

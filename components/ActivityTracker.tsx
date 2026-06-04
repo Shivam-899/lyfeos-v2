@@ -29,20 +29,11 @@ import {
   calculateSteps,
   generateWeeklyInsight,
 } from "@/utils/analyzeActivity";
+import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT  = "#FF6B35";
-const BG      = "#0F0F0F";
-const CARD    = "#1E1E1E";
-const CARD2   = "#252525";
-const BLUE    = "#3B82F6";
-const GREEN   = "#22C55E";
-const YELLOW  = "#EAB308";
 const PURPLE  = "#8B5CF6";
-const MUTED   = "#6B7280";
-const BORDER  = "#2A2A2A";
-const WHITE   = "#F0F0F0";
-const RED     = "#EF4444";
 
 // ── Sport definitions ─────────────────────────────────────────────────────────
 const SPORTS_GAMES = [
@@ -99,6 +90,8 @@ function isoDate(d = new Date()) { return d.toISOString().split("T")[0]; }
 
 // ── Progress ring (for steps) ─────────────────────────────────────────────────
 function StepsRing({ size = 100, progress, children }: { size?: number; progress: number; children?: React.ReactNode }) {
+  const theme = useAppTheme();
+  const { BORDER, GREEN } = theme;
   const stroke = 10;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
@@ -106,7 +99,7 @@ function StepsRing({ size = 100, progress, children }: { size?: number; progress
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} style={{ transform: [{ rotate: "-90deg" }] }}>
-        <Circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#2A2A2A" strokeWidth={stroke} />
+        <Circle cx={size/2} cy={size/2} r={r} fill="none" stroke={BORDER} strokeWidth={stroke} />
         <Circle cx={size/2} cy={size/2} r={r} fill="none" stroke={GREEN} strokeWidth={stroke}
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
       </Svg>
@@ -120,6 +113,8 @@ function PulsingDots() {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
+  const theme = useAppTheme();
+  const styles = makeStyles(theme);
 
   useEffect(() => {
     const anim = (dot: Animated.Value, delay: number) =>
@@ -149,6 +144,8 @@ function NutrientCard({ emoji, label, value, sub, color, onPress, tooltip }: {
   onPress?: () => void; tooltip?: string;
 }) {
   const [showTip, setShowTip] = useState(false);
+  const theme = useAppTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={{ flex: 1 }}>
       <TouchableOpacity style={[styles.nutrientCard, { backgroundColor: color + "18", borderColor: color + "33" }]}
@@ -160,7 +157,7 @@ function NutrientCard({ emoji, label, value, sub, color, onPress, tooltip }: {
       </TouchableOpacity>
       <Modal visible={showTip} transparent animationType="fade" onRequestClose={() => setShowTip(false)}>
         <TouchableOpacity style={styles.tipOverlay} activeOpacity={1} onPress={() => setShowTip(false)}>
-          <View style={[styles.tipBox, { backgroundColor: "#1A1A1A", borderColor: color + "55" }]}>
+          <View style={[styles.tipBox, { backgroundColor: theme.CARD2, borderColor: color + "55" }]}>
             <Text style={styles.tipBoxText}>{tooltip}</Text>
             <TouchableOpacity style={[styles.tipBoxBtn, { backgroundColor: color }]} onPress={() => setShowTip(false)}>
               <Text style={styles.tipBoxBtnText}>Got it</Text>
@@ -175,6 +172,8 @@ function NutrientCard({ emoji, label, value, sub, color, onPress, tooltip }: {
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, visible }: { message: string; visible: boolean }) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const theme = useAppTheme();
+  const styles = makeStyles(theme);
   useEffect(() => {
     if (visible) {
       Animated.sequence([
@@ -196,6 +195,9 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function ActivityTracker() {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+  const { BG, CARD, CARD2, BORDER, MUTED, SUBTEXT, TEXT, GREEN, BLUE, YELLOW, RED } = theme;
+  const styles = makeStyles(theme);
   const { healthProfile } = useProfile();
   const { logWater, dailyGoal } = useCalories();
   const {
@@ -380,7 +382,7 @@ export function ActivityTracker() {
   const loggedTodayCount = activityLogs.filter(log => log.date === today).length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0F0F0F" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
@@ -562,7 +564,7 @@ export function ActivityTracker() {
                 <TouchableOpacity key={it.key} style={[styles.intensityCell, intensity === it.key && styles.intensityCellActive]}
                   onPress={() => setIntensity(it.key)}>
                   <Text style={styles.intensityIcon}>{it.icon}</Text>
-                  <Text style={[styles.intensityLabel, intensity === it.key && { color: WHITE }]}>{it.label}</Text>
+                  <Text style={[styles.intensityLabel, intensity === it.key && { color: TEXT }]}>{it.label}</Text>
                   <Text style={styles.intensityDesc}>{it.desc}</Text>
                 </TouchableOpacity>
               ))}
@@ -628,7 +630,7 @@ export function ActivityTracker() {
           end={{ x: 1, y: 1 }}
           style={{ borderRadius: 16, padding: 1, marginBottom: 8 }}
         >
-          <View style={[styles.card, { backgroundColor: "#1A1A1A", borderWidth: 0 }]}>
+          <View style={[styles.card, { backgroundColor: CARD2, borderWidth: 0 }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="flash" size={18} color={ACCENT} />
               <Text style={styles.cardTitle}>Your Weekly Coach Insight</Text>
@@ -701,7 +703,7 @@ export function ActivityTracker() {
       {/* ── AI Loading Sheet ────────────────────────────────────────── */}
       <Modal visible={loadingSheet} transparent animationType="slide" onRequestClose={() => setLoadingSheet(false)}>
         <View style={styles.sheetOverlay}>
-          <View style={[styles.loadingSheet, { backgroundColor: "#181818" }]}>
+          <View style={[styles.loadingSheet, { backgroundColor: CARD }]}>
             <View style={styles.handle} />
             <Animated.Text style={[styles.loadingEmoji, { transform: [{ scale: pulseAnim }] }]}>
               {activeSportEmoji || "🏅"}
@@ -717,7 +719,7 @@ export function ActivityTracker() {
       <Modal visible={resultSheet} transparent animationType="slide" onRequestClose={() => setResultSheet(false)}>
         <View style={styles.sheetOverlay}>
           <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }} keyboardShouldPersistTaps="handled">
-            <View style={[styles.resultSheet, { backgroundColor: "#181818" }]}>
+            <View style={[styles.resultSheet, { backgroundColor: CARD }]}>
               <View style={styles.handle} />
 
               {analysis && (
@@ -816,11 +818,14 @@ function StepsSheet({ visible, onClose, value, onChange, preview, onLog }: {
   onLog: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+  const { BLUE, ACCENT, GREEN } = theme;
+  const styles = makeStyles(theme);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
-          <View style={[styles.stepsSheet, { backgroundColor: "#181818", paddingBottom: insets.bottom + 24 }]}>
+          <View style={[styles.stepsSheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
             <KeyboardAwareScrollView
               enableOnAndroid={true}
               extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
@@ -831,7 +836,7 @@ function StepsSheet({ visible, onClose, value, onChange, preview, onLog }: {
               <View style={styles.handle} />
               <Text style={styles.stepsSheetTitle}>Log Steps</Text>
               <TextInput style={styles.stepsSheetInput} value={value} onChangeText={onChange}
-                keyboardType="number-pad" placeholder="0" placeholderTextColor={MUTED}
+                keyboardType="number-pad" placeholder="0" placeholderTextColor={theme.MUTED}
                 autoFocus selectTextOnFocus />
               <Text style={styles.stepsSheetUnit}>steps</Text>
               {preview && (
@@ -869,6 +874,8 @@ function StepsSheet({ visible, onClose, value, onChange, preview, onLog }: {
 
 // ── Steps stat cell ───────────────────────────────────────────────────────────
 function StepsStat({ icon, color, label, value }: { icon: string; color: string; label: string; value: string }) {
+  const theme = useAppTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={styles.stepsStatCell}>
       <Ionicons name={icon as any} size={14} color={color} />
@@ -880,6 +887,8 @@ function StepsStat({ icon, color, label, value }: { icon: string; color: string;
 
 // ── Record row ────────────────────────────────────────────────────────────────
 function RecordRow({ icon, color, label, value, last }: { icon: string; color: string; label: string; value: string; last?: boolean }) {
+  const theme = useAppTheme();
+  const styles = makeStyles(theme);
   return (
     <View style={[styles.recordRow, last && { borderBottomWidth: 0 }]}>
       <View style={[styles.recordIcon, { backgroundColor: color + "22" }]}>
@@ -889,26 +898,26 @@ function RecordRow({ icon, color, label, value, last }: { icon: string; color: s
         <Text style={styles.recordLabel}>{label}</Text>
         <Text style={styles.recordValue}>{value}</Text>
       </View>
-      <Ionicons name="trophy" size={14} color={YELLOW} />
+      <Ionicons name="trophy" size={14} color={theme.YELLOW} />
     </View>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const makeStyles = (t: AppTheme) => StyleSheet.create({
   scrollContent: { padding: 14, gap: 12 },
 
   // Daily stats
   dailyRow: { flexDirection: "row", gap: 8 },
-  dailyStat: { flex: 1, borderRadius: 14, padding: 12, alignItems: "center", gap: 4, borderWidth: 1, borderColor: BORDER },
+  dailyStat: { flex: 1, borderRadius: 14, padding: 12, alignItems: "center", gap: 4, borderWidth: 1, borderColor: t.BORDER },
   dailyVal: { fontSize: 20, fontWeight: "800" as const, letterSpacing: -0.5 },
-  dailyLabel: { fontSize: 10, color: MUTED, fontWeight: "600" as const, textAlign: "center" },
+  dailyLabel: { fontSize: 10, color: t.MUTED, fontWeight: "600" as const, textAlign: "center" },
 
   // Card
-  card: { borderRadius: 16, padding: 16, borderWidth: 1, borderColor: BORDER },
+  card: { borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.BORDER },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
   cardEmoji: { fontSize: 20 },
-  cardTitle: { fontSize: 16, fontWeight: "700" as const, color: WHITE, flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT, flex: 1 },
 
   // Steps card
   logStepsBtn: {
@@ -924,140 +933,140 @@ const styles = StyleSheet.create({
   },
   logStepsBtnText: { fontSize: 11, fontWeight: "700" as const, color: ACCENT },
   stepsContent: { flexDirection: "row", alignItems: "center", gap: 20 },
-  stepsNum: { fontSize: 20, fontWeight: "800" as const, color: WHITE, textAlign: "center" },
-  stepsGoalText: { fontSize: 10, color: MUTED, textAlign: "center" },
+  stepsNum: { fontSize: 20, fontWeight: "800" as const, color: t.TEXT, textAlign: "center" },
+  stepsGoalText: { fontSize: 10, color: t.MUTED, textAlign: "center" },
   stepsStats: { flex: 1, gap: 8 },
   stepsStatCell: { flexDirection: "row", alignItems: "center", gap: 8 },
   stepsStatVal: { fontSize: 14, fontWeight: "700" as const, flex: 1 },
-  stepsStatLabel: { fontSize: 11, color: MUTED },
+  stepsStatLabel: { fontSize: 11, color: t.MUTED },
 
   // Redesigned Category switcher, search, and grid styles
   tabsContainer: { gap: 8, paddingBottom: 6 },
-  tabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: "#1A1A1A", borderWidth: 1, borderColor: BORDER },
+  tabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER },
   tabBtnActive: { backgroundColor: ACCENT, borderColor: ACCENT },
-  tabBtnText: { fontSize: 12, fontWeight: "600" as const, color: MUTED },
+  tabBtnText: { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
   tabBtnTextActive: { color: "#fff", fontWeight: "700" as const },
-  searchBarContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#1A1A1A", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, borderWidth: 1, borderColor: BORDER },
+  searchBarContainer: { flexDirection: "row", alignItems: "center", backgroundColor: t.CARD2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
   searchIcon: { marginRight: 8 },
-  searchBarInput: { flex: 1, color: WHITE, fontSize: 14, padding: 0 },
+  searchBarInput: { flex: 1, color: t.TEXT, fontSize: 14, padding: 0 },
   sportGrid: { flexDirection: "row", flexWrap: "wrap" as const, justifyContent: "space-between" },
-  sportCell: { width: "23.5%", aspectRatio: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#1E1E1E", borderRadius: 12, padding: 4, borderWidth: 1.2, borderColor: "transparent", marginBottom: 8 },
+  sportCell: { width: "23.5%", aspectRatio: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.CARD, borderRadius: 12, padding: 4, borderWidth: 1.2, borderColor: "transparent", marginBottom: 8 },
   sportCellSelected: { borderColor: ACCENT, backgroundColor: "#FF6B3512" },
   sportEmoji: { fontSize: 32, marginBottom: 4 },
-  sportLabel: { fontSize: 11, fontWeight: "600" as const, color: WHITE, textAlign: "center" },
-  noResultsText: { fontSize: 13, color: MUTED, textAlign: "center", paddingVertical: 20 },
-  customInput: { backgroundColor: CARD2, borderWidth: 1, borderColor: ACCENT, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: WHITE, marginBottom: 16 },
+  sportLabel: { fontSize: 11, fontWeight: "600" as const, color: t.TEXT, textAlign: "center" },
+  noResultsText: { fontSize: 13, color: t.MUTED, textAlign: "center", paddingVertical: 20 },
+  customInput: { backgroundColor: t.CARD2, borderWidth: 1, borderColor: ACCENT, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: t.TEXT, marginBottom: 16 },
 
   // Duration & Intensity
-  sectionLabel: { fontSize: 12, fontWeight: "700" as const, color: MUTED, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 10 },
-  durChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: CARD2, borderWidth: 1, borderColor: BORDER },
+  sectionLabel: { fontSize: 12, fontWeight: "700" as const, color: t.MUTED, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 10 },
+  durChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER },
   durChipActive: { backgroundColor: ACCENT, borderColor: ACCENT },
-  durChipText: { fontSize: 13, fontWeight: "600" as const, color: MUTED },
+  durChipText: { fontSize: 13, fontWeight: "600" as const, color: t.MUTED },
   intensityRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
-  intensityCell: { flex: 1, alignItems: "center", padding: 10, borderRadius: 14, backgroundColor: CARD2, borderWidth: 1, borderColor: BORDER, gap: 4 },
+  intensityCell: { flex: 1, alignItems: "center", padding: 10, borderRadius: 14, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, gap: 4 },
   intensityCellActive: { borderColor: ACCENT, backgroundColor: ACCENT + "15" },
   intensityIcon: { fontSize: 20 },
-  intensityLabel: { fontSize: 12, fontWeight: "700" as const, color: MUTED },
-  intensityDesc: { fontSize: 9, color: MUTED, textAlign: "center" },
+  intensityLabel: { fontSize: 12, fontWeight: "700" as const, color: t.MUTED },
+  intensityDesc: { fontSize: 9, color: t.MUTED, textAlign: "center" },
   analyzeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 16 },
   analyzeBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" as const },
-  aiError: { fontSize: 12, color: RED, marginBottom: 12, textAlign: "center" },
+  aiError: { fontSize: 12, color: t.RED, marginBottom: 12, textAlign: "center" },
 
   // Weekly sports
-  weekSportRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: BORDER, gap: 10 },
+  weekSportRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.BORDER, gap: 10 },
   weekSportEmoji: { fontSize: 24 },
-  weekSportName: { fontSize: 14, fontWeight: "700" as const, color: WHITE, marginBottom: 2 },
-  weekSportSub: { fontSize: 11, color: MUTED },
+  weekSportName: { fontSize: 14, fontWeight: "700" as const, color: t.TEXT, marginBottom: 2 },
+  weekSportSub: { fontSize: 11, color: t.MUTED },
   sessionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   sessionBadgeText: { fontSize: 12, fontWeight: "700" as const },
 
   // Personal records
-  recordRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: BORDER, gap: 10 },
+  recordRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.BORDER, gap: 10 },
   recordIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  recordLabel: { fontSize: 11, color: MUTED, marginBottom: 2 },
-  recordValue: { fontSize: 13, fontWeight: "700" as const, color: WHITE },
+  recordLabel: { fontSize: 11, color: t.MUTED, marginBottom: 2 },
+  recordValue: { fontSize: 13, fontWeight: "700" as const, color: t.TEXT },
 
   // Coach insight
   coachIcon: { fontSize: 18 },
   insightBox: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
-  insightText: { fontSize: 14, color: WHITE, lineHeight: 22 },
-  insightDate: { fontSize: 10, color: MUTED, marginTop: 6 },
+  insightText: { fontSize: 14, color: t.TEXT, lineHeight: 22 },
+  insightDate: { fontSize: 10, color: t.MUTED, marginTop: 6 },
   insightEmpty: { padding: 14, alignItems: "center", marginBottom: 12 },
-  insightEmptyText: { fontSize: 13, color: MUTED, textAlign: "center", lineHeight: 20 },
+  insightEmptyText: { fontSize: 13, color: t.MUTED, textAlign: "center", lineHeight: 20 },
   insightBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
   insightBtnText: { fontSize: 14, fontWeight: "700" as const },
 
   // Loading sheet
-  sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  sheetOverlay: { flex: 1, backgroundColor: t.isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
   loadingSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 32, alignItems: "center", gap: 12 },
-  handle: { width: 40, height: 4, backgroundColor: "#333", borderRadius: 2, alignSelf: "center", marginBottom: 8 },
+  handle: { width: 40, height: 4, backgroundColor: t.isDark ? "#333" : "#ddd", borderRadius: 2, alignSelf: "center", marginBottom: 8 },
   loadingEmoji: { fontSize: 72, marginBottom: 4 },
-  loadingTitle: { fontSize: 18, fontWeight: "700" as const, color: WHITE, textAlign: "center" },
-  loadingSubtext: { fontSize: 13, color: MUTED, textAlign: "center", marginTop: 4 },
+  loadingTitle: { fontSize: 18, fontWeight: "700" as const, color: t.TEXT, textAlign: "center" },
+  loadingSubtext: { fontSize: 13, color: t.MUTED, textAlign: "center", marginTop: 4 },
   dotsRow: { flexDirection: "row", gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT },
 
   // Result sheet
   resultSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 0 },
-  resultHeader: { fontSize: 16, fontWeight: "700" as const, color: WHITE, textAlign: "center", marginBottom: 16 },
+  resultHeader: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT, textAlign: "center", marginBottom: 16 },
   caloriesHero: { borderRadius: 16, padding: 20, alignItems: "center", borderWidth: 1, marginBottom: 16 },
   caloriesNum: { fontSize: 56, fontWeight: "800" as const, color: ACCENT, letterSpacing: -2 },
-  caloriesLabel: { fontSize: 13, color: MUTED, fontWeight: "600" as const, marginBottom: 8 },
+  caloriesLabel: { fontSize: 13, color: t.MUTED, fontWeight: "600" as const, marginBottom: 8 },
   zonePill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   zonePillText: { fontSize: 12, fontWeight: "700" as const },
-  subTitle: { fontSize: 13, fontWeight: "700" as const, color: MUTED, textTransform: "uppercase" as const, letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
+  subTitle: { fontSize: 13, fontWeight: "700" as const, color: t.MUTED, textTransform: "uppercase" as const, letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
   nutrientRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   nutrientCard: { borderRadius: 14, padding: 12, alignItems: "center", gap: 4, borderWidth: 1 },
   nutrientEmoji: { fontSize: 20 },
   nutrientValue: { fontSize: 16, fontWeight: "800" as const },
-  nutrientSub: { fontSize: 9, color: MUTED },
-  nutrientLabel: { fontSize: 9, color: MUTED, fontWeight: "600" as const, textAlign: "center" },
+  nutrientSub: { fontSize: 9, color: t.MUTED },
+  nutrientLabel: { fontSize: 9, color: t.MUTED, fontWeight: "600" as const, textAlign: "center" },
   mealCard: { borderRadius: 14, padding: 14, borderWidth: 1, marginBottom: 12 },
   mealCardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   mealCardTitle: { fontSize: 13, fontWeight: "700" as const },
-  mealCardText: { fontSize: 13, color: WHITE, lineHeight: 20 },
+  mealCardText: { fontSize: 13, color: t.TEXT, lineHeight: 20 },
   benefitsRow: { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, marginBottom: 12 },
   benefitPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
   benefitPillText: { fontSize: 12, fontWeight: "600" as const },
   tipRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 8 },
-  tipText: { flex: 1, fontSize: 13, color: WHITE, lineHeight: 20 },
+  tipText: { flex: 1, fontSize: 13, color: t.TEXT, lineHeight: 20 },
   recoveryFooter: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, padding: 12, borderWidth: 1, marginBottom: 16, marginTop: 4 },
   recoveryText: { fontSize: 12, fontWeight: "600" as const, flex: 1 },
   logBtn: { paddingVertical: 16, borderRadius: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
   logBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" as const },
   editLink: { alignItems: "center", paddingVertical: 12 },
-  editLinkText: { fontSize: 14, color: MUTED },
+  editLinkText: { fontSize: 14, color: t.MUTED },
 
   // Tooltip
   tipOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center" },
   tipBox: { borderRadius: 18, padding: 20, maxWidth: 300, borderWidth: 1, alignItems: "center", gap: 14 },
-  tipBoxText: { fontSize: 13, color: WHITE, textAlign: "center", lineHeight: 20 },
+  tipBoxText: { fontSize: 13, color: t.TEXT, textAlign: "center", lineHeight: 20 },
   tipBoxBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
   tipBoxBtnText: { color: "#fff", fontWeight: "700" as const },
 
   // Steps sheet
   stepsSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, alignItems: "center", width: "100%" },
-  stepsSheetTitle: { fontSize: 20, fontWeight: "700" as const, color: WHITE, marginBottom: 20 },
-  stepsSheetInput: { fontSize: 56, fontWeight: "800" as const, color: WHITE, textAlign: "center", letterSpacing: -2, marginBottom: 4, width: "100%" },
-  stepsSheetUnit: { fontSize: 14, color: MUTED, marginBottom: 20 },
+  stepsSheetTitle: { fontSize: 20, fontWeight: "700" as const, color: t.TEXT, marginBottom: 20 },
+  stepsSheetInput: { fontSize: 56, fontWeight: "800" as const, color: t.TEXT, textAlign: "center", letterSpacing: -2, marginBottom: 4, width: "100%" },
+  stepsSheetUnit: { fontSize: 14, color: t.MUTED, marginBottom: 20 },
   stepsPreviewRow: { flexDirection: "row", gap: 16, marginBottom: 12 },
   stepsPreviewCell: { alignItems: "center", gap: 2 },
   stepsPreviewVal: { fontSize: 16, fontWeight: "700" as const },
-  stepsPreviewLabel: { fontSize: 10, color: MUTED },
-  goalProgressBar: { width: "100%", height: 6, backgroundColor: BORDER, borderRadius: 3, overflow: "hidden", marginBottom: 6 },
+  stepsPreviewLabel: { fontSize: 10, color: t.MUTED },
+  goalProgressBar: { width: "100%", height: 6, backgroundColor: t.BORDER, borderRadius: 3, overflow: "hidden", marginBottom: 6 },
   goalProgressFill: { height: 6, borderRadius: 3 },
-  goalProgressText: { fontSize: 11, color: MUTED, marginBottom: 4 },
+  goalProgressText: { fontSize: 11, color: t.MUTED, marginBottom: 4 },
 
   // Toast
   toast: {
     position: "absolute" as const, bottom: 90, left: 20, right: 20,
-    backgroundColor: "#1A1A1A", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BLUE + "44",
+    backgroundColor: t.CARD, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: t.BLUE + "44",
     alignItems: "center", zIndex: 100,
   },
-  toastText: { fontSize: 13, fontWeight: "600" as const, color: WHITE, textAlign: "center" },
+  toastText: { fontSize: 13, fontWeight: "600" as const, color: t.TEXT, textAlign: "center" },
 
   // Sticky bottom bar
-  stickyBottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#0F0F0F", paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: BORDER, zIndex: 10 },
+  stickyBottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: t.BG, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: t.BORDER, zIndex: 10 },
   stickyLogBtn: { backgroundColor: ACCENT, borderRadius: 14, paddingVertical: 14, alignItems: "center", justifyContent: "center" },
   stickyLogBtnText: { color: "#ffffff", fontSize: 16, fontWeight: "700" as const },
 });

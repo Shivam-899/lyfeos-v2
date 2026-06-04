@@ -8,7 +8,7 @@ import {
 } from "react-native";
 
 import { useHabits } from "@/context/HabitsContext";
-import { useColors } from "@/hooks/useColors";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -29,7 +29,8 @@ interface Props {
 }
 
 export function CalendarStrip({ selectedDate, onSelectDate }: Props) {
-  const colors = useColors();
+  const theme = useAppTheme();
+  const { CARD, TEXT, SUBTEXT, ACCENT, MUTED } = theme;
   const { habits, getHabitLog } = useHabits();
 
   const today = new Date();
@@ -73,16 +74,16 @@ export function CalendarStrip({ selectedDate, onSelectDate }: Props) {
     }
   };
 
-  const dotColor = { full: "#22C55E", partial: "#FF6B35", none: "#444", empty: "transparent" };
+  const dotColor = { full: "#22C55E", partial: "#FF6B35", none: MUTED, empty: "transparent" };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.card }]}>
+    <View style={[styles.container, { backgroundColor: CARD }]}>
       <View style={styles.header}>
-        <Text style={[styles.monthText, { color: colors.foreground }]}>
+        <Text style={[styles.monthText, { color: TEXT }]}>
           {MONTHS[month]} {year}
         </Text>
-        <TouchableOpacity onPress={goToToday} style={[styles.todayBtn, { backgroundColor: colors.primary + "20" }]}>
-          <Text style={[styles.todayText, { color: colors.primary }]}>Today</Text>
+        <TouchableOpacity onPress={goToToday} style={[styles.todayBtn, { backgroundColor: ACCENT + "20" }]}>
+          <Text style={[styles.todayText, { color: ACCENT }]}>Today</Text>
         </TouchableOpacity>
       </View>
       <FlatList
@@ -105,20 +106,20 @@ export function CalendarStrip({ selectedDate, onSelectDate }: Props) {
               onPress={() => onSelectDate(new Date(d))}
               style={[
                 styles.dayCell,
-                selected && { backgroundColor: colors.primary },
-                todayDate && !selected && { borderWidth: 2, borderColor: colors.primary },
+                selected && { backgroundColor: ACCENT },
+                todayDate && !selected && { borderWidth: 2, borderColor: ACCENT },
               ]}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.dayLabel,
-                { color: selected ? "#fff" : colors.mutedForeground },
+                { color: selected ? "#fff" : SUBTEXT },
               ]}>
                 {DAYS[d.getDay()].slice(0, 3)}
               </Text>
               <Text style={[
                 styles.dayNum,
-                { color: selected ? "#fff" : todayDate ? colors.primary : colors.foreground },
+                { color: selected ? "#fff" : todayDate ? ACCENT : TEXT },
                 todayDate && !selected && { fontWeight: "800" as const },
               ]}>
                 {d.getDate()}
