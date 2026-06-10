@@ -62,6 +62,7 @@ interface HabitsContextType {
   getHabitsForDate: (date: string, weekDay: number) => Habit[];
   getStreak: (habitId: string) => { current: number; best: number };
   getCompletionRate: (habitId: string) => number;
+  clearTodayHabitLogs: (date: string) => void;
 }
 
 const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
@@ -249,6 +250,14 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     return Math.round((completed / logs.length) * 100);
   }, [habitLogs]);
 
+  const clearTodayHabitLogs = useCallback((date: string) => {
+    setHabitLogs((prev) => {
+      const next = prev.filter((l) => l.date !== date);
+      persist(habits, next);
+      return next;
+    });
+  }, [habits, persist]);
+
   if (!loaded) return null;
 
   return (
@@ -264,6 +273,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
         getHabitsForDate,
         getStreak,
         getCompletionRate,
+        clearTodayHabitLogs,
       }}
     >
       {children}

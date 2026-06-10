@@ -9,6 +9,7 @@ import {
 
 import { useHabits } from "@/context/HabitsContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import { getLocalDateString } from "@/utils/date";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -49,7 +50,7 @@ export function CalendarStrip({ selectedDate, onSelectDate }: Props) {
 
   /** Returns 'full' | 'partial' | 'none' | 'empty' for a given day */
   const getCompletion = (d: Date): "full" | "partial" | "none" | "empty" => {
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = getLocalDateString(d);
     const wd = d.getDay();
     const dayHabits = habits.filter((h) => h.weekDays.includes(wd));
     if (dayHabits.length === 0) return "empty";

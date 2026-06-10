@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { getLocalDateString } from "@/utils/date";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface ActivityLog {
@@ -77,7 +78,7 @@ const STEPS_KEY   = "@lyfeos_steps_v1";
 const BANNER_KEY  = "@lyfeos_activity_banner_v1";
 const INSIGHT_KEY = "@lyfeos_coach_insight_v1";
 
-function isoDate(d: Date) { return d.toISOString().split("T")[0]; }
+function isoDate(d: Date) { return getLocalDateString(d); }
 
 function last7Days(): string[] {
   return Array.from({ length: 7 }, (_, i) => {

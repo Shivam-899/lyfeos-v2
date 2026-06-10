@@ -48,7 +48,7 @@ async function geminiProxy(req, res) {
   try {
     const body = await readBody(req);
     const { model, payload } = JSON.parse(body);
-    const targetModel = model || "gemini-flash-latest";
+    const targetModel = model || "gemini-2.5-flash";
     const upstream = await httpsPost(
       `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`,
       { "Content-Type": "application/json" },
@@ -62,9 +62,9 @@ async function geminiProxy(req, res) {
 }
 
 async function analyzeActivityProxy(req, res) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return sendJson(res, 503, { error: "OPENAI_API_KEY not configured on server." });
+    return sendJson(res, 503, { error: "GEMINI_API_KEY not configured on server." });
   }
   try {
     const raw = await readBody(req);
@@ -77,34 +77,40 @@ async function analyzeActivityProxy(req, res) {
     if (!sportStr || !safeIntensity || !durationNum) {
       return sendJson(res, 400, { error: "Missing or invalid required fields" });
     }
-    const prompt = `You are a professional sports nutritionist and fitness coach.\nActivity: ${sportStr}\nDuration: ${durationNum}\nIntensity: ${safeIntensity}\nUser weight: ${weightNum} kg\nUser age: ${ageNum} years\n\nCalculate and return ONLY a valid JSON object with no markdown and no explanation:\n{"calories_burned":<number>,"hydration_needed_ml":<number>,"hydration_glasses":<number>,"protein_needed_g":<number>,"carbs_needed_g":<number>,"recovery_time_hours":<number>,"heart_rate_zone":"fat burn","intensity_level":"","health_benefits":["","",""],"tips":["",""],"post_activity_meal":"","sport_category":"cardio"}`;
-    const upstream = await httpsPost(
-      "https://api.openai.com/v1/chat/completions",
-      { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      JSON.stringify({ model: "gpt-4o", messages: [{ role: "user", content: prompt }], max_tokens: 500, temperature: 0.3 })
-    );
-    res.writeHead(upstream.status, { "Content-Type": "application/json" });
-    res.end(upstream.body);
-  } catch (err) {
-    sendJson(res, 500, { error: "Proxy error: " + err.message });
-  }
-}
+    const prompt = `You are a professional sports nutritionist and fitness coach.
+Activity: ${sportStr}
+Duration: ${durationNum}
+Intensity: ${safeIntensity}
+User weight: ${weightNum} kg
+User age: ${ageNum} years
 
-async function weeklyInsightProxy(req, res) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return sendJson(res, 503, { error: "OPENAI_API_KEY not configured on server." });
-  }
-  try {
-    const raw = await readBody(req);
-    const { activitySummary } = JSON.parse(raw);
-    if (!activitySummary || typeof activitySummary !== "string") {
-      return sendJson(res, 400, { error: "Missing activitySummary" });
-    }
+Calculate and return ONLY a valid JSON object with no markdown and no explanation:
+{
+  "calories_burned": <number>,
+  "hydration_needed_ml": <number>,
+  "hydration_glasses": <number>,
+  "protein_needed_g": <number>,
+  "carbs_needed_g": <number>,
+  "recovery_time_hours": <number>,
+  "heart_rate_zone": "fat burn" | "cardio" | "peak",
+  "intensity_level": "light" | "moderate" | "intense",
+  "health_benefits": ["benefit 1", "benefit 2", "benefit 3"],
+  "tips": ["tip 1", "tip 2"],
+  "post_activity_meal": "suggested meal",
+  "sport_category": "cardio" | "strength" | "flexibility" | "mind-body"
+}`;
+
     const upstream = await httpsPost(
-      "https://api.openai.com/v1/chat/completions",
-      { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      JSON.stringify({ model: "gpt-4o", messages: [{ role: "user", content: `You are a personal fitness coach. Based on this week's activity data, write ONE short (2-3 sentence) personalized coaching insight. Be specific, encouraging, and actionable. Data: ${activitySummary.slice(0, 2000)}` }], max_tokens: 150, temperature: 0.7 })
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.2,
+          responseMimeType: "application/json"
+        }
+      })
     );
     res.writeHead(upstream.status, { "Content-Type": "application/json" });
     res.end(upstream.body);
@@ -124,9 +130,6 @@ config.server = {
       }
       if (req.url === "/api/analyze-activity" && req.method === "POST") {
         return analyzeActivityProxy(req, res);
-      }
-      if (req.url === "/api/weekly-insight" && req.method === "POST") {
-        return weeklyInsightProxy(req, res);
       }
       return metroMiddleware(req, res, next);
     };

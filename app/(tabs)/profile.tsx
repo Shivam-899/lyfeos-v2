@@ -26,6 +26,7 @@ import { useHabits } from "@/context/HabitsContext";
 import { HealthProfile, useProfile } from "@/context/ProfileContext";
 import { useTodos } from "@/context/TodosContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
+import { getLocalDateString } from "@/utils/date";
 import { ThemeMode } from "@/context/ThemeContext";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ function formatJoinDate(iso: string) {
   } catch { return ""; }
 }
 
-function isoDate(d: Date) { return d.toISOString().split("T")[0]; }
+function isoDate(d: Date) { return getLocalDateString(d); }
 
 function last7Days() {
   return Array.from({ length: 7 }, (_, i) => {
@@ -343,9 +344,9 @@ export default function ProfileScreen() {
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT: WHITE, mode, setMode } = theme;
   const styles = makeStyles(theme);
   const st = makeSt(theme);
-  const { habits, habitLogs, getStreak, getCompletionRate } = useHabits();
+  const { habits, habitLogs, getStreak, getCompletionRate, clearTodayHabitLogs } = useHabits();
   const { todos } = useTodos();
-  const { foodItems, waterLogs, dailyGoal, setDailyGoal } = useCalories();
+  const { foodItems, waterLogs, dailyGoal, setDailyGoal, clearTodayData } = useCalories();
   const { userName, setUserName, joinDate, habitGoal, setHabitGoal, activityGoal, setActivityGoal,
           healthProfile, setHealthProfile, reminders, setReminders, preferences, setPreferences } = useProfile();
 
@@ -374,7 +375,7 @@ export default function ProfileScreen() {
   const hpAnim = useRef(new Animated.Value(0)).current;
 
   // ─── Computed stats ──────────────────────────────────────────────────────
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
 
   const completedHabitLogs = habitLogs.filter(l => l.completed);
   const totalHabitsDone = completedHabitLogs.length;
@@ -534,14 +535,10 @@ export default function ProfileScreen() {
 
   const handleClearToday = () => {
     Alert.alert("Clear Today's Data", "This will remove all food logs and habit completions for today. This cannot be undone.", [
-      { text: "Clear Today", style: "destructive", onPress: async () => {
-        // Clear today's food items from CaloriesContext via AsyncStorage
-        const FOOD_KEY = "@lyfeos_food_v2";
-        const raw = await AsyncStorage.getItem(FOOD_KEY);
-        const all = raw ? JSON.parse(raw) : [];
-        const filtered = all.filter((f: any) => f.date !== today);
-        await AsyncStorage.setItem(FOOD_KEY, JSON.stringify(filtered));
-        Alert.alert("Done", "Today's food data cleared. Restart the app to see changes.");
+      { text: "Clear Today", style: "destructive", onPress: () => {
+        clearTodayData(today);
+        clearTodayHabitLogs(today);
+        Alert.alert("Done", "Today's logs cleared successfully.");
       }},
       { text: "Cancel", style: "cancel" },
     ]);

@@ -25,6 +25,8 @@ import { useActivity } from "@/context/ActivityContext";
 import { FoodAnalysisResult, analyzeFoodImage, analyzeFoodText } from "@/utils/analyzeFoodImage";
 import { INDIAN_FOOD_QUICK_CHIPS } from "@/utils/indianFoodDatabase";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
+import { getLocalDateString } from "@/utils/date";
+
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT = "#FF6B35";
@@ -530,7 +532,7 @@ export default function CaloriesScreen() {
   const { foodItems, dailyGoal, goalsConfigured, getDayStats, getWaterForDate, logWater, addFoodItem, deleteFoodItem } = useCalories();
   const { postActivityBanner, setPostActivityBanner } = useActivity();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const stats = getDayStats(today);
   const water = getWaterForDate(today);
 

@@ -1,11 +1,11 @@
 /**
  * Standalone production server for Expo static builds.
  *
- * Serves the output of build.js (static-build/) with two special routes:
+ * Serves the output of build.js (static-build/) with special routes:
  * - GET / or /manifest with expo-platform header → platform manifest JSON
  * - GET / without expo-platform → landing page HTML
  * - POST /api/gemini → server-side Gemini proxy (key never sent to client)
- * - POST /api/openai → server-side OpenAI proxy (key never sent to client)
+ * - POST /api/analyze-activity → server-side activity analysis backed by Gemini
  * Everything else falls through to static file serving from ./static-build/.
  *
  * Zero external dependencies — uses only Node.js built-ins (http, fs, path).
@@ -15,6 +15,29 @@ const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
+
+// Robust zero-dependency .env parser (BUG-05)
+try {
+  const envPath = path.resolve(__dirname, "..", ".env");
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, "utf-8");
+    envContent.split(/\r?\n/).forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return;
+      const parts = trimmed.split("=");
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        let value = parts.slice(1).join("=").trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        process.env[key] = value;
+      }
+    });
+  }
+} catch (err) {
+  console.warn("Could not load .env file:", err.message);
+}
 
 const STATIC_ROOT = path.resolve(__dirname, "..", "static-build");
 const TEMPLATE_PATH = path.resolve(__dirname, "templates", "landing-page.html");
@@ -82,10 +105,8 @@ async function handleGeminiProxy(req, res) {
   }
 
   try {
-    // Bug 9 fix: increased limit to 10 MB — base64 food images can be 200 KB–2 MB
     const body = await readBody(req, 10 * 1024 * 1024);
     const { model, payload } = JSON.parse(body);
-    // Default to gemini-2.5-flash — confirmed available, fast, multimodal
     const targetModel = model || "gemini-2.5-flash";
     const upstream = await httpsPost(
       `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`,
@@ -93,7 +114,6 @@ async function handleGeminiProxy(req, res) {
       JSON.stringify(payload)
     );
 
-    // Forward auth errors with a clear message
     if (upstream.status === 400 || upstream.status === 401 || upstream.status === 403) {
       console.error(`[GeminiProxy] Auth error ${upstream.status}:`, upstream.body.slice(0, 500));
       res.writeHead(upstream.status, { "content-type": "application/json" });
@@ -104,29 +124,6 @@ async function handleGeminiProxy(req, res) {
       return;
     }
 
-    res.writeHead(upstream.status, { "content-type": "application/json" });
-    res.end(upstream.body);
-  } catch (err) {
-    res.writeHead(500, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "Proxy error: " + err.message }));
-  }
-}
-
-async function handleOpenAIProxy(req, res) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    res.writeHead(503, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "OpenAI API key not configured on server." }));
-    return;
-  }
-
-  try {
-    const body = await readBody(req);
-    const upstream = await httpsPost(
-      "https://api.openai.com/v1/chat/completions",
-      { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body
-    );
     res.writeHead(upstream.status, { "content-type": "application/json" });
     res.end(upstream.body);
   } catch (err) {
@@ -155,6 +152,7 @@ function serveManifest(platform, res) {
   res.end(manifest);
 }
 
+// Serves landing page html
 function serveLandingPage(req, res, landingPageTemplate, appName) {
   const forwardedProto = req.headers["x-forwarded-proto"];
   const protocol = forwardedProto || "https";
@@ -212,10 +210,10 @@ function readBody(req, maxBytes = 16384) {
 }
 
 async function handleAnalyzeActivity(req, res) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.writeHead(503, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "AI analysis not configured" }));
+    res.end(JSON.stringify({ error: "Gemini API key not configured on server" }));
     return;
   }
 
@@ -257,94 +255,33 @@ Calculate and return ONLY a valid JSON object with no markdown and no explanatio
   "protein_needed_g": <number>,
   "carbs_needed_g": <number>,
   "recovery_time_hours": <number>,
-  "heart_rate_zone": <"fat burn" | "cardio" | "peak">,
-  "intensity_level": <string>,
-  "health_benefits": [<string>, <string>, <string>],
-  "tips": [<string>, <string>],
-  "post_activity_meal": <string>,
-  "sport_category": <"cardio" | "strength" | "flexibility" | "sport" | "mindfulness">
+  "heart_rate_zone": "fat burn" | "cardio" | "peak",
+  "intensity_level": "light" | "moderate" | "intense",
+  "health_benefits": ["benefit 1", "benefit 2", "benefit 3"],
+  "tips": ["tip 1", "tip 2"],
+  "post_activity_meal": "suggested meal",
+  "sport_category": "cardio" | "strength" | "flexibility" | "mind-body"
 }`;
 
   try {
-    const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 500,
-        temperature: 0.3,
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
+    const upstream = await httpsPost(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.2,
+          responseMimeType: "application/json"
+        }
+      })
+    );
 
-    if (!upstream.ok) {
-      res.writeHead(502, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: `Upstream error: ${upstream.status}` }));
-      return;
-    }
-
-    const data = await upstream.json();
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify(data));
+    res.writeHead(upstream.status, { "content-type": "application/json" });
+    res.end(upstream.body);
   } catch (err) {
     res.writeHead(502, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "AI request failed" }));
-  }
-}
-
-async function handleWeeklyInsight(req, res) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    res.writeHead(503, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "AI analysis not configured" }));
-    return;
-  }
-
-  let body;
-  try {
-    body = JSON.parse(await readBody(req));
-  } catch {
-    res.writeHead(400, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "Invalid request body" }));
-    return;
-  }
-
-  const { activitySummary } = body;
-  if (!activitySummary || typeof activitySummary !== "string") {
-    res.writeHead(400, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "Missing activitySummary" }));
-    return;
-  }
-
-  try {
-    const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [{
-          role: "user",
-          content: `You are a personal fitness coach. Based on this week's activity data, write ONE short (2-3 sentence) personalized coaching insight. Be specific, encouraging, and actionable. Data: ${activitySummary.slice(0, 2000)}`,
-        }],
-        max_tokens: 150,
-        temperature: 0.7,
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!upstream.ok) {
-      res.writeHead(502, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: `Upstream error: ${upstream.status}` }));
-      return;
-    }
-
-    const data = await upstream.json();
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify(data));
-  } catch (err) {
-    res.writeHead(502, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "AI request failed" }));
+    res.end(JSON.stringify({ error: "AI request failed: " + err.message }));
   }
 }
 
@@ -360,16 +297,8 @@ const server = http.createServer((req, res) => {
     return handleGeminiProxy(req, res);
   }
 
-  if (pathname === "/api/openai" && req.method === "POST") {
-    return handleOpenAIProxy(req, res);
-  }
-
   if (req.method === "POST" && pathname === "/api/analyze-activity") {
     return handleAnalyzeActivity(req, res);
-  }
-
-  if (req.method === "POST" && pathname === "/api/weekly-insight") {
-    return handleWeeklyInsight(req, res);
   }
 
   if (pathname === "/" || pathname === "/manifest") {

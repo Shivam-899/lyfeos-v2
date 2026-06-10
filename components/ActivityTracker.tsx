@@ -27,9 +27,10 @@ import {
   ActivityAnalysis,
   analyzeActivity,
   calculateSteps,
-  generateWeeklyInsight,
 } from "@/utils/analyzeActivity";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
+import { BlurView } from "expo-blur";
+import { getLocalDateString } from "@/utils/date";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT  = "#FF6B35";
@@ -86,7 +87,7 @@ const ZONE_COLORS: Record<string, string> = {
 };
 
 // ── Utility ───────────────────────────────────────────────────────────────────
-function isoDate(d = new Date()) { return d.toISOString().split("T")[0]; }
+function isoDate(d = new Date()) { return getLocalDateString(d); }
 
 // ── Progress ring (for steps) ─────────────────────────────────────────────────
 function StepsRing({ size = 100, progress, children }: { size?: number; progress: number; children?: React.ReactNode }) {
@@ -360,20 +361,8 @@ export function ActivityTracker() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  // ── Generate weekly insight (Sunday) ──────────────────────────────────────
   const handleGenerateInsight = async () => {
-    if (weeklySports.length === 0) { Alert.alert("No data yet", "Log some activities first to get your weekly insight."); return; }
-    setInsightLoading(true);
-    try {
-      const summary = weeklySports.map(s => `${s.sport}: ${s.sessions} sessions, ${s.totalMins} mins, ${s.totalCals} kcal`).join("; ");
-      const text = await generateWeeklyInsight(summary);
-      const today_ = isoDate();
-      setWeeklyCoachInsight({ text, generatedAt: today_ });
-    } catch {
-      Alert.alert("Couldn't generate insight", "Please check your connection and try again.");
-    } finally {
-      setInsightLoading(false);
-    }
+    // Disabled - AI Coach coming soon
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -630,7 +619,7 @@ export function ActivityTracker() {
           end={{ x: 1, y: 1 }}
           style={{ borderRadius: 16, padding: 1, marginBottom: 8 }}
         >
-          <View style={[styles.card, { backgroundColor: CARD2, borderWidth: 0 }]}>
+          <View style={[styles.card, { backgroundColor: CARD2, borderWidth: 0, overflow: "hidden" }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="flash" size={18} color={ACCENT} />
               <Text style={styles.cardTitle}>Your Weekly Coach Insight</Text>
@@ -648,7 +637,7 @@ export function ActivityTracker() {
             <TouchableOpacity
               style={[styles.insightBtn, { borderColor: ACCENT, backgroundColor: ACCENT }]}
               onPress={handleGenerateInsight}
-              disabled={insightLoading}
+              disabled={true}
             >
               {insightLoading ? (
                 <Text style={[styles.insightBtnText, { color: "#fff" }]}>Generating...</Text>
@@ -661,6 +650,23 @@ export function ActivityTracker() {
                 </>
               )}
             </TouchableOpacity>
+
+            {/* Absolute Blur Overlay */}
+            <View style={[StyleSheet.absoluteFillObject, { justifyContent: "center", alignItems: "center", zIndex: 10 }]}>
+              <BlurView
+                intensity={Platform.OS === "web" ? 75 : 35}
+                tint={theme.isDark ? "dark" : "light"}
+                style={[StyleSheet.absoluteFillObject, { justifyContent: "center", alignItems: "center", padding: 16 }]}
+              >
+                <Ionicons name="sparkles" size={32} color={ACCENT} style={{ marginBottom: 8 }} />
+                <Text style={{ color: TEXT, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 4 }}>
+                  🤖 AI Coach Coming Soon!
+                </Text>
+                <Text style={{ color: SUBTEXT, fontSize: 13, textAlign: "center" }}>
+                  Get ready for personalized, AI-powered health and fitness advice.
+                </Text>
+              </BlurView>
+            </View>
           </View>
         </LinearGradient>
 

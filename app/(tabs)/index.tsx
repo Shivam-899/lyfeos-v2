@@ -20,6 +20,8 @@ import { useCalories } from "@/context/CaloriesContext";
 import { HABIT_COLORS, useHabits } from "@/context/HabitsContext";
 import { useTodos } from "@/context/TodosContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
+import { getLocalDateString } from "@/utils/date";
+
 
 // ─── Tiny ring for Activity section ───────────────────────────────────────────
 function SmallRing({
@@ -163,7 +165,7 @@ export default function HomeScreen() {
   const [fabOpen, setFabOpen] = useState(false);
   const [notifSeen, setNotifSeen] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -215,7 +217,7 @@ export default function HomeScreen() {
     const diff = i - ((dayOfWeek + 6) % 7);
     const date = new Date(d);
     date.setDate(d.getDate() + diff);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = getLocalDateString(date);
     const wd = date.getDay();
     const dayHabits = habits.filter((h) => h.weekDays.includes(wd));
     // Bug 4 fix: check .completed, not just log existence
@@ -235,7 +237,7 @@ export default function HomeScreen() {
     if (key === "habit") router.push("/(tabs)/habits");
     else if (key === "scan") router.push("/(tabs)/calories");
     else if (key === "task") router.push("/(tabs)/todos");
-    else if (key === "activity") router.push("/(tabs)/habits");
+    else if (key === "activity") router.push("/(tabs)/habits?tab=activity");
   }
 
   // ── Empty state (brand new user) ─────────────────────────────────────────
@@ -433,7 +435,7 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Activity Today</Text>
-            <TouchableOpacity style={styles.logActivityBtn} onPress={() => router.push("/(tabs)/calories")}>
+            <TouchableOpacity style={styles.logActivityBtn} onPress={() => router.push("/(tabs)/habits?tab=activity")}>
               <Ionicons name="add" size={14} color="#FF6B35" />
               <Text style={styles.logActivityText}>Log Activity</Text>
             </TouchableOpacity>

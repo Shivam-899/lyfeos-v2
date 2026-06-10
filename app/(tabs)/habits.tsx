@@ -19,6 +19,9 @@ import { CalendarStrip } from "@/components/CalendarStrip";
 import { HabitTile } from "@/components/HabitTile";
 import { Habit, useHabits } from "@/context/HabitsContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
+import { useLocalSearchParams } from "expo-router";
+import { getLocalDateString } from "@/utils/date";
+
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const ACCENT = "#FF6B35";
@@ -59,7 +62,7 @@ function WeeklySummary({ habits, getHabitLog }: {
   });
 
   const bars = days.map((d) => {
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = getLocalDateString(d);
     const wd = d.getDay();
     const dayHabits = habits.filter((h) => h.weekDays.includes(wd));
     if (dayHabits.length === 0) return { d, pct: 0 };
@@ -143,16 +146,26 @@ export default function HabitsScreen() {
   const styles = makeStyles(theme);
   const { habits, addHabit, getHabitsForDate, getHabitLog, getStreak } = useHabits();
 
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<"rituals" | "activity">("rituals");
+
+  useEffect(() => {
+    if (tab === "activity") {
+      setActiveTab("activity");
+    } else if (tab === "rituals") {
+      setActiveTab("rituals");
+    }
+  }, [tab]);
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category>("All");
   const [showCelebration, setShowCelebration] = useState(false);
 
-  const dateStr = selectedDate.toISOString().split("T")[0];
+  const dateStr = getLocalDateString(selectedDate);
   const weekDay = selectedDate.getDay();
   const todayHabits = getHabitsForDate(dateStr, weekDay);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   const isViewingToday = dateStr === todayStr;
 
   // Completion stats

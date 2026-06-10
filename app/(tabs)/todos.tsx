@@ -22,6 +22,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { Priority, RepeatType, Todo, useTodos } from "@/context/TodosContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
+import { getLocalDateString } from "@/utils/date";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT = "#FF6B35";
@@ -42,9 +43,9 @@ const PRIORITIES: Priority[] = ["urgent", "high", "medium", "low"];
 const REPEAT_OPTIONS: RepeatType[] = ["none", "daily", "weekly", "monthly"];
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
-const todayStr = () => new Date().toISOString().split("T")[0];
+const todayStr = () => getLocalDateString();
 const tomorrowStr = () => {
-  const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0];
+  const d = new Date(); d.setDate(d.getDate() + 1); return getLocalDateString(d);
 };
 function formatDueLabel(dueDate?: string, dueTime?: string) {
   if (!dueDate) return null;
@@ -113,7 +114,7 @@ function buildItems(todos: Todo[], view: ViewMode, pf: PriorityFilter): ListItem
     const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0,0,0,0);
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i);
-      const dStr = d.toISOString().split("T")[0];
+      const dStr = getLocalDateString(d);
       const dayTodos = filtered.filter(t => !t.completed && t.dueDate === dStr);
       if (dayTodos.length) {
         const lbl = dStr === ts ? `Today · ${dayNames[d.getDay()]}` : dStr === tm ? `Tomorrow · ${dayNames[d.getDay()]}` : `${dayNames[d.getDay()]} · ${monthNames[d.getMonth()]} ${d.getDate()}`;

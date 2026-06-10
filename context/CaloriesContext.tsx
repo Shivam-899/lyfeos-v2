@@ -61,6 +61,7 @@ interface CaloriesContextType {
   logWater: (date: string, delta: number) => void;
   getWaterForDate: (date: string) => number;
   getDayStats: (date: string) => DayStats;
+  clearTodayData: (date: string) => void;
 }
 
 const CaloriesContext = createContext<CaloriesContextType | undefined>(undefined);
@@ -173,12 +174,26 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
     };
   }, [foodItems]);
 
+  const clearTodayData = useCallback((date: string) => {
+    setFoodItems((prev) => {
+      const next = prev.filter((f) => f.date !== date);
+      AsyncStorage.setItem(FOOD_KEY, JSON.stringify(next));
+      return next;
+    });
+    setWaterLogs((prev) => {
+      const next = prev.filter((w) => w.date !== date);
+      AsyncStorage.setItem(WATER_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
     <CaloriesContext.Provider
       value={{
         foodItems, waterLogs, dailyGoal, goalsConfigured,
         setDailyGoal, setGoalsConfigured,
         addFoodItem, deleteFoodItem, logWater, getWaterForDate, getDayStats,
+        clearTodayData,
       }}
     >
       {children}
