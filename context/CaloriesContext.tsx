@@ -22,6 +22,15 @@ export interface FoodItem {
   portionSize?: string;
   meal: MealType;
   date: string;
+  potassium?: number;
+  calcium?: number;
+  iron?: number;
+  magnesium?: number;
+  zinc?: number;
+  vitaminA?: number;
+  vitaminC?: number;
+  vitaminD?: number;
+  vitaminB12?: number;
 }
 
 export interface DailyGoal {
@@ -43,9 +52,18 @@ export interface DayStats {
   carbs: number;
   protein: number;
   fat: number;
-  fiber: number;
-  sugar: number;
-  sodium: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  potassium?: number;
+  calcium?: number;
+  iron?: number;
+  magnesium?: number;
+  zinc?: number;
+  vitaminA?: number;
+  vitaminC?: number;
+  vitaminD?: number;
+  vitaminB12?: number;
   items: FoodItem[];
 }
 
@@ -162,14 +180,29 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
 
   const getDayStats = useCallback((date: string): DayStats => {
     const items = foodItems.filter((f) => f.date === date);
+    
+    const aggregateNutrient = (key: keyof FoodItem) => {
+      const hasData = items.some((f) => f[key] !== undefined && f[key] !== null);
+      return hasData ? items.reduce((s, f) => s + (Number(f[key]) || 0), 0) : undefined;
+    };
+
     return {
       calories: items.reduce((s, f) => s + f.calories, 0),
       carbs: items.reduce((s, f) => s + (f.carbs ?? 0), 0),
       protein: items.reduce((s, f) => s + (f.protein ?? 0), 0),
       fat: items.reduce((s, f) => s + (f.fat ?? 0), 0),
-      fiber: items.reduce((s, f) => s + (f.fiber ?? 0), 0),
-      sugar: items.reduce((s, f) => s + (f.sugar ?? 0), 0),
-      sodium: items.reduce((s, f) => s + (f.sodium ?? 0), 0),
+      fiber: aggregateNutrient("fiber"),
+      sugar: aggregateNutrient("sugar"),
+      sodium: aggregateNutrient("sodium"),
+      potassium: aggregateNutrient("potassium"),
+      calcium: aggregateNutrient("calcium"),
+      iron: aggregateNutrient("iron"),
+      magnesium: aggregateNutrient("magnesium"),
+      zinc: aggregateNutrient("zinc"),
+      vitaminA: aggregateNutrient("vitaminA"),
+      vitaminC: aggregateNutrient("vitaminC"),
+      vitaminD: aggregateNutrient("vitaminD"),
+      vitaminB12: aggregateNutrient("vitaminB12"),
       items,
     };
   }, [foodItems]);

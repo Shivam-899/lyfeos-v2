@@ -164,9 +164,9 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   const carbs   = Math.round(result.carbs * p);
   const protein = Math.round(result.protein * p);
   const fat     = Math.round(result.fat * p);
-  const fiber   = Math.round(result.fiber * p);
-  const sugar   = Math.round(result.sugar * p);
-  const sodium  = Math.round(result.sodium * p);
+  const fiber   = result.fiber !== undefined ? Math.round(result.fiber * p) : undefined;
+  const sugar   = result.sugar !== undefined ? Math.round(result.sugar * p) : undefined;
+  const sodium  = result.sodium !== undefined ? Math.round(result.sodium * p) : undefined;
 
   const PORTIONS = [0.5, 1, 1.5, 2];
   const showIndianGuidance = isIndianFood(result);
@@ -187,7 +187,15 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
                 {/* Header */}
                 <View style={s.resultHeader}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Text style={s.resultDetected}>{isLocalDB ? "🇮🇳 Indian DB" : "AI Detected"}</Text>
+                    <Text style={s.resultDetected}>
+                      {result.source === "local-db"
+                        ? "🇮🇳 Indian DB"
+                        : result.source === "usda"
+                        ? "USDA Database"
+                        : result.source === "open-food-facts"
+                        ? "Open Food Facts"
+                        : "Database"}
+                    </Text>
                   </View>
                   <View style={[s.confidencePill, { backgroundColor: result.confidence === "high" ? GREEN + "22" : result.confidence === "medium" ? YELLOW + "22" : "#EF444422" }]}>
                     <Text style={[s.confidenceText, { color: result.confidence === "high" ? GREEN : result.confidence === "medium" ? YELLOW : "#EF4444" }]}>{result.confidence} confidence</Text>
@@ -281,13 +289,14 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   );
 }
 
-function MacroCell({ label, value, unit, color, big }: { label: string; value: number; unit: string; color: string; big?: boolean }) {
+function MacroCell({ label, value, unit, color, big }: { label: string; value: number | string | undefined; unit: string; color: string; big?: boolean }) {
   const theme = useAppTheme();
   const { MUTED } = theme;
   const s = makeS(theme);
+  const displayVal = value !== undefined && value !== null ? value : "-";
   return (
     <View style={[s.macroCell, big && s.macroCellBig]}>
-      <Text style={[s.macroCellValue, { color, fontSize: big ? 26 : 18 }]}>{value}<Text style={[s.macroCellUnit, { color: MUTED }]}> {unit}</Text></Text>
+      <Text style={[s.macroCellValue, { color, fontSize: big ? 26 : 18 }]}>{displayVal}<Text style={[s.macroCellUnit, { color: MUTED }]}> {unit}</Text></Text>
       <Text style={s.macroCellLabel}>{label}</Text>
     </View>
   );
@@ -438,14 +447,21 @@ function TextSearchSheet({
       if (result.noFoodDetected) {
         Alert.alert(
           "No food found",
-          "Couldn't estimate nutrition for that. Try being more specific, like '2 boiled eggs', 'ek plate dal chawal', or '1 samosa'."
+          "Couldn't find nutrition for that food item. Try being more specific, like 'Rajma', 'Banana', or 'Oats'."
         );
         return;
       }
       onClose();
       setTimeout(() => onResult(result), 250);
     } catch (err: any) {
-      Alert.alert("Search failed", err?.message ?? "Something went wrong. Please try again.");
+      Alert.alert(
+        "Search failed",
+        err?.message ?? "Something went wrong. Please try again.",
+        [
+          { text: "Retry", onPress: () => handleSearch(q) },
+          { text: "Cancel", style: "cancel" }
+        ]
+      );
     } finally {
       setLoading(false);
     }
@@ -491,7 +507,7 @@ function TextSearchSheet({
                 {loading
                   ? <ActivityIndicator color="#fff" size="small" />
                   : <Ionicons name="search" size={18} color="#fff" />}
-                <Text style={s.addLogBtnText}>{loading ? "Analyzing..." : "Analyze with AI"}</Text>
+                <Text style={s.addLogBtnText}>{loading ? "Searching..." : "Search Food"}</Text>
               </TouchableOpacity>
 
               {/* ── Popular Indian Foods quick chips ── */}
@@ -588,76 +604,11 @@ export default function CaloriesScreen() {
 
   // Photo scan with retry UI
   const pickAndAnalyze = async (source: "camera" | "gallery") => {
-    let result: ImagePicker.ImagePickerResult;
-
-    if (source === "camera") {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") { Alert.alert("Camera needed", "Please allow camera access in your device settings to scan food photos."); return; }
-      result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, base64: true, allowsEditing: true });
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") { Alert.alert("Photos needed", "Please allow photo library access to pick food images."); return; }
-      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, base64: true, allowsEditing: true });
-    }
-
-    if (result.canceled || !result.assets?.[0]) return;
-
-    let base64 = result.assets[0].base64 ?? null;
-    if (!base64 && result.assets[0].uri) {
-      try {
-        base64 = await uriToBase64(result.assets[0].uri);
-      } catch {
-        Alert.alert("Scan failed", "Could not read the selected image. Please try again.");
-        return;
-      }
-    }
-
-    if (!base64) { Alert.alert("Scan failed", "No image data received. Please try again."); return; }
-    setScanning(true);
-
-    try {
-      const analysis = await analyzeFoodImage(base64);
-      if (analysis.noFoodDetected) {
-        Alert.alert(
-          "No food detected",
-          "We couldn't identify any food in that photo. Try a clearer image or describe what you ate using the text search."
-        );
-        return;
-      }
-      setScanResult(analysis);
-      setShowFoodResult(true);
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err: any) {
-      const msg: string = err?.message ?? "";
-      if (msg === "__SHOW_RETRY_UI__") {
-        // Show 3-option retry UI
-        Alert.alert(
-          "Trouble identifying food",
-          "We had trouble identifying this food automatically. What would you like to do?",
-          [
-            { text: "📷 Try Again",    onPress: () => setTimeout(() => handleScanPress(), 300) },
-            { text: "✏️ Describe It",  onPress: () => setShowTextSearch(true) },
-            { text: "📝 Add Manually", onPress: () => setShowManualEntry(true) },
-          ]
-        );
-      } else {
-        Alert.alert("Scan failed", msg || "Couldn't analyze the photo. Please try again.");
-      }
-    } finally {
-      setScanning(false);
-    }
+    Alert.alert("Food Scan", "Food Scan is coming soon.");
   };
 
   const handleScanPress = () => {
-    if (Platform.OS === "web") {
-      pickAndAnalyze("gallery");
-      return;
-    }
-    Alert.alert("Scan Food Photo", "Choose a source", [
-      { text: "Camera",        onPress: () => pickAndAnalyze("camera") },
-      { text: "Photo Library", onPress: () => pickAndAnalyze("gallery") },
-      { text: "Cancel",        style: "cancel" },
-    ]);
+    Alert.alert("Food Scan", "Food Scan is coming soon.");
   };
 
   const handleAddToLog = (meal: MealType, result: FoodAnalysisResult, portion: number) => {
@@ -667,9 +618,18 @@ export default function CaloriesScreen() {
       carbs:    Math.round(result.carbs * portion),
       protein:  Math.round(result.protein * portion),
       fat:      Math.round(result.fat * portion),
-      fiber:    Math.round(result.fiber * portion),
-      sugar:    Math.round(result.sugar * portion),
-      sodium:   Math.round(result.sodium * portion),
+      fiber:    result.fiber !== undefined ? Math.round(result.fiber * portion) : undefined,
+      sugar:    result.sugar !== undefined ? Math.round(result.sugar * portion) : undefined,
+      sodium:   result.sodium !== undefined ? Math.round(result.sodium * portion) : undefined,
+      potassium: result.potassium !== undefined ? Math.round(result.potassium * portion) : undefined,
+      calcium:   result.calcium !== undefined ? Math.round(result.calcium * portion) : undefined,
+      iron:      result.iron !== undefined ? Math.round(result.iron * portion) : undefined,
+      magnesium: result.magnesium !== undefined ? Math.round(result.magnesium * portion) : undefined,
+      zinc:      result.zinc !== undefined ? Math.round(result.zinc * portion) : undefined,
+      vitaminA:  result.vitaminA !== undefined ? Math.round(result.vitaminA * portion) : undefined,
+      vitaminC:  result.vitaminC !== undefined ? Math.round(result.vitaminC * portion) : undefined,
+      vitaminD:  result.vitaminD !== undefined ? Math.round(result.vitaminD * portion) : undefined,
+      vitaminB12: result.vitaminB12 !== undefined ? Math.round(result.vitaminB12 * portion) : undefined,
       portionSize: result.servingDescription,
       meal,
       date: today,
@@ -686,9 +646,9 @@ export default function CaloriesScreen() {
       carbs:    result.carbs,
       protein:  result.protein,
       fat:      result.fat,
-      fiber:    result.fiber,
-      sugar:    result.sugar,
-      sodium:   result.sodium,
+      fiber:    result.fiber !== undefined ? result.fiber : undefined,
+      sugar:    result.sugar !== undefined ? result.sugar : undefined,
+      sodium:   result.sodium !== undefined ? result.sodium : undefined,
       portionSize: result.servingDescription,
       meal,
       date: today,
@@ -816,23 +776,49 @@ export default function CaloriesScreen() {
             <Ionicons name={microsExpanded ? "chevron-up" : "chevron-down"} size={16} color={MUTED} />
           </TouchableOpacity>
           <Animated.View style={{ height: microsHeight, overflow: "hidden" }}>
-            <View style={styles.microsGrid}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 12, paddingBottom: 4 }}>
               {[
-                { label: "Fiber",  value: stats.fiber,  unit: "g",  goal: 28 },
-                { label: "Sugar",  value: stats.sugar,  unit: "g",  goal: 50 },
-                { label: "Sodium", value: stats.sodium, unit: "mg", goal: 2300 },
+                { label: "Fiber",       value: stats.fiber,       unit: "g",   goal: 28 },
+                { label: "Sugar",       value: stats.sugar,       unit: "g",   goal: 50 },
+                { label: "Sodium",      value: stats.sodium,      unit: "mg",  goal: 2300 },
+                { label: "Potassium",   value: stats.potassium,   unit: "mg",  goal: 3500 },
+                { label: "Calcium",     value: stats.calcium,     unit: "mg",  goal: 1000 },
+                { label: "Iron",        value: stats.iron,        unit: "mg",  goal: 18 },
+                { label: "Magnesium",   value: stats.magnesium,   unit: "mg",  goal: 400 },
+                { label: "Zinc",        value: stats.zinc,        unit: "mg",  goal: 11 },
+                { label: "Vitamin A",   value: stats.vitaminA,    unit: "mcg", goal: 900 },
+                { label: "Vitamin C",   value: stats.vitaminC,    unit: "mg",  goal: 90 },
+                { label: "Vitamin D",   value: stats.vitaminD,    unit: "mcg", goal: 20 },
+                { label: "Vitamin B12", value: stats.vitaminB12,  unit: "mcg", goal: 2.4 },
               ].map(({ label, value, unit, goal }) => {
-                const pct = Math.min(value / goal, 1);
-                const col = pct >= 1 ? GREEN : pct >= 0.5 ? YELLOW : MUTED;
+                const hasData = value !== undefined && value !== null;
+                const displayVal = hasData
+                  ? (value % 1 === 0 ? value : value.toFixed(1))
+                  : "Data Unavailable";
+                
+                const pct = hasData ? Math.min(value / goal, 1) : 0;
+                const col = hasData
+                  ? (pct >= 1 ? GREEN : pct >= 0.5 ? YELLOW : MUTED)
+                  : MUTED;
+
                 return (
-                  <View key={label} style={[styles.microPill, { borderColor: col + "40" }]}>
-                    <Text style={[styles.microPillValue, { color: col }]}>{value}<Text style={styles.microPillUnit}>{unit}</Text></Text>
+                  <View key={label} style={[styles.microPill, { width: 120, borderColor: col + "40", flex: undefined }]}>
+                    {hasData ? (
+                      <Text style={[styles.microPillValue, { color: col }]}>
+                        {displayVal}
+                        <Text style={styles.microPillUnit}>{unit}</Text>
+                      </Text>
+                    ) : (
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: MUTED, textAlign: "center", minHeight: 22 }}>
+                        {displayVal}
+                      </Text>
+                    )}
                     <Text style={styles.microPillLabel}>{label}</Text>
                     <Text style={styles.microPillGoal}>/{goal}{unit}</Text>
                   </View>
                 );
               })}
-            </View>
+            </ScrollView>
           </Animated.View>
         </View>
 
