@@ -84,9 +84,9 @@ interface CaloriesContextType {
 
 const CaloriesContext = createContext<CaloriesContextType | undefined>(undefined);
 
-const FOOD_KEY = "@lyfeos_food_v2";
-const WATER_KEY = "@lyfeos_water_v2";
-const GOAL_KEY = "@lyfeos_goal_v2";
+const FOOD_KEY             = "@lyfeos_food_v2";
+const WATER_KEY            = "@lyfeos_water_v2";
+const GOAL_KEY             = "@lyfeos_goal_v2";
 const GOALS_CONFIGURED_KEY = "@lyfeos_goals_configured_v1";
 
 const DEFAULT_GOAL: DailyGoal = {
@@ -114,8 +114,6 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
         ]);
         setFoodItems(food ? JSON.parse(food) : []);
         setWaterLogs(water ? JSON.parse(water) : []);
-        // Bug 7 fix: load the goal separately from the configured flag
-        // Don't force goalsConfigured=true just because a goal is stored
         if (goal) setDailyGoalState(JSON.parse(goal));
         setGoalsConfiguredState(configured === "true");
       } catch {

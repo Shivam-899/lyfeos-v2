@@ -2,7 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 import React, { useMemo, useRef, useState } from "react";
+import Svg, { Circle } from "react-native-svg";
 import {
   Alert,
   Animated,
@@ -44,6 +47,7 @@ const ACHIEVEMENTS = [
   { id: "hydrated",     emoji: "💧", name: "Hydrated",      desc: "Hit water goal 7 days in a row",           how: "Meet your daily water goal for 7 consecutive days" },
   { id: "unstoppable",  emoji: "🏆", name: "Unstoppable",   desc: "30-day habit streak",                      how: "Maintain a streak of 30 consecutive days on any habit" },
   { id: "all_rounder",  emoji: "⭐", name: "All Rounder",   desc: "Complete habits + tasks + nutrition in one day", how: "Log habits, a task, and a meal all on the same day" },
+  { id: "task_master",  emoji: "📋", name: "Task Master",   desc: "Complete 10 tasks",                        how: "Check off 10 tasks in your to-do list" },
   { id: "mover",        emoji: "🏃", name: "Mover",         desc: "Log 10 activities",                        how: "Coming soon — activity logging is on the way!" },
 ];
 
@@ -220,6 +224,38 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   footerLink: { fontSize: 11, color: t.MUTED, textDecorationLine: "underline" as const },
   footerDot: { fontSize: 11, color: t.MUTED },
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMALL RING COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+function SmallRing({
+  size = 28,
+  progress,
+  color,
+}: {
+  size?: number;
+  progress: number;
+  color: string;
+}) {
+  const { BORDER } = useAppTheme();
+  const stroke = 3;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = circ * Math.min(Math.max(progress, 0), 1);
+  return (
+    <View style={{ width: size, height: size, opacity: progress > 0 ? 1 : 0.4 }}>
+      <Svg width={size} height={size} style={{ transform: [{ rotate: "-90deg" }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={BORDER} strokeWidth={stroke} />
+        <Circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circ}`}
+          strokeLinecap="round"
+        />
+      </Svg>
+    </View>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION CARD wrapper
@@ -407,7 +443,9 @@ export default function ProfileScreen() {
   });
 
   const weekCalories = days7.map(date => foodItems.filter(f => f.date === date).reduce((s, f) => s + f.calories, 0));
-  const avgWeekCals = Math.round(weekCalories.reduce((s, c) => s + c, 0) / 7);
+  const daysWithMeals = weekCalories.filter(c => c > 0);
+  const avgWeekCals = daysWithMeals.length > 0 ? Math.round(daysWithMeals.reduce((s, c) => s + c, 0) / daysWithMeals.length) : 0;
+  const isOnlyToday = daysWithMeals.length === 1 && foodItems.some(f => f.date === today);
   const weekHabitPct = Math.round(weekDayCompletion.reduce((s, d) => s + d.pct, 0) / 7);
 
   const mostConsistentHabit = habits.length > 0
@@ -423,10 +461,11 @@ export default function ProfileScreen() {
   // ─── Achievements unlock logic ────────────────────────────────────────────
   const unlockedSet = new Set<string>();
   if (completedHabitLogs.length > 0) unlockedSet.add("first_step");
-  if (currentStreak >= 7)            unlockedSet.add("on_fire");
+  if (bestStreak >= 7 || currentStreak >= 7) unlockedSet.add("on_fire");
   if (totalHabitsDone >= 30)         unlockedSet.add("consistent");
   if (new Set(foodItems.map(f => f.date)).size >= 7) unlockedSet.add("nutrition_pro");
   if (bestStreak >= 30)              unlockedSet.add("unstoppable");
+  if (totalTasksDone >= 10)          unlockedSet.add("task_master");
 
   // Hydrated: 7 consecutive days where glasses >= goal
   const sortedWaterDates = [...new Set(waterLogs.filter(w => w.glasses >= dailyGoal.water).map(w => w.date))].sort();
@@ -578,20 +617,24 @@ export default function ProfileScreen() {
 
   const initials = (editMode ? editedName : userName).trim().split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2) || "VF";
 
+  const todayCalories = foodItems.filter(f => f.date === today).reduce((s, f) => s + f.calories, 0);
+  const todayWater = waterLogs.find(w => w.date === today)?.glasses || 0;
+  const todayHabitsDone = habitLogs.filter(l => l.date === today && l.completed).length;
+
   const GOAL_ROWS = [
-    { field: "calories" as GoalField, icon: "flame",       iconBg: "#FF6B3530", label: "Calorie Goal",  value: dailyGoal.calories, unit: "kcal" },
-    { field: "water"    as GoalField, icon: "water",       iconBg: "#3B82F630", label: "Water Goal",    value: dailyGoal.water,    unit: "glasses" },
-    { field: "habits"   as GoalField, icon: "checkmark-circle", iconBg: "#22C55E30", label: "Daily Habits Goal", value: habitGoal, unit: "habits/day" },
-    { field: "activity" as GoalField, icon: "timer-outline", iconBg: "#EAB30830", label: "Activity Goal",  value: activityGoal || 30, unit: "min/day" },
+    { field: "calories" as GoalField, icon: "flame",       iconBg: "#FF6B3530", color: ACCENT, label: "Calorie Goal",  value: dailyGoal.calories, unit: "kcal", progressVal: todayCalories, progressStr: `${todayCalories} / ${dailyGoal.calories} consumed` },
+    { field: "water"    as GoalField, icon: "water",       iconBg: "#3B82F630", color: BLUE, label: "Water Goal",    value: dailyGoal.water,    unit: "glasses", progressVal: todayWater, progressStr: `${todayWater}/${dailyGoal.water} glasses` },
+    { field: "habits"   as GoalField, icon: "checkmark-circle", iconBg: "#22C55E30", color: GREEN, label: "Daily Habits Goal", value: habitGoal, unit: "habits/day", progressVal: todayHabitsDone, progressStr: `${todayHabitsDone}/${habitGoal} completed` },
+    { field: "activity" as GoalField, icon: "timer-outline", iconBg: "#EAB30830", color: YELLOW, label: "Activity Goal",  value: activityGoal || 30, unit: "min/day", progressVal: 0, progressStr: `0/${activityGoal || 30} min` },
   ];
 
   const STAT_CARDS = [
-    { icon: "trophy",     iconColor: YELLOW, label: "Best Streak",       value: bestStreak,       suffix: "days" },
-    { icon: "checkmark-done-circle", iconColor: GREEN, label: "Habits Done", value: totalHabitsDone, suffix: "total" },
-    { icon: "list",       iconColor: BLUE,   label: "Tasks Done",        value: totalTasksDone,   suffix: "total" },
-    { icon: "restaurant", iconColor: ACCENT, label: "Meals Logged",      value: totalMealsLogged, suffix: "total" },
-    { icon: "time",       iconColor: "#8B5CF6", label: "Days Tracked",   value: daysTracked,      suffix: "days" },
-    { icon: "flame",      iconColor: ACCENT, label: "Current Streak",    value: currentStreak,    suffix: "days" },
+    { icon: "trophy",     iconColor: YELLOW, label: "Best",       value: bestStreak,       suffix: "days" },
+    { icon: "checkmark-done-circle", iconColor: GREEN, label: "Habits", value: totalHabitsDone, suffix: "total" },
+    { icon: "list",       iconColor: BLUE,   label: "Tasks",        value: totalTasksDone,   suffix: "total" },
+    { icon: "restaurant", iconColor: ACCENT, label: "Meals",      value: totalMealsLogged, suffix: "total" },
+    { icon: "time",       iconColor: "#8B5CF6", label: "Days",   value: daysTracked,      suffix: "days" },
+    { icon: "flame",      iconColor: ACCENT, label: "Streak",    value: currentStreak,    suffix: "days" },
   ];
 
   // active goal field value helper
@@ -605,7 +648,16 @@ export default function ProfileScreen() {
   const goalFieldLabel = GOAL_ROWS.find(r => r.field === editingGoal)?.label ?? "";
   const goalFieldUnit  = GOAL_ROWS.find(r => r.field === editingGoal)?.unit ?? "";
 
-  const healthFilled = !!(hp.age && hp.sex && hp.height && hp.weight && hp.activityLevel && hp.goal);
+  const hpFieldsFilled = [hp.age, hp.sex, hp.height, hp.weight, hp.activityLevel, hp.goal].filter(Boolean).length;
+  const healthFilled = hpFieldsFilled >= 4;
+
+  const streakData = (() => {
+    if (currentStreak === 0) return { text: "🌱 Start your streak", bg: MUTED + "22", border: MUTED + "40", color: MUTED };
+    if (currentStreak < 7) return { text: `🔥 ${currentStreak} Day Streak`, bg: ACCENT + "22", border: ACCENT + "40", color: ACCENT };
+    if (currentStreak < 30) return { text: `🔥 ${currentStreak} Day Streak`, bg: YELLOW + "22", border: YELLOW + "40", color: YELLOW };
+    if (currentStreak < 100) return { text: `🔥 ${currentStreak} Day Streak`, bg: "#06B6D422", border: "#06B6D440", color: "#06B6D4" };
+    return { text: `🔥 ${currentStreak} Day Streak`, bg: "#A855F722", border: "#A855F740", color: "#A855F7" };
+  })();
 
   return (
     <View style={[styles.container, { backgroundColor: BG }]}>
@@ -652,8 +704,8 @@ export default function ProfileScreen() {
 
           <Text style={styles.identityJoin}>Member since {formatJoinDate(joinDate)}</Text>
 
-          <View style={[styles.streakPill, { backgroundColor: ACCENT + "22", borderColor: ACCENT + "40" }]}>
-            <Text style={styles.streakPillText}>🔥 {currentStreak} Day Streak</Text>
+          <View style={[styles.streakPill, { backgroundColor: streakData.bg, borderColor: streakData.border }]}>
+            <Text style={[styles.streakPillText, { color: streakData.color }]}>{streakData.text}</Text>
           </View>
 
           {editMode && (
@@ -673,11 +725,17 @@ export default function ProfileScreen() {
           {GOAL_ROWS.map((row, i) => (
             <TouchableOpacity key={row.field} style={[styles.goalRow, i === GOAL_ROWS.length-1 && { borderBottomWidth: 0 }]} onPress={() => setEditingGoal(row.field)}>
               <View style={[styles.goalRowIcon, { backgroundColor: row.iconBg }]}>
-                <Ionicons name={row.icon as any} size={16} color={ACCENT} />
+                <Ionicons name={row.icon as any} size={16} color={row.color} />
               </View>
-              <Text style={styles.goalRowLabel}>{row.label}</Text>
-              <Text style={styles.goalRowValue}>{row.value}<Text style={styles.goalRowUnit}> {row.unit}</Text></Text>
-              <Ionicons name="pencil" size={13} color={MUTED} style={{ marginLeft: 6 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.goalRowLabel}>{row.label}</Text>
+                <Text style={{ fontSize: 11, color: MUTED, marginTop: 2, fontWeight: "500" }}>{row.progressStr}</Text>
+              </View>
+              <SmallRing size={26} progress={row.progressVal / row.value} color={row.color} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={styles.goalRowValue}>{row.value}<Text style={styles.goalRowUnit}> {row.unit}</Text></Text>
+              </View>
+              <Ionicons name="pencil" size={13} color={MUTED} style={{ marginLeft: 8 }} />
             </TouchableOpacity>
           ))}
         </SectionCard>
@@ -698,7 +756,7 @@ export default function ProfileScreen() {
         {/* ── Weekly Report ─────────────────────────────────────────── */}
         <SectionCard title="This Week's Report" icon="calendar">
           <View style={styles.weekRow}>
-            <WeekItem icon="flame-outline"         color={ACCENT}  label="Avg Daily Calories"   value={`${avgWeekCals} kcal`} sub={`Goal: ${dailyGoal.calories}`} />
+            <WeekItem icon="flame-outline"         color={ACCENT}  label={isOnlyToday ? "Today's Calories" : "Avg Daily Calories"}   value={`${avgWeekCals} kcal`} sub={`Goal: ${dailyGoal.calories}`} />
             <WeekItem icon="checkmark-circle-outline" color={GREEN} label="Habits Completion"   value={`${weekHabitPct}%`} />
           </View>
           <View style={styles.weekRow}>
@@ -734,7 +792,7 @@ export default function ProfileScreen() {
           <View style={st.cardHeader}>
             <Ionicons name="trophy" size={18} color={YELLOW} />
             <Text style={st.cardTitle}>Achievements</Text>
-            <Text style={styles.achieveCount}>{unlockedSet.size === 0 ? "Start earning badges 🌱" : unlockedSet.size + "/" + ACHIEVEMENTS.length + " unlocked"}</Text>
+            <Text style={styles.achieveCount}>{unlockedSet.size === 0 ? "Start earning badges 🌱" : `${unlockedSet.size}/${ACHIEVEMENTS.length} badges unlocked`}</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
             {ACHIEVEMENTS.map(badge => {
@@ -769,8 +827,11 @@ export default function ProfileScreen() {
           ].map((row, i, arr) => (
             <SettingRow key={row.key} icon={row.icon} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
               right={
-                <Switch value={reminders[row.key]} onValueChange={v => setReminders({ ...reminders, [row.key]: v })}
-                  trackColor={{ false: BORDER, true: ACCENT }} thumbColor="#fff" />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: reminders[row.key] ? GREEN : MUTED }}>{reminders[row.key] ? "ON" : "OFF"}</Text>
+                  <Switch value={reminders[row.key]} onValueChange={v => setReminders({ ...reminders, [row.key]: v })}
+                    trackColor={{ false: BORDER, true: ACCENT }} thumbColor="#fff" />
+                </View>
               }
             />
           ))}
@@ -820,6 +881,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={st.cardHeader} onPress={toggleHp}>
             <Ionicons name="body" size={18} color={ACCENT} />
             <Text style={st.cardTitle}>Health Profile</Text>
+            {healthFilled && <Text style={{ fontSize: 12, color: GREEN, fontWeight: "600", marginRight: 8 }}>Complete ✅</Text>}
             <View style={styles.privacyBadge}>
               <Ionicons name="lock-closed" size={10} color={MUTED} />
               <Text style={styles.privacyText}>Private</Text>
@@ -890,6 +952,7 @@ export default function ProfileScreen() {
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
           <SettingRow icon="today-outline"    iconBg="#EAB30825" label="Clear Today's Data"  sub="Remove today's logs only" onPress={handleClearToday}
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
+          <Text style={{ fontSize: 12, fontWeight: "600", color: RED, marginTop: 12, marginBottom: 4, marginLeft: 8 }}>⚠️ DANGER ZONE</Text>
           <SettingRow icon="warning-outline"  iconBg="#EF444425" label="Reset All Data"      sub="Permanently delete everything" onPress={handleResetAll}
             right={<Ionicons name="chevron-forward" size={16} color="#EF4444" />} last />
         </SectionCard>
@@ -897,12 +960,12 @@ export default function ProfileScreen() {
         {/* ── Footer ───────────────────────────────────────────────── */}
         <View style={styles.footer}>
           <Text style={styles.footerLogo}>🌿 LyfeOS</Text>
-          <Text style={styles.footerVersion}>Version 1.0.0</Text>
+          <Text style={styles.footerVersion}>Version {Constants.expoConfig?.version || "1.0.0"}</Text>
           <Text style={styles.footerTagline}>Made with ❤️ for your wellbeing</Text>
           <View style={styles.footerLinks}>
-            <TouchableOpacity><Text style={styles.footerLink}>Privacy Policy</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://vitaflow.health/privacy")}><Text style={styles.footerLink}>Privacy Policy</Text></TouchableOpacity>
             <Text style={styles.footerDot}>·</Text>
-            <TouchableOpacity><Text style={styles.footerLink}>Terms of Service</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://vitaflow.health/terms")}><Text style={styles.footerLink}>Terms of Service</Text></TouchableOpacity>
           </View>
         </View>
 
