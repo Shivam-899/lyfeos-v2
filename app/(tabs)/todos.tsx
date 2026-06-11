@@ -27,17 +27,19 @@ import { getLocalDateString } from "@/utils/date";
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT = "#FF6B35";
 
+// Change 2: Low → Grey (#94A3B8), Green reserved for Completed state
 const PRIORITY_COLORS: Record<Priority, string> = {
-  urgent: "#EF4444",
-  high: "#F97316",
-  medium: "#EAB308",
-  low: "#22C55E",
+  urgent: "#EF4444",   // 🔴 Red
+  high:   "#F97316",   // 🟠 Orange
+  medium: "#EAB308",   // 🟡 Yellow
+  low:    "#94A3B8",   // ⚪ Grey
 };
 const PRIORITY_LABELS: Record<Priority, string> = {
   urgent: "Urgent", high: "High", medium: "Medium", low: "Low",
 };
+// Change 2: Low emoji → ⚪
 const PRIORITY_EMOJIS: Record<Priority, string> = {
-  urgent: "🔴", high: "🟠", medium: "🟡", low: "🟢",
+  urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪",
 };
 const PRIORITIES: Priority[] = ["urgent", "high", "medium", "low"];
 const REPEAT_OPTIONS: RepeatType[] = ["none", "daily", "weekly", "monthly"];
@@ -78,11 +80,22 @@ function getMotivationalCopy() {
   return "Evening wrap-up 🌙";
 }
 
+// Rotating productivity tips for the footer
+const PRODUCTIVITY_TIPS = [
+  "Small wins every day create big results.",
+  "Focus on what matters most — the rest can wait.",
+  "Done is better than perfect. Keep moving.",
+  "One task at a time. That's how mountains move.",
+  "Prioritize ruthlessly. Your time is your most valuable resource.",
+  "Break big tasks into small steps — momentum builds quickly.",
+  "The secret to productivity is starting.",
+];
+
 // ── Section list types ────────────────────────────────────────────────────────
 type ViewMode = "today" | "week" | "month";
 type PriorityFilter = Priority | "all";
 type ListItem =
-  | { _type: "section"; title: string; isOverdue?: boolean; id: string }
+  | { _type: "section"; title: string; isOverdue?: boolean; isCompleted?: boolean; id: string }
   | { _type: "todo"; todo: Todo; id: string };
 
 function buildItems(todos: Todo[], view: ViewMode, pf: PriorityFilter): ListItem[] {
@@ -100,13 +113,14 @@ function buildItems(todos: Todo[], view: ViewMode, pf: PriorityFilter): ListItem
 
   if (view === "today") {
     const active = filtered.filter(t => !t.completed && (t.dueDate === ts || !t.dueDate));
+    // Change 6: "🎉 Completed Today" instead of "Completed ✓"
     const done = filtered.filter(t => t.completed && (!t.dueDate || t.dueDate === ts));
     if (active.length) {
       items.push({ _type: "section", title: "Today", id: "s-today" });
       active.forEach(t => items.push({ _type: "todo", todo: t, id: t.id }));
     }
     if (done.length) {
-      items.push({ _type: "section", title: "Completed ✓", id: "s-done" });
+      items.push({ _type: "section", title: `🎉 Completed Today · ${done.length}`, isCompleted: true, id: "s-done" });
       done.forEach(t => items.push({ _type: "todo", todo: t, id: t.id }));
     }
   } else if (view === "week") {
@@ -379,6 +393,9 @@ function TaskCard({ todo, onToggle, onDelete, onEdit, onDuplicate, onChangePrior
   const overdue = isOverdue(todo);
   const dueLabel = formatDueLabel(todo.dueDate, todo.dueTime);
 
+  // Change 2: Completed state uses GREEN regardless of priority
+  const checkboxColor = todo.completed ? GREEN : pColor;
+
   const handleToggle = () => {
     if (!todo.completed) {
       Animated.sequence([
@@ -409,13 +426,14 @@ function TaskCard({ todo, onToggle, onDelete, onEdit, onDuplicate, onChangePrior
 
   return (
     <Animated.View style={[tStyles.card, { backgroundColor: bgAnim, opacity: todo.completed ? 0.55 : 1 }]}>
-      <View style={[tStyles.accentBar, { backgroundColor: pColor }]} />
+      {/* Change 2: Accent bar — priority color on left edge */}
+      <View style={[tStyles.accentBar, { backgroundColor: todo.completed ? GREEN : pColor }]} />
       <TouchableOpacity style={tStyles.row} onPress={handleToggle} onLongPress={handleLongPress} activeOpacity={0.85} delayLongPress={400}>
         {/* Checkbox */}
         <TouchableOpacity
           onPress={handleToggle}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={[tStyles.checkbox, { borderColor: todo.completed ? GREEN : pColor, backgroundColor: todo.completed ? GREEN : "transparent" }]}
+          style={[tStyles.checkbox, { borderColor: checkboxColor, backgroundColor: todo.completed ? GREEN : "transparent" }]}
         >
           {todo.completed && <Ionicons name="checkmark" size={14} color="#fff" />}
         </TouchableOpacity>
@@ -436,23 +454,150 @@ function TaskCard({ todo, onToggle, onDelete, onEdit, onDuplicate, onChangePrior
                 <Text style={tStyles.metaText}>{todo.repeat}</Text>
               </View>
             )}
-            <View style={[tStyles.priorityDot, { backgroundColor: pColor }]} />
+            <View style={[tStyles.priorityDot, { backgroundColor: todo.completed ? GREEN : pColor }]} />
           </View>
         </View>
 
         {/* Priority pill */}
-        <View style={[tStyles.priorityPill, { backgroundColor: pColor + "20", borderColor: pColor + "50" }]}>
-          <Text style={[tStyles.priorityPillText, { color: pColor }]}>{PRIORITY_LABELS[todo.priority]}</Text>
+        <View style={[tStyles.priorityPill, { backgroundColor: (todo.completed ? GREEN : pColor) + "20", borderColor: (todo.completed ? GREEN : pColor) + "50" }]}>
+          <Text style={[tStyles.priorityPillText, { color: todo.completed ? GREEN : pColor }]}>
+            {todo.completed ? "Done" : PRIORITY_LABELS[todo.priority]}
+          </Text>
         </View>
 
-        {/* Delete */}
-        <TouchableOpacity onPress={() => onDelete(todo.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 8 }}>
-          <Ionicons name="trash-outline" size={15} color={MUTED} />
-        </TouchableOpacity>
+        {/* Change 4: Trash icon only on web (native uses long press) */}
+        {Platform.OS === "web" && (
+          <TouchableOpacity onPress={() => onDelete(todo.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 8 }}>
+            <Ionicons name="trash-outline" size={15} color={MUTED} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
 }
+
+// ── Change 1: Productivity Footer (fills empty space below tasks) ──────────────
+function ProductivityFooter({
+  todayDone, todayTotal, totalCount, doneCount,
+}: {
+  todayDone: number; todayTotal: number; totalCount: number; doneCount: number;
+}) {
+  const theme = useAppTheme();
+  const { CARD, CARD2, BORDER, MUTED, TEXT, GREEN } = theme;
+  const todayPct = todayTotal > 0 ? Math.round((todayDone / todayTotal) * 100) : 0;
+  const weeklyPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+  // Pick a rotating tip based on time of day + done count (so it changes as you complete tasks)
+  const tipIndex = (new Date().getHours() + doneCount) % PRODUCTIVITY_TIPS.length;
+  const tip = PRODUCTIVITY_TIPS[tipIndex];
+
+  const remaining = todayTotal - todayDone;
+
+  let motivationalMsg = "";
+  if (todayTotal === 0) {
+    motivationalMsg = "🎯 Plan something important for today";
+  } else if (todayDone === todayTotal) {
+    motivationalMsg = "🏆 All tasks done! Outstanding work today.";
+  } else if (remaining === 1) {
+    motivationalMsg = `🚀 Complete 1 more task to finish today's plan!`;
+  } else if (todayPct >= 50) {
+    motivationalMsg = `💪 You're ${todayPct}% done today. Keep the momentum!`;
+  } else {
+    motivationalMsg = `⚡ ${todayDone} of ${todayTotal} tasks done. You've got this!`;
+  }
+
+  return (
+    <View style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 16, gap: 10 }}>
+      {/* Motivational message */}
+      <View style={[footerStyles.msgCard, { backgroundColor: ACCENT + "0E", borderColor: ACCENT + "28" }]}>
+        <Text style={[footerStyles.msgText, { color: TEXT }]}>{motivationalMsg}</Text>
+      </View>
+
+      {/* Today's focus + Weekly stat row */}
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        {/* Today progress */}
+        <View style={[footerStyles.statCard, { backgroundColor: CARD, borderColor: BORDER, flex: 1 }]}>
+          <Text style={[footerStyles.statLabel, { color: MUTED }]}>Today's Focus</Text>
+          <Text style={[footerStyles.statValue, { color: todayDone === todayTotal && todayTotal > 0 ? GREEN : ACCENT }]}>
+            {todayTotal > 0 ? `${todayPct}%` : "—"}
+          </Text>
+          <Text style={[footerStyles.statSub, { color: MUTED }]}>
+            {todayTotal > 0 ? `${todayDone}/${todayTotal} done` : "No tasks due"}
+          </Text>
+        </View>
+
+        {/* Overall completion */}
+        <View style={[footerStyles.statCard, { backgroundColor: CARD, borderColor: BORDER, flex: 1 }]}>
+          <Text style={[footerStyles.statLabel, { color: MUTED }]}>Overall</Text>
+          <Text style={[footerStyles.statValue, { color: theme.BLUE }]}>
+            {totalCount > 0 ? `${weeklyPct}%` : "—"}
+          </Text>
+          <Text style={[footerStyles.statSub, { color: MUTED }]}>
+            {totalCount > 0 ? `${doneCount}/${totalCount} done` : "No tasks yet"}
+          </Text>
+        </View>
+      </View>
+
+      {/* Productivity tip */}
+      <View style={[footerStyles.tipCard, { backgroundColor: CARD2, borderColor: BORDER }]}>
+        <Ionicons name="bulb-outline" size={14} color={ACCENT} style={{ marginTop: 1 }} />
+        <Text style={[footerStyles.tipText, { color: MUTED }]}>{tip}</Text>
+      </View>
+    </View>
+  );
+}
+
+const footerStyles = StyleSheet.create({
+  msgCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  msgText: {
+    fontSize: 13,
+    fontWeight: "600" as const,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  statCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    alignItems: "center",
+    gap: 2,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: "700" as const,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.6,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: "800" as const,
+    letterSpacing: -0.5,
+  },
+  statSub: {
+    fontSize: 10,
+    fontWeight: "500" as const,
+  },
+  tipCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    fontStyle: "italic" as const,
+  },
+});
 
 // ── Celebration Overlay ───────────────────────────────────────────────────────
 function CelebrationOverlay({ visible }: { visible: boolean }) {
@@ -495,13 +640,31 @@ export default function TodosScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [changePriorityTodo, setChangePriorityTodo] = useState<Todo | null>(null);
 
+  // Change 7: FAB scale animation
+  const fabScale = useRef(new Animated.Value(1)).current;
+  const handleFabPressIn = () => {
+    Animated.spring(fabScale, { toValue: 0.91, useNativeDriver: true, speed: 28, bounciness: 4 }).start();
+  };
+  const handleFabPressOut = () => {
+    Animated.spring(fabScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
+  };
+  const handleFabPress = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditTodo(null);
+    setShowAddSheet(true);
+  };
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const ts = todayStr();
 
   // Stats
   const totalCount = todos.length;
   const doneCount = todos.filter(t => t.completed).length;
-  const urgentCount = todos.filter(t => !t.completed && (t.priority === "urgent" || t.priority === "high")).length;
+  const urgentCount = todos.filter(t => !t.completed && t.priority === "urgent").length;
+  const highCount = todos.filter(t => !t.completed && t.priority === "high").length;
+  const mediumCount = todos.filter(t => !t.completed && t.priority === "medium").length;
+  const lowCount = todos.filter(t => !t.completed && t.priority === "low").length;
+  const urgentHighCount = urgentCount + highCount; // for legacy "Urgent" stat card
   const dueTodayCount = todos.filter(t => !t.completed && t.dueDate === ts).length;
 
   // Today's progress bar
@@ -557,17 +720,23 @@ export default function TodosScreen() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
+  // Change 3: Professional quick suggestions
   const QUICK_SUGGESTIONS = [
-    { emoji: "🛒", label: "Grocery List" },
-    { emoji: "📞", label: "Make a Call" },
+    { emoji: "📞", label: "Client Call" },
     { emoji: "💊", label: "Take Medication" },
+    { emoji: "🛒", label: "Grocery Run" },
   ];
 
   const renderItem = ({ item }: { item: ListItem }) => {
     if (item._type === "section") {
+      // Change 6: Completed section gets green border
+      const isCompleted = item.isCompleted === true;
+      const borderColor = item.isOverdue ? RED : isCompleted ? GREEN : ACCENT;
       return (
-        <View style={[styles.sectionHeader, item.isOverdue && { borderLeftColor: RED }]}>
-          <Text style={[styles.sectionTitle, item.isOverdue && { color: RED }]}>{item.title}</Text>
+        <View style={[styles.sectionHeader, { borderLeftColor: borderColor }]}>
+          <Text style={[styles.sectionTitle, item.isOverdue && { color: RED }, isCompleted && { color: GREEN }]}>
+            {item.title}
+          </Text>
         </View>
       );
     }
@@ -583,10 +752,19 @@ export default function TodosScreen() {
     );
   };
 
+  // Change 8: Priority counts for filter chips
+  const PRIORITY_COUNTS: Record<Priority, number> = {
+    urgent: urgentCount,
+    high: highCount,
+    medium: mediumCount,
+    low: lowCount,
+  };
+
+  // Change 5: Stats — motivational when no tasks
   const STATS = [
     { label: "Total", value: totalCount, icon: "📋", color: "#A3A3A3" },
     { label: "Done", value: doneCount, icon: "✅", color: GREEN },
-    { label: "Urgent", value: urgentCount, icon: "🔴", color: RED },
+    { label: "Urgent", value: urgentHighCount, icon: "🔴", color: RED },
     { label: "Due Today", value: dueTodayCount, icon: "⏳", color: ACCENT },
   ];
 
@@ -605,9 +783,18 @@ export default function TodosScreen() {
             <Text style={styles.screenTitle}>Focus</Text>
             <Text style={styles.motiveCopy}>{getMotivationalCopy()}</Text>
           </View>
-          <TouchableOpacity style={styles.addBtn} onPress={() => { setEditTodo(null); setShowAddSheet(true); }}>
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
+          {/* Change 7: FAB with scale animation + haptic */}
+          <Animated.View style={{ transform: [{ scale: fabScale }] }}>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={handleFabPress}
+              onPressIn={handleFabPressIn}
+              onPressOut={handleFabPressOut}
+              activeOpacity={1}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         {/* Progress bar */}
@@ -622,16 +809,26 @@ export default function TodosScreen() {
           </View>
         )}
 
-        {/* Stats row */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
-          {STATS.map(s => (
-            <TouchableOpacity key={s.label} style={styles.statCard} onPress={() => setPriorityFilter(STAT_FILTERS[s.label] as PriorityFilter)}>
-              <Text style={styles.statIcon}>{s.icon}</Text>
-              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Change 5: Stats row — motivational when no tasks */}
+        {totalCount === 0 ? (
+          <View style={styles.zeroStatsCard}>
+            <Text style={styles.zeroStatsEmoji}>🌱</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.zeroStatsTitle, { color: theme.TEXT }]}>Start your first task today</Text>
+              <Text style={[styles.zeroStatsSub, { color: MUTED }]}>Tap ＋ above or use Quick Add below</Text>
+            </View>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
+            {STATS.map(s => (
+              <TouchableOpacity key={s.label} style={styles.statCard} onPress={() => setPriorityFilter(STAT_FILTERS[s.label] as PriorityFilter)}>
+                <Text style={styles.statIcon}>{s.icon}</Text>
+                <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* View toggle */}
         <View style={styles.viewToggleRow}>
@@ -644,29 +841,33 @@ export default function TodosScreen() {
           ))}
         </View>
 
-        {/* Priority filter chips */}
+        {/* Change 8: Priority filter chips with counts */}
         <View style={{ position: "relative" }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
             <TouchableOpacity style={[styles.chip, priorityFilter === "all" && styles.chipActive]} onPress={() => setPriorityFilter("all")}>
               <Text style={[styles.chipText, priorityFilter === "all" && styles.chipTextActive]}>All</Text>
             </TouchableOpacity>
-            {PRIORITIES.map(p => (
-              <TouchableOpacity key={p} style={[styles.chip, priorityFilter === p && { backgroundColor: PRIORITY_COLORS[p], borderColor: PRIORITY_COLORS[p] }]} onPress={() => setPriorityFilter(p)}>
-                <Text style={[styles.chipText, priorityFilter === p && { color: "#fff" }]}>{PRIORITY_EMOJIS[p]} {PRIORITY_LABELS[p]}</Text>
-              </TouchableOpacity>
-            ))}
+            {PRIORITIES.map(p => {
+              const count = PRIORITY_COUNTS[p];
+              const isActive = priorityFilter === p;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.chip, isActive && { backgroundColor: PRIORITY_COLORS[p], borderColor: PRIORITY_COLORS[p] }]}
+                  onPress={() => setPriorityFilter(p)}
+                >
+                  <Text style={[styles.chipText, isActive && { color: "#fff" }]}>
+                    {PRIORITY_EMOJIS[p]} {PRIORITY_LABELS[p]}{count > 0 ? ` (${count})` : ""}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
           <LinearGradient
             colors={["transparent", BG]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={{
-              position: "absolute",
-              right: 0,
-              top: 0,
-              bottom: 4,
-              width: 32,
-            }}
+            style={{ position: "absolute", right: 0, top: 0, bottom: 4, width: 32 }}
             pointerEvents="none"
           />
         </View>
@@ -724,6 +925,7 @@ export default function TodosScreen() {
           </View>
         </ScrollView>
       ) : (
+        /* Change 1: FlatList with ProductivityFooter */
         <FlatList
           data={listItems}
           keyExtractor={item => item.id}
@@ -731,6 +933,14 @@ export default function TodosScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
           keyboardShouldPersistTaps="handled"
+          ListFooterComponent={
+            <ProductivityFooter
+              todayDone={todayDone}
+              todayTotal={todayTotal}
+              totalCount={totalCount}
+              doneCount={doneCount}
+            />
+          }
         />
       )}
 
@@ -856,6 +1066,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   titleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 },
   screenTitle: { fontSize: 28, fontWeight: "800" as const, color: t.TEXT, letterSpacing: -0.5 },
   motiveCopy: { fontSize: 12, color: t.MUTED, marginTop: 3, fontWeight: "500" as const },
+  // Change 7: FAB styles (unchanged visually, animation handled in Animated.View wrapper)
   addBtn: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: ACCENT, alignItems: "center", justifyContent: "center",
     shadowColor: ACCENT, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
@@ -866,6 +1077,23 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   progressTrack: { height: 5, backgroundColor: t.BORDER, borderRadius: 3, overflow: "hidden", marginBottom: 6 },
   progressFill: { height: 5, borderRadius: 3, minWidth: 4 },
   progressLabel: { fontSize: 11, color: t.MUTED, fontWeight: "600" as const },
+
+  // Change 5: Zero-state stats card
+  zeroStatsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: t.CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: t.BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  zeroStatsEmoji: { fontSize: 28 },
+  zeroStatsTitle: { fontSize: 14, fontWeight: "700" as const, marginBottom: 2 },
+  zeroStatsSub: { fontSize: 12, fontWeight: "500" as const },
 
   // Stats
   statsRow: { gap: 10, paddingRight: 4, marginBottom: 12 },
