@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -27,51 +27,122 @@ import {
   ActivityAnalysis,
   analyzeActivity,
   calculateSteps,
+  estimateCalories,
 } from "@/utils/analyzeActivity";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
-import { BlurView } from "expo-blur";
 import { getLocalDateString } from "@/utils/date";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT  = "#FF6B35";
 const PURPLE  = "#8B5CF6";
 
-// ── Sport definitions ─────────────────────────────────────────────────────────
-const SPORTS_GAMES = [
-  { emoji: "🏸", name: "Badminton" },  { emoji: "🎾", name: "Tennis" },
-  { emoji: "⚽", name: "Football" },   { emoji: "🏀", name: "Basketball" },
-  { emoji: "🏏", name: "Cricket" },   { emoji: "🏐", name: "Volleyball" },
-  { emoji: "🏊", name: "Swimming" },  { emoji: "🚴", name: "Cycling" },
-  { emoji: "🥊", name: "Boxing" },    { emoji: "🤸", name: "Gymnastics" },
-  { emoji: "⛳", name: "Golf" },      { emoji: "🏓", name: "Table Tennis" },
-  { emoji: "🥋", name: "Martial Arts" }, { emoji: "🏉", name: "Rugby" },
-  { emoji: "🎿", name: "Skiing" },    { emoji: "🧗", name: "Rock Climbing" },
-  { emoji: "➕", name: "Other Sport" },
+// ── MaterialCommunityIcons name map for activities ────────────────────────────
+// All activity icons use MaterialCommunityIcons for visual consistency
+type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+const ACTIVITY_ICONS: Record<string, MCIName> = {
+  // Cardio
+  "Running":          "run-fast",
+  "Walking":          "walk",
+  "Cycling":          "bike",
+  "Swimming":         "swim",
+  "Hiking":           "hiking",
+  // Sports
+  "Badminton":        "badminton",
+  "Tennis":           "tennis",
+  "Football":         "soccer",
+  "Basketball":       "basketball",
+  "Cricket":          "cricket",
+  "Volleyball":       "volleyball",
+  "Boxing":           "boxing-glove",
+  "Table Tennis":     "table-tennis",
+  "Rugby":            "rugby",
+  "Rock Climbing":    "carabiner",
+  "Golf":             "golf",
+  "Gymnastics":       "gymnastics",
+  "Martial Arts":     "karate",
+  "Skiing":           "ski",
+  // Wellness
+  "Yoga":             "yoga",
+  "Meditation":       "meditation",
+  "Stretching":       "human-handsup",
+  "Breathing Exercises": "lungs",
+  "Rest Day":         "sleep",
+  "Ice Bath":         "snowflake",
+  // Lifestyle
+  "Steps":            "shoe-print",
+  "Dog Walking":      "dog-side",
+  "Household Chores": "broom",
+  "Shopping":         "shopping",
+  "Cleaning":         "spray",
+  "Gardening":        "flower",
+  "Other Sport":      "dumbbell",
+};
+
+function getActivityIcon(name: string): MCIName {
+  return ACTIVITY_ICONS[name] ?? "dumbbell";
+}
+
+// ── Activity category definitions (Change 8) ─────────────────────────────────
+const CARDIO_ACTIVITIES = [
+  { icon: "Running",  name: "Running" },
+  { icon: "Walking",  name: "Walking" },
+  { icon: "Cycling",  name: "Cycling" },
+  { icon: "Swimming", name: "Swimming" },
+  { icon: "Hiking",   name: "Hiking" },
 ];
 
-const DAILY_MOVEMENT = [
-  { emoji: "👣", name: "Steps" },   { emoji: "🚶", name: "Walking" },
-  { emoji: "🏃", name: "Running" }, { emoji: "🧹", name: "Household Chores" },
-  { emoji: "🛒", name: "Shopping" }, { emoji: "🐕", name: "Dog Walking" },
+const SPORTS_ACTIVITIES = [
+  { icon: "Cricket",        name: "Cricket" },
+  { icon: "Football",       name: "Football" },
+  { icon: "Basketball",     name: "Basketball" },
+  { icon: "Tennis",         name: "Tennis" },
+  { icon: "Badminton",      name: "Badminton" },
+  { icon: "Volleyball",     name: "Volleyball" },
+  { icon: "Boxing",         name: "Boxing" },
+  { icon: "Table Tennis",   name: "Table Tennis" },
+  { icon: "Rock Climbing",  name: "Rock Climbing" },
+  { icon: "Rugby",          name: "Rugby" },
+  { icon: "Golf",           name: "Golf" },
+  { icon: "Gymnastics",     name: "Gymnastics" },
+  { icon: "Martial Arts",   name: "Martial Arts" },
+  { icon: "Skiing",         name: "Skiing" },
 ];
 
-const MIND_RECOVERY = [
-  { emoji: "🧘", name: "Yoga" },    { emoji: "🧠", name: "Meditation" },
-  { emoji: "😴", name: "Rest Day" }, { emoji: "🧊", name: "Ice Bath" },
-  { emoji: "🤸", name: "Stretching" },
+const WELLNESS_ACTIVITIES = [
+  { icon: "Yoga",                  name: "Yoga" },
+  { icon: "Meditation",            name: "Meditation" },
+  { icon: "Stretching",            name: "Stretching" },
+  { icon: "Breathing Exercises",   name: "Breathing Exercises" },
+  { icon: "Rest Day",              name: "Rest Day" },
+  { icon: "Ice Bath",              name: "Ice Bath" },
 ];
 
-const ALL_SPORTS = [...SPORTS_GAMES, ...DAILY_MOVEMENT, ...MIND_RECOVERY];
+const LIFESTYLE_ACTIVITIES = [
+  { icon: "Steps",            name: "Steps" },
+  { icon: "Dog Walking",      name: "Dog Walking" },
+  { icon: "Household Chores", name: "Household Chores" },
+  { icon: "Shopping",         name: "Shopping" },
+  { icon: "Cleaning",         name: "Cleaning" },
+  { icon: "Gardening",        name: "Gardening" },
+  { icon: "Other Sport",      name: "Other Sport" },
+];
+
+const ALL_ACTIVITIES = [
+  ...CARDIO_ACTIVITIES,
+  ...SPORTS_ACTIVITIES,
+  ...WELLNESS_ACTIVITIES,
+  ...LIFESTYLE_ACTIVITIES,
+];
 
 const POPULAR_ACTIVITIES = [
-  { emoji: "🏃", name: "Running" },
-  { emoji: "🚶", name: "Walking" },
-  { emoji: "🧘", name: "Yoga" },
-  { emoji: "🤸", name: "Stretching" },
-  { emoji: "🏸", name: "Badminton" },
-  { emoji: "🏊", name: "Swimming" },
-  { emoji: "🚴", name: "Cycling" },
-  { emoji: "👣", name: "Steps" },
+  { icon: "Running",   name: "Running" },
+  { icon: "Walking",   name: "Walking" },
+  { icon: "Yoga",      name: "Yoga" },
+  { icon: "Cycling",   name: "Cycling" },
+  { icon: "Swimming",  name: "Swimming" },
+  { icon: "Badminton", name: "Badminton" },
+  { icon: "Steps",     name: "Steps" },
+  { icon: "Stretching",name: "Stretching" },
 ];
 
 const INTENSITIES = [
@@ -80,7 +151,9 @@ const INTENSITIES = [
   { key: "intense",  label: "Intense",  icon: "🔴", desc: "Maximum effort, sweating" },
 ] as const;
 
-const DURATIONS = [15, 20, 30, 45, 60, 75, 90, 120];
+// Duration chips (Change 5) — 15, 30, 60, Custom
+const DURATION_CHIPS = [15, 30, 60, "custom"] as const;
+type DurationChip = typeof DURATION_CHIPS[number];
 
 const ZONE_COLORS: Record<string, string> = {
   "fat burn": "#EAB308", cardio: "#EF4444", peak: "#8B5CF6",
@@ -109,7 +182,7 @@ function StepsRing({ size = 100, progress, children }: { size?: number; progress
   );
 }
 
-// ── Pulsing loading indicator ─────────────────────────────────────────────────
+// ── Pulsing loading dots ──────────────────────────────────────────────────────
 function PulsingDots() {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
@@ -136,8 +209,6 @@ function PulsingDots() {
     </View>
   );
 }
-
-// SportSection has been replaced by the horizontal tab category switcher & grid layout inChoose Activity card
 
 // ── Recovery nutrient card ────────────────────────────────────────────────────
 function NutrientCard({ emoji, label, value, sub, color, onPress, tooltip }: {
@@ -191,6 +262,69 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
   );
 }
 
+// ── Activity Icon Cell ────────────────────────────────────────────────────────
+function ActivityCell({ name, isSelected, onPress }: {
+  name: string; isSelected: boolean; onPress: () => void;
+}) {
+  const theme = useAppTheme();
+  const iconName = getActivityIcon(name);
+  return (
+    <TouchableOpacity
+      style={[
+        styles_activity.cell,
+        { backgroundColor: theme.CARD, borderColor: isSelected ? ACCENT : "transparent" },
+        isSelected && { backgroundColor: "#FF6B3512" },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <View style={[
+        styles_activity.iconCircle,
+        { backgroundColor: isSelected ? ACCENT + "22" : theme.BORDER + "88" },
+      ]}>
+        <MaterialCommunityIcons
+          name={iconName}
+          size={26}
+          color={isSelected ? ACCENT : theme.SUBTEXT}
+        />
+      </View>
+      <Text
+        style={[styles_activity.label, { color: isSelected ? ACCENT : theme.TEXT }]}
+        numberOfLines={2}
+      >
+        {name}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles_activity = StyleSheet.create({
+  cell: {
+    width: "23.5%",
+    borderRadius: 14,
+    padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    marginBottom: 8,
+    gap: 6,
+    minHeight: 88,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: "600" as const,
+    textAlign: "center",
+    lineHeight: 13,
+  },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -216,31 +350,29 @@ export function ActivityTracker() {
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [selectedSport, setSelectedSport] = useState("");
-  const [selectedEmoji, setSelectedEmoji] = useState("");
   const [duration, setDuration] = useState(30);
+  const [customDurationChip, setCustomDurationChip] = useState<DurationChip>(30);
+  const [customDurationText, setCustomDurationText] = useState("");
+  const [showCustomDuration, setShowCustomDuration] = useState(false);
   const [intensity, setIntensity] = useState<"light" | "moderate" | "intense">("moderate");
   const [customSport, setCustomSport] = useState("");
 
   // ── Search & Filter Tabs ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTab, setSelectedTab] = useState<"all" | "sports" | "movement" | "mind">("all");
+  const [selectedTab, setSelectedTab] = useState<"all" | "cardio" | "sports" | "wellness" | "lifestyle">("all");
   const [searchLayoutY, setSearchLayoutY] = useState(0);
 
   const getFilteredActivities = () => {
     if (searchQuery.trim().length > 0) {
       const query = searchQuery.toLowerCase().trim();
-      return ALL_SPORTS.filter(s => s.name.toLowerCase().includes(query));
+      return ALL_ACTIVITIES.filter(s => s.name.toLowerCase().includes(query));
     }
     switch (selectedTab) {
-      case "sports":
-        return SPORTS_GAMES;
-      case "movement":
-        return DAILY_MOVEMENT;
-      case "mind":
-        return MIND_RECOVERY;
-      case "all":
-      default:
-        return POPULAR_ACTIVITIES;
+      case "cardio":    return CARDIO_ACTIVITIES;
+      case "sports":    return SPORTS_ACTIVITIES;
+      case "wellness":  return WELLNESS_ACTIVITIES;
+      case "lifestyle": return LIFESTYLE_ACTIVITIES;
+      default:          return POPULAR_ACTIVITIES;
     }
   };
 
@@ -259,9 +391,6 @@ export function ActivityTracker() {
   const [toastMsg, setToastMsg] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Insight ────────────────────────────────────────────────────────────────
-  const [insightLoading, setInsightLoading] = useState(false);
 
   // ── Pulse anim for loading screen ─────────────────────────────────────────
   const scrollViewRef = useRef<ScrollView>(null);
@@ -290,13 +419,63 @@ export function ActivityTracker() {
   const bestCalsBurned     = getMostCalsBurned();
   const longestSession     = getLongestSession();
   const mostActiveMonth    = getMostActiveMonth();
+  const loggedTodayCount   = activityLogs.filter(log => log.date === today).length;
 
-  const activeSportName = selectedSport === "Other Sport" ? (customSport.trim() || "Other Sport") : selectedSport;
-  const activeSportEmoji = selectedSport === "Other Sport" ? "🏅" : selectedEmoji;
+  // Change 10: Recent activities (up to 5 unique, most recent first)
+  const recentActivities = React.useMemo(() => {
+    const seen = new Set<string>();
+    const result: { name: string; date: string }[] = [];
+    for (let i = activityLogs.length - 1; i >= 0; i--) {
+      const l = activityLogs[i];
+      if (!seen.has(l.sport)) {
+        seen.add(l.sport);
+        result.push({ name: l.sport, date: l.date });
+        if (result.length >= 5) break;
+      }
+    }
+    return result;
+  }, [activityLogs]);
+
+  const activeSportName  = selectedSport === "Other Sport" ? (customSport.trim() || "Other Sport") : selectedSport;
+  const activeSportIcon  = getActivityIcon(activeSportName || "Other Sport");
+
+  // Change 9: Live calorie preview
+  const previewCalories = selectedSport && duration > 0
+    ? estimateCalories(activeSportName, duration, intensity, weight)
+    : null;
+
+  const intensityLabel: Record<string, string> = {
+    light: "Light", moderate: "Moderate", intense: "Intense",
+  };
+
+  // ── Handle duration chip selection ─────────────────────────────────────────
+  const handleDurationChip = (chip: DurationChip) => {
+    if (chip === "custom") {
+      setCustomDurationChip("custom");
+      setShowCustomDuration(true);
+    } else {
+      setCustomDurationChip(chip);
+      setDuration(chip);
+      setShowCustomDuration(false);
+      setCustomDurationText("");
+    }
+  };
+
+  const handleCustomDurationChange = (text: string) => {
+    setCustomDurationText(text);
+    const n = parseInt(text.replace(/[^0-9]/g, "")) || 0;
+    if (n >= 1 && n <= 600) setDuration(n);
+  };
 
   // ── Handle Analyze & Log ───────────────────────────────────────────────────
   const handleAnalyze = async () => {
     if (!activeSportName) { Alert.alert("Select an activity", "Please choose a sport or activity first."); return; }
+    if (showCustomDuration) {
+      const n = parseInt(customDurationText) || 0;
+      if (n < 1) { Alert.alert("Enter duration", "Please enter a valid duration (1–600 minutes)."); return; }
+      if (n > 600) { Alert.alert("Too long", "Please enter a duration of 600 minutes or less."); return; }
+      setDuration(n);
+    }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAiError("");
     setAnalysis(null);
@@ -308,7 +487,7 @@ export function ActivityTracker() {
       setResultSheet(true);
     } catch (e: any) {
       setLoadingSheet(false);
-      setAiError(e?.message?.includes("abort") ? "Analysis took too long. You can still log manually." : "Something went wrong. Please try again.");
+      setAiError("Something went wrong. Please try again.");
     }
   };
 
@@ -318,7 +497,7 @@ export function ActivityTracker() {
     const log = {
       date: today,
       sport: activeSportName,
-      emoji: activeSportEmoji,
+      emoji: "🏅",
       duration,
       intensity,
       caloriesBurned: analysis.calories_burned,
@@ -334,15 +513,13 @@ export function ActivityTracker() {
       sportCategory: analysis.sport_category,
     };
     addActivityLog(log);
-    setPostActivityBanner({ sport: activeSportName, emoji: activeSportEmoji, meal: analysis.post_activity_meal, loggedAt: Date.now() });
+    setPostActivityBanner({ sport: activeSportName, emoji: "🏅", meal: analysis.post_activity_meal, loggedAt: Date.now() });
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setResultSheet(false);
     setSelectedSport("");
-    setSelectedEmoji("");
-    showToast(`💧 Added ${analysis.hydration_glasses.toFixed(1)} glasses to your water goal based on ${activeSportName}`);
+    showToast(`💧 Added ${analysis.hydration_glasses.toFixed(1)} glasses to your water goal`);
   };
 
-  // ── Tap hydration card ─────────────────────────────────────────────────────
   const handleTapHydration = () => {
     if (!analysis) return;
     logWater(today, analysis.hydration_glasses);
@@ -361,15 +538,12 @@ export function ActivityTracker() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const handleGenerateInsight = async () => {
-    // Disabled - AI Coach coming soon
-  };
+  // ── Whether to show empty state (Change 1) ─────────────────────────────────
+  const hasActivityToday = loggedTodayCount > 0 || stepsToday !== null;
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
-  const loggedTodayCount = activityLogs.filter(log => log.date === today).length;
-
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <ScrollView
@@ -380,26 +554,48 @@ export function ActivityTracker() {
         keyboardDismissMode="on-drag"
       >
 
-        {/* ── Daily Stats Row ──────────────────────────────────────── */}
-        <View style={styles.dailyRow}>
-          <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomWidth: 3, borderBottomColor: ACCENT, paddingVertical: 16 }]}>
-            <Ionicons name="flame" size={18} color={ACCENT} />
-            <Text style={[styles.dailyVal, { color: ACCENT }]}>{todayCalsBurned}</Text>
-            <Text style={styles.dailyLabel}>kcal burned</Text>
+        {/* ── Change 1 + 2: Stats Row / Empty State ──────────────────── */}
+        {hasActivityToday ? (
+          /* Real stats — Change 2: steps removed, replaced with activities count */
+          <View style={styles.dailyRow}>
+            <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomColor: ACCENT }]}>
+              <Ionicons name="flame" size={18} color={ACCENT} />
+              <Text style={[styles.dailyVal, { color: ACCENT }]}>{todayCalsBurned}</Text>
+              <Text style={styles.dailyLabel}>kcal burned</Text>
+            </View>
+            <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomColor: BLUE }]}>
+              <Ionicons name="timer-outline" size={18} color={BLUE} />
+              <Text style={[styles.dailyVal, { color: BLUE }]}>{todayActiveMinutes}</Text>
+              <Text style={styles.dailyLabel}>active mins</Text>
+            </View>
+            <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomColor: GREEN }]}>
+              <Ionicons name="trophy-outline" size={18} color={GREEN} />
+              <Text style={[styles.dailyVal, { color: GREEN }]}>{loggedTodayCount}</Text>
+              <Text style={styles.dailyLabel}>activities</Text>
+            </View>
           </View>
-          <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomWidth: 3, borderBottomColor: BLUE, paddingVertical: 16 }]}>
-            <Ionicons name="timer-outline" size={18} color={BLUE} />
-            <Text style={[styles.dailyVal, { color: BLUE }]}>{todayActiveMinutes}</Text>
-            <Text style={styles.dailyLabel}>active mins</Text>
+        ) : (
+          /* Empty state — motivational onboarding cards */
+          <View style={styles.dailyRow}>
+            <View style={[styles.motivationalCard, { backgroundColor: ACCENT + "12", borderColor: ACCENT + "33" }]}>
+              <Text style={styles.motivationalEmoji}>🔥</Text>
+              <Text style={[styles.motivationalTitle, { color: ACCENT }]}>Ready to Move?</Text>
+              <Text style={[styles.motivationalSub, { color: MUTED }]}>Tap below to start</Text>
+            </View>
+            <View style={[styles.motivationalCard, { backgroundColor: BLUE + "12", borderColor: BLUE + "33" }]}>
+              <Text style={styles.motivationalEmoji}>💪</Text>
+              <Text style={[styles.motivationalTitle, { color: BLUE }]}>Log Activity</Text>
+              <Text style={[styles.motivationalSub, { color: MUTED }]}>Build momentum</Text>
+            </View>
+            <View style={[styles.motivationalCard, { backgroundColor: GREEN + "12", borderColor: GREEN + "33" }]}>
+              <Text style={styles.motivationalEmoji}>🎯</Text>
+              <Text style={[styles.motivationalTitle, { color: GREEN }]}>Start Strong</Text>
+              <Text style={[styles.motivationalSub, { color: MUTED }]}>Every step counts</Text>
+            </View>
           </View>
-          <View style={[styles.dailyStat, { backgroundColor: CARD, borderBottomWidth: 3, borderBottomColor: GREEN, paddingVertical: 16 }]}>
-            <Ionicons name="footsteps-outline" size={18} color={GREEN} />
-            <Text style={[styles.dailyVal, { color: GREEN }]}>{(stepsToday?.steps ?? 0).toLocaleString()}</Text>
-            <Text style={styles.dailyLabel}>steps today</Text>
-          </View>
-        </View>
+        )}
 
-        {/* ── Steps Tracker Card ───────────────────────────────────── */}
+        {/* ── Steps Tracker Card (unchanged) ───────────────────────────── */}
         <View style={[styles.card, { backgroundColor: CARD }]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardEmoji}>👟</Text>
@@ -425,13 +621,53 @@ export function ActivityTracker() {
           </View>
         </View>
 
-        {/* ── Activity Type Picker (Choose Activity Redesign) ──────── */}
+        {/* ── Change 10: Recent Activities ─────────────────────────────── */}
+        {recentActivities.length > 0 && (
+          <View style={[styles.card, { backgroundColor: CARD }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="time-outline" size={18} color={ACCENT} />
+              <Text style={styles.cardTitle}>Recent Activities</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {recentActivities.map((act) => (
+                <TouchableOpacity
+                  key={act.name}
+                  style={[
+                    styles.recentChip,
+                    {
+                      backgroundColor: selectedSport === act.name ? ACCENT + "18" : CARD2,
+                      borderColor: selectedSport === act.name ? ACCENT : BORDER,
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedSport(act.name === selectedSport ? "" : act.name);
+                    if (Platform.OS !== "web") Haptics.selectionAsync();
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name={getActivityIcon(act.name)}
+                    size={18}
+                    color={selectedSport === act.name ? ACCENT : MUTED}
+                  />
+                  <Text style={[
+                    styles.recentChipText,
+                    { color: selectedSport === act.name ? ACCENT : TEXT },
+                  ]}>
+                    {act.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── Activity Type Picker (Change 4 + 8) ──────────────────────── */}
         <View
           style={[styles.card, { backgroundColor: CARD }]}
           onLayout={(e) => setSearchLayoutY(e.nativeEvent.layout.y)}
         >
           <View style={styles.cardHeader}>
-            <Ionicons name="fitness" size={18} color={ACCENT} />
+            <MaterialCommunityIcons name="dumbbell" size={18} color={ACCENT} />
             <Text style={styles.cardTitle}>Choose Activity</Text>
           </View>
 
@@ -442,7 +678,7 @@ export function ActivityTracker() {
               style={styles.searchBarInput}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search any activity or sport..."
+              placeholder="Search any activity..."
               placeholderTextColor={MUTED}
               clearButtonMode="while-editing"
               onFocus={() => {
@@ -458,7 +694,7 @@ export function ActivityTracker() {
             )}
           </View>
 
-          {/* Category Tabs */}
+          {/* Change 8: Category Tabs — All | Cardio | Sports | Wellness | Lifestyle */}
           {searchQuery.trim().length === 0 && (
             <ScrollView
               horizontal
@@ -466,20 +702,25 @@ export function ActivityTracker() {
               contentContainerStyle={styles.tabsContainer}
               style={{ marginBottom: 12 }}
             >
-              {(["all", "sports", "movement", "mind"] as const).map(tab => {
-                const isActive = selectedTab === tab;
-                const label = tab === "all" ? "⭐ All" : tab === "sports" ? "🏅 Sports" : tab === "movement" ? "🚶 Movement" : "🧘 Mind";
+              {([
+                { key: "all",       label: "⭐ All" },
+                { key: "cardio",    label: "❤️ Cardio" },
+                { key: "sports",    label: "🏅 Sports" },
+                { key: "wellness",  label: "🧘 Wellness" },
+                { key: "lifestyle", label: "🏠 Lifestyle" },
+              ] as const).map(tab => {
+                const isActive = selectedTab === tab.key;
                 return (
                   <TouchableOpacity
-                    key={tab}
+                    key={tab.key}
                     style={[styles.tabBtn, isActive && styles.tabBtnActive]}
                     onPress={() => {
-                      setSelectedTab(tab);
+                      setSelectedTab(tab.key as typeof selectedTab);
                       if (Platform.OS !== "web") Haptics.selectionAsync();
                     }}
                   >
                     <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>
-                      {label}
+                      {tab.label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -487,35 +728,22 @@ export function ActivityTracker() {
             </ScrollView>
           )}
 
-          {/* Grid Layout */}
+          {/* Activity Grid — MaterialCommunityIcons (Change 4) */}
           {getFilteredActivities().length === 0 ? (
             <Text style={styles.noResultsText}>No activities found for "{searchQuery}"</Text>
           ) : (
             <View style={styles.sportGrid}>
-              {getFilteredActivities().map(s => {
-                const isSelected = selectedSport === s.name;
-                return (
-                  <TouchableOpacity
-                    key={s.name}
-                    style={[styles.sportCell, isSelected && styles.sportCellSelected]}
-                    onPress={() => {
-                      if (selectedSport === s.name) {
-                        setSelectedSport("");
-                        setSelectedEmoji("");
-                      } else {
-                        setSelectedSport(s.name);
-                        setSelectedEmoji(s.emoji);
-                      }
-                      if (Platform.OS !== "web") Haptics.selectionAsync();
-                    }}
-                  >
-                    <Text style={styles.sportEmoji}>{s.emoji}</Text>
-                    <Text style={styles.sportLabel} numberOfLines={1}>
-                      {s.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {getFilteredActivities().map(s => (
+                <ActivityCell
+                  key={s.name}
+                  name={s.name}
+                  isSelected={selectedSport === s.name}
+                  onPress={() => {
+                    setSelectedSport(selectedSport === s.name ? "" : s.name);
+                    if (Platform.OS !== "web") Haptics.selectionAsync();
+                  }}
+                />
+              ))}
             </View>
           )}
 
@@ -526,28 +754,52 @@ export function ActivityTracker() {
               onChangeText={setCustomSport}
               placeholder="e.g. Kite surfing, Fencing..."
               placeholderTextColor={MUTED}
-              onFocus={() => {
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: searchLayoutY + 120, animated: true });
-                }, 150);
-              }}
             />
           )}
         </View>
 
-        {/* ── Duration + Intensity ─────────────────────────────────── */}
+        {/* ── Duration + Intensity + Preview + Analyze (Changes 5, 9, 6E) */}
         {selectedSport !== "" && (
           <View style={[styles.card, { backgroundColor: CARD }]}>
+            {/* Duration (Change 5) */}
             <Text style={styles.sectionLabel}>Duration</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
-              {DURATIONS.map(d => (
-                <TouchableOpacity key={d} style={[styles.durChip, duration === d && styles.durChipActive]} onPress={() => setDuration(d)}>
-                  <Text style={[styles.durChipText, duration === d && { color: "#fff" }]}>{d} min</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={styles.durationRow}>
+              {DURATION_CHIPS.map(chip => {
+                const isActive = customDurationChip === chip;
+                const label = chip === "custom" ? "Custom" : `${chip} min`;
+                return (
+                  <TouchableOpacity
+                    key={String(chip)}
+                    style={[styles.durChip, isActive && styles.durChipActive]}
+                    onPress={() => handleDurationChip(chip)}
+                  >
+                    <Text style={[styles.durChipText, isActive && { color: "#fff" }]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-            <Text style={styles.sectionLabel}>Intensity</Text>
+            {/* Custom duration input */}
+            {showCustomDuration && (
+              <View style={styles.customDurWrap}>
+                <TextInput
+                  style={[styles.customDurInput, { color: TEXT, borderColor: ACCENT }]}
+                  keyboardType="number-pad"
+                  placeholder="Enter minutes (1–600)"
+                  placeholderTextColor={MUTED}
+                  value={customDurationText}
+                  onChangeText={handleCustomDurationChange}
+                  maxLength={3}
+                  autoFocus
+                />
+                <Text style={[styles.customDurUnit, { color: MUTED }]}>min</Text>
+              </View>
+            )}
+
+            {/* Intensity */}
+            <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Intensity</Text>
             <View style={styles.intensityRow}>
               {INTENSITIES.map(it => (
                 <TouchableOpacity key={it.key} style={[styles.intensityCell, intensity === it.key && styles.intensityCellActive]}
@@ -559,8 +811,32 @@ export function ActivityTracker() {
               ))}
             </View>
 
+            {/* Change 9: Live Preview Card */}
+            {previewCalories !== null && (
+              <View style={[styles.previewCard, { backgroundColor: ACCENT + "0E", borderColor: ACCENT + "30" }]}>
+                <Text style={[styles.previewTitle, { color: ACCENT }]}>Estimated Burn</Text>
+                <View style={styles.previewRow}>
+                  <View style={styles.previewItem}>
+                    <Ionicons name="flame" size={18} color={ACCENT} />
+                    <Text style={[styles.previewValue, { color: ACCENT }]}>≈ {previewCalories} kcal</Text>
+                  </View>
+                  <View style={[styles.previewDivider, { backgroundColor: ACCENT + "25" }]} />
+                  <View style={styles.previewItem}>
+                    <Ionicons name="timer-outline" size={18} color={BLUE} />
+                    <Text style={[styles.previewValue, { color: BLUE }]}>{duration} min</Text>
+                  </View>
+                  <View style={[styles.previewDivider, { backgroundColor: ACCENT + "25" }]} />
+                  <View style={styles.previewItem}>
+                    <Ionicons name="trending-up-outline" size={18} color={PURPLE} />
+                    <Text style={[styles.previewValue, { color: PURPLE }]}>{intensityLabel[intensity]}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {aiError ? <Text style={styles.aiError}>{aiError}</Text> : null}
 
+            {/* Change 6E/7: Keep AI button exactly as-is */}
             <TouchableOpacity style={[styles.analyzeBtn, { backgroundColor: ACCENT }]} onPress={handleAnalyze}>
               <Ionicons name="sparkles" size={18} color="#fff" />
               <Text style={styles.analyzeBtnText}>Analyze & Log with AI</Text>
@@ -568,7 +844,7 @@ export function ActivityTracker() {
           </View>
         )}
 
-        {/* ── Weekly Sports Breakdown ──────────────────────────────── */}
+        {/* ── Weekly Sports Breakdown ──────────────────────────────────── */}
         {weeklySports.length > 0 && (
           <View style={[styles.card, { backgroundColor: CARD }]}>
             <View style={styles.cardHeader}>
@@ -577,7 +853,9 @@ export function ActivityTracker() {
             </View>
             {weeklySports.map(s => (
               <View key={s.sport} style={styles.weekSportRow}>
-                <Text style={styles.weekSportEmoji}>{s.emoji}</Text>
+                <View style={[styles.weekSportIconWrap, { backgroundColor: ACCENT + "15" }]}>
+                  <MaterialCommunityIcons name={getActivityIcon(s.sport)} size={20} color={ACCENT} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.weekSportName}>{s.sport}</Text>
                   <Text style={styles.weekSportSub}>{s.sessions} session{s.sessions !== 1 ? "s" : ""} · {s.totalMins} mins · {s.totalCals} kcal</Text>
@@ -590,7 +868,7 @@ export function ActivityTracker() {
           </View>
         )}
 
-        {/* ── Personal Sport Records ───────────────────────────────── */}
+        {/* ── Personal Sport Records ───────────────────────────────────── */}
         {activityLogs.length > 0 && (
           <View style={[styles.card, { backgroundColor: CARD }]}>
             <View style={styles.cardHeader}>
@@ -598,77 +876,84 @@ export function ActivityTracker() {
               <Text style={styles.cardTitle}>Personal Records</Text>
             </View>
             {favSport && (
-              <RecordRow icon="heart" color={PURPLE} label="Favourite Sport" value={`${favSport.emoji} ${favSport.sport} (${favSport.sessions}×)`} />
+              <RecordRow icon="heart" color={PURPLE} label="Favourite Activity" value={`${favSport.sport} (${favSport.sessions}×)`} />
             )}
             {longestSession && (
-              <RecordRow icon="timer" color={BLUE} label="Longest Session" value={`${longestSession.emoji} ${longestSession.sport} · ${longestSession.duration} min`} />
+              <RecordRow icon="timer" color={BLUE} label="Longest Session" value={`${longestSession.sport} · ${longestSession.duration} min`} />
             )}
             {bestCalsBurned && (
-              <RecordRow icon="flame" color={ACCENT} label="Most Calories Burned" value={`${bestCalsBurned.caloriesBurned} kcal (${bestCalsBurned.emoji} ${bestCalsBurned.sport})`} />
+              <RecordRow icon="flame" color={ACCENT} label="Most Calories Burned" value={`${bestCalsBurned.caloriesBurned} kcal (${bestCalsBurned.sport})`} />
             )}
             {mostActiveMonth && (
-              <RecordRow icon="calendar" color={GREEN} label="Most Active This Month" value={`${mostActiveMonth.emoji} ${mostActiveMonth.sport}`} last />
+              <RecordRow icon="calendar" color={GREEN} label="Most Active This Month" value={mostActiveMonth.sport} last />
             )}
           </View>
         )}
 
-        {/* ── Weekly Coach Insight Redesign ────────────────────────── */}
-        <LinearGradient
-          colors={["#FF6B35", "#FF6B3533"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 16, padding: 1, marginBottom: 8 }}
-        >
-          <View style={[styles.card, { backgroundColor: CARD2, borderWidth: 0, overflow: "hidden" }]}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="flash" size={18} color={ACCENT} />
-              <Text style={styles.cardTitle}>Your Weekly Coach Insight</Text>
-            </View>
-            {weeklyCoachInsight ? (
-              <View style={[styles.insightBox, { backgroundColor: "#FF6B3512", borderColor: "#FF6B3533" }]}>
-                <Text style={styles.insightText}>{weeklyCoachInsight.text}</Text>
-                <Text style={styles.insightDate}>Generated {weeklyCoachInsight.generatedAt}</Text>
-              </View>
-            ) : (
-              <View style={styles.insightEmpty}>
-                <Text style={styles.insightEmptyText}>Log activities this week to receive a personalized coaching insight.</Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={[styles.insightBtn, { borderColor: ACCENT, backgroundColor: ACCENT }]}
-              onPress={handleGenerateInsight}
-              disabled={true}
-            >
-              {insightLoading ? (
-                <Text style={[styles.insightBtnText, { color: "#fff" }]}>Generating...</Text>
-              ) : (
-                <>
-                  <Ionicons name="sparkles" size={14} color="#fff" />
-                  <Text style={[styles.insightBtnText, { color: "#fff" }]}>
-                    {weeklyCoachInsight ? "Refresh Insight" : "Get Coach Insight"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {/* Absolute Blur Overlay */}
-            <View style={[StyleSheet.absoluteFillObject, { justifyContent: "center", alignItems: "center", zIndex: 10 }]}>
-              <BlurView
-                intensity={Platform.OS === "web" ? 75 : 35}
-                tint={theme.isDark ? "dark" : "light"}
-                style={[StyleSheet.absoluteFillObject, { justifyContent: "center", alignItems: "center", padding: 16 }]}
-              >
-                <Ionicons name="sparkles" size={32} color={ACCENT} style={{ marginBottom: 8 }} />
-                <Text style={{ color: TEXT, fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 4 }}>
-                  🤖 AI Coach Coming Soon!
-                </Text>
-                <Text style={{ color: SUBTEXT, fontSize: 13, textAlign: "center" }}>
-                  Get ready for personalized, AI-powered health and fitness advice.
-                </Text>
-              </BlurView>
-            </View>
+        {/* ── Change 3: Weekly Activity Summary (replaces AI Coach Coming Soon) */}
+        <View style={[styles.card, { backgroundColor: CARD }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="bar-chart" size={18} color={ACCENT} />
+            <Text style={styles.cardTitle}>Weekly Activity Summary</Text>
           </View>
-        </LinearGradient>
+
+          {weeklySports.length === 0 ? (
+            <View style={styles.weekSummaryEmpty}>
+              <MaterialCommunityIcons name="run-fast" size={36} color={MUTED} style={{ marginBottom: 8 }} />
+              <Text style={[styles.weekSummaryEmptyTitle, { color: TEXT }]}>No activities this week</Text>
+              <Text style={[styles.weekSummaryEmptySub, { color: MUTED }]}>
+                Log your first activity above to see your weekly stats here.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* Summary stats */}
+              <View style={styles.weekSummaryStatsRow}>
+                <View style={[styles.weekSummaryStat, { backgroundColor: ACCENT + "12" }]}>
+                  <Ionicons name="flame" size={16} color={ACCENT} />
+                  <Text style={[styles.weekSummaryStatValue, { color: ACCENT }]}>
+                    {weeklySports.reduce((s, a) => s + a.totalCals, 0)}
+                  </Text>
+                  <Text style={[styles.weekSummaryStatLabel, { color: MUTED }]}>kcal burned</Text>
+                </View>
+                <View style={[styles.weekSummaryStat, { backgroundColor: BLUE + "12" }]}>
+                  <Ionicons name="timer-outline" size={16} color={BLUE} />
+                  <Text style={[styles.weekSummaryStatValue, { color: BLUE }]}>
+                    {weeklySports.reduce((s, a) => s + a.totalMins, 0)}
+                  </Text>
+                  <Text style={[styles.weekSummaryStatLabel, { color: MUTED }]}>active mins</Text>
+                </View>
+                <View style={[styles.weekSummaryStat, { backgroundColor: GREEN + "12" }]}>
+                  <Ionicons name="repeat-outline" size={16} color={GREEN} />
+                  <Text style={[styles.weekSummaryStatValue, { color: GREEN }]}>
+                    {weeklySports.reduce((s, a) => s + a.sessions, 0)}
+                  </Text>
+                  <Text style={[styles.weekSummaryStatLabel, { color: MUTED }]}>sessions</Text>
+                </View>
+              </View>
+
+              {/* Activity breakdown list */}
+              {weeklySports.slice(0, 4).map(s => (
+                <View key={s.sport} style={[styles.weekSummaryRow, { borderBottomColor: BORDER }]}>
+                  <MaterialCommunityIcons name={getActivityIcon(s.sport)} size={18} color={ACCENT} style={{ width: 24 }} />
+                  <Text style={[styles.weekSummaryActivity, { color: TEXT }]}>{s.sport}</Text>
+                  <Text style={[styles.weekSummaryMins, { color: MUTED }]}>{s.totalMins} min</Text>
+                  <Text style={[styles.weekSummaryCals, { color: ACCENT }]}>{s.totalCals} kcal</Text>
+                </View>
+              ))}
+
+              {/* Best activity badge */}
+              {weeklySports.length > 0 && (
+                <View style={[styles.bestActivityBadge, { backgroundColor: YELLOW + "15", borderColor: YELLOW + "40" }]}>
+                  <Ionicons name="trophy" size={14} color={YELLOW} />
+                  <Text style={[styles.bestActivityText, { color: TEXT }]}>
+                    Best this week: <Text style={{ fontWeight: "800" as const, color: YELLOW }}>{weeklySports[0].sport}</Text>
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
 
       </ScrollView>
 
@@ -706,14 +991,14 @@ export function ActivityTracker() {
         onLog={handleLogSteps}
       />
 
-      {/* ── AI Loading Sheet ────────────────────────────────────────── */}
+      {/* ── AI Loading Sheet (Change 6E/7: preserved exactly) ──────── */}
       <Modal visible={loadingSheet} transparent animationType="slide" onRequestClose={() => setLoadingSheet(false)}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.loadingSheet, { backgroundColor: CARD }]}>
             <View style={styles.handle} />
-            <Animated.Text style={[styles.loadingEmoji, { transform: [{ scale: pulseAnim }] }]}>
-              {activeSportEmoji || "🏅"}
-            </Animated.Text>
+            <Animated.View style={[{ transform: [{ scale: pulseAnim }] }]}>
+              <MaterialCommunityIcons name={activeSportIcon} size={72} color={ACCENT} />
+            </Animated.View>
             <Text style={styles.loadingTitle}>Analyzing your {activeSportName || "session"} with AI…</Text>
             <PulsingDots />
             <Text style={styles.loadingSubtext}>Calculating calories, recovery needs & tips</Text>
@@ -731,20 +1016,31 @@ export function ActivityTracker() {
               {analysis && (
                 <>
                   {/* Header */}
-                  <Text style={styles.resultHeader}>
-                    {activeSportEmoji} {activeSportName} · {duration} min · {intensity.charAt(0).toUpperCase() + intensity.slice(1)}
-                  </Text>
+                  <View style={styles.resultHeaderRow}>
+                    <MaterialCommunityIcons name={activeSportIcon} size={22} color={ACCENT} />
+                    <Text style={styles.resultHeader}>
+                      {activeSportName} · {duration} min · {intensity.charAt(0).toUpperCase() + intensity.slice(1)}
+                    </Text>
+                  </View>
 
-                  {/* Calories hero card */}
+                  {/* Calories hero */}
                   <View style={[styles.caloriesHero, { backgroundColor: ACCENT + "18", borderColor: ACCENT + "33" }]}>
-                    <Text style={styles.caloriesNum}>{analysis.calories_burned}</Text>
-                    <Text style={styles.caloriesLabel}>Calories Burned</Text>
+                    <Text style={styles.caloriesNum}>≈ {analysis.calories_burned}</Text>
+                    <Text style={styles.caloriesLabel}>Estimated Calories Burned</Text>
                     <View style={[styles.zonePill, { backgroundColor: (ZONE_COLORS[analysis.heart_rate_zone] ?? YELLOW) + "25", borderColor: (ZONE_COLORS[analysis.heart_rate_zone] ?? YELLOW) + "55" }]}>
                       <Text style={[styles.zonePillText, { color: ZONE_COLORS[analysis.heart_rate_zone] ?? YELLOW }]}>
                         ❤️ {analysis.heart_rate_zone.charAt(0).toUpperCase() + analysis.heart_rate_zone.slice(1)} Zone
                       </Text>
                     </View>
                   </View>
+
+                  {/* Change 6F: AI-style summary sentence */}
+                  {analysis.summary && (
+                    <View style={[styles.summaryCard, { backgroundColor: PURPLE + "0E", borderColor: PURPLE + "30" }]}>
+                      <Ionicons name="sparkles" size={14} color={PURPLE} />
+                      <Text style={[styles.summaryText, { color: TEXT }]}>{analysis.summary}</Text>
+                    </View>
+                  )}
 
                   {/* Recovery needs */}
                   <Text style={styles.subTitle}>Recovery Needs</Text>
@@ -913,30 +1209,47 @@ function RecordRow({ icon, color, label, value, last }: { icon: string; color: s
 const makeStyles = (t: AppTheme) => StyleSheet.create({
   scrollContent: { padding: 14, gap: 12 },
 
-  // Daily stats
+  // ── Daily stats (real data)
   dailyRow: { flexDirection: "row", gap: 8 },
-  dailyStat: { flex: 1, borderRadius: 14, padding: 12, alignItems: "center", gap: 4, borderWidth: 1, borderColor: t.BORDER },
+  dailyStat: { flex: 1, borderRadius: 14, padding: 12, alignItems: "center", gap: 4, borderWidth: 1, borderColor: t.BORDER, borderBottomWidth: 3, paddingVertical: 16 },
   dailyVal: { fontSize: 20, fontWeight: "800" as const, letterSpacing: -0.5 },
   dailyLabel: { fontSize: 10, color: t.MUTED, fontWeight: "600" as const, textAlign: "center" },
 
-  // Card
+  // ── Change 1: Motivational empty state cards
+  motivationalCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    paddingVertical: 18,
+    gap: 4,
+  },
+  motivationalEmoji: { fontSize: 24, marginBottom: 2 },
+  motivationalTitle: { fontSize: 12, fontWeight: "800" as const, textAlign: "center" },
+  motivationalSub: { fontSize: 10, textAlign: "center", fontWeight: "500" as const },
+
+  // ── Card
   card: { borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.BORDER },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
   cardEmoji: { fontSize: 20 },
   cardTitle: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT, flex: 1 },
 
-  // Steps card
-  logStepsBtn: {
+  // ── Change 10: Recent activities
+  recentChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: ACCENT,
-    backgroundColor: "transparent",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
   },
+  recentChipText: { fontSize: 13, fontWeight: "600" as const },
+
+  // ── Steps card
+  logStepsBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: ACCENT },
   logStepsBtnText: { fontSize: 11, fontWeight: "700" as const, color: ACCENT },
   stepsContent: { flexDirection: "row", alignItems: "center", gap: 20 },
   stepsNum: { fontSize: 20, fontWeight: "800" as const, color: t.TEXT, textAlign: "center" },
@@ -946,80 +1259,120 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   stepsStatVal: { fontSize: 14, fontWeight: "700" as const, flex: 1 },
   stepsStatLabel: { fontSize: 11, color: t.MUTED },
 
-  // Redesigned Category switcher, search, and grid styles
+  // ── Change 8: Category tabs
   tabsContainer: { gap: 8, paddingBottom: 6 },
   tabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER },
   tabBtnActive: { backgroundColor: ACCENT, borderColor: ACCENT },
   tabBtnText: { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
   tabBtnTextActive: { color: "#fff", fontWeight: "700" as const },
+
+  // ── Search bar
   searchBarContainer: { flexDirection: "row", alignItems: "center", backgroundColor: t.CARD2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
   searchIcon: { marginRight: 8 },
   searchBarInput: { flex: 1, color: t.TEXT, fontSize: 14, padding: 0 },
+
+  // ── Activity grid
   sportGrid: { flexDirection: "row", flexWrap: "wrap" as const, justifyContent: "space-between" },
-  sportCell: { width: "23.5%", aspectRatio: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.CARD, borderRadius: 12, padding: 4, borderWidth: 1.2, borderColor: "transparent", marginBottom: 8 },
-  sportCellSelected: { borderColor: ACCENT, backgroundColor: "#FF6B3512" },
-  sportEmoji: { fontSize: 32, marginBottom: 4 },
-  sportLabel: { fontSize: 11, fontWeight: "600" as const, color: t.TEXT, textAlign: "center" },
   noResultsText: { fontSize: 13, color: t.MUTED, textAlign: "center", paddingVertical: 20 },
   customInput: { backgroundColor: t.CARD2, borderWidth: 1, borderColor: ACCENT, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: t.TEXT, marginBottom: 16 },
 
-  // Duration & Intensity
+  // ── Duration & Intensity
   sectionLabel: { fontSize: 12, fontWeight: "700" as const, color: t.MUTED, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 10 },
-  durChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER },
+  durationRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
+  durChip: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, alignItems: "center" },
   durChipActive: { backgroundColor: ACCENT, borderColor: ACCENT },
   durChipText: { fontSize: 13, fontWeight: "600" as const, color: t.MUTED },
+  customDurWrap: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12, marginBottom: 4 },
+  customDurInput: {
+    flex: 1, borderWidth: 2, borderRadius: 12, paddingHorizontal: 14,
+    paddingVertical: 10, fontSize: 20, fontWeight: "700" as const, textAlign: "center",
+    color: t.TEXT, backgroundColor: t.CARD2,
+  },
+  customDurUnit: { fontSize: 14, fontWeight: "600" as const },
   intensityRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   intensityCell: { flex: 1, alignItems: "center", padding: 10, borderRadius: 14, backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, gap: 4 },
   intensityCellActive: { borderColor: ACCENT, backgroundColor: ACCENT + "15" },
   intensityIcon: { fontSize: 20 },
   intensityLabel: { fontSize: 12, fontWeight: "700" as const, color: t.MUTED },
   intensityDesc: { fontSize: 9, color: t.MUTED, textAlign: "center" },
+
+  // ── Change 9: Preview card
+  previewCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 14,
+  },
+  previewTitle: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  previewRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-around" },
+  previewItem: { alignItems: "center", gap: 4, flex: 1 },
+  previewValue: { fontSize: 14, fontWeight: "700" as const },
+  previewDivider: { width: 1, height: 32, marginHorizontal: 4 },
+
+  // ── Analyze button
   analyzeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 16 },
   analyzeBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" as const },
   aiError: { fontSize: 12, color: t.RED, marginBottom: 12, textAlign: "center" },
 
-  // Weekly sports
+  // ── Weekly sports breakdown
   weekSportRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.BORDER, gap: 10 },
-  weekSportEmoji: { fontSize: 24 },
+  weekSportIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   weekSportName: { fontSize: 14, fontWeight: "700" as const, color: t.TEXT, marginBottom: 2 },
   weekSportSub: { fontSize: 11, color: t.MUTED },
   sessionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   sessionBadgeText: { fontSize: 12, fontWeight: "700" as const },
 
-  // Personal records
+  // ── Personal records
   recordRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.BORDER, gap: 10 },
   recordIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   recordLabel: { fontSize: 11, color: t.MUTED, marginBottom: 2 },
   recordValue: { fontSize: 13, fontWeight: "700" as const, color: t.TEXT },
 
-  // Coach insight
-  coachIcon: { fontSize: 18 },
-  insightBox: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
-  insightText: { fontSize: 14, color: t.TEXT, lineHeight: 22 },
-  insightDate: { fontSize: 10, color: t.MUTED, marginTop: 6 },
-  insightEmpty: { padding: 14, alignItems: "center", marginBottom: 12 },
-  insightEmptyText: { fontSize: 13, color: t.MUTED, textAlign: "center", lineHeight: 20 },
-  insightBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
-  insightBtnText: { fontSize: 14, fontWeight: "700" as const },
+  // ── Change 3: Weekly summary card
+  weekSummaryEmpty: { alignItems: "center", paddingVertical: 24 },
+  weekSummaryEmptyTitle: { fontSize: 15, fontWeight: "700" as const, marginBottom: 6 },
+  weekSummaryEmptySub: { fontSize: 13, textAlign: "center", lineHeight: 20 },
+  weekSummaryStatsRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  weekSummaryStat: { flex: 1, borderRadius: 12, padding: 10, alignItems: "center", gap: 4 },
+  weekSummaryStatValue: { fontSize: 18, fontWeight: "800" as const, letterSpacing: -0.5 },
+  weekSummaryStatLabel: { fontSize: 10, fontWeight: "600" as const, textAlign: "center" },
+  weekSummaryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9, borderBottomWidth: 1, gap: 10 },
+  weekSummaryActivity: { flex: 1, fontSize: 13, fontWeight: "600" as const },
+  weekSummaryMins: { fontSize: 12, fontWeight: "500" as const, width: 50, textAlign: "right" },
+  weekSummaryCals: { fontSize: 12, fontWeight: "700" as const, width: 60, textAlign: "right" },
+  bestActivityBadge: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, marginTop: 12 },
+  bestActivityText: { fontSize: 13, fontWeight: "600" as const },
 
-  // Loading sheet
+  // ── Loading sheet
   sheetOverlay: { flex: 1, backgroundColor: t.isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
   loadingSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 32, alignItems: "center", gap: 12 },
   handle: { width: 40, height: 4, backgroundColor: t.isDark ? "#333" : "#ddd", borderRadius: 2, alignSelf: "center", marginBottom: 8 },
-  loadingEmoji: { fontSize: 72, marginBottom: 4 },
   loadingTitle: { fontSize: 18, fontWeight: "700" as const, color: t.TEXT, textAlign: "center" },
   loadingSubtext: { fontSize: 13, color: t.MUTED, textAlign: "center", marginTop: 4 },
   dotsRow: { flexDirection: "row", gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT },
 
-  // Result sheet
+  // ── Result sheet
   resultSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 0 },
-  resultHeader: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT, textAlign: "center", marginBottom: 16 },
-  caloriesHero: { borderRadius: 16, padding: 20, alignItems: "center", borderWidth: 1, marginBottom: 16 },
+  resultHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 },
+  resultHeader: { fontSize: 15, fontWeight: "700" as const, color: t.TEXT, textAlign: "center", flex: 1 },
+  caloriesHero: { borderRadius: 16, padding: 20, alignItems: "center", borderWidth: 1, marginBottom: 12 },
   caloriesNum: { fontSize: 56, fontWeight: "800" as const, color: ACCENT, letterSpacing: -2 },
   caloriesLabel: { fontSize: 13, color: t.MUTED, fontWeight: "600" as const, marginBottom: 8 },
   zonePill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   zonePillText: { fontSize: 12, fontWeight: "700" as const },
+
+  // Change 6F: Summary sentence
+  summaryCard: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 12, padding: 12, borderWidth: 1, marginBottom: 14 },
+  summaryText: { flex: 1, fontSize: 13, lineHeight: 20, fontStyle: "italic" as const },
+
   subTitle: { fontSize: 13, fontWeight: "700" as const, color: t.MUTED, textTransform: "uppercase" as const, letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
   nutrientRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   nutrientCard: { borderRadius: 14, padding: 12, alignItems: "center", gap: 4, borderWidth: 1 },
@@ -1043,14 +1396,14 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   editLink: { alignItems: "center", paddingVertical: 12 },
   editLinkText: { fontSize: 14, color: t.MUTED },
 
-  // Tooltip
+  // ── Tooltip
   tipOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center" },
   tipBox: { borderRadius: 18, padding: 20, maxWidth: 300, borderWidth: 1, alignItems: "center", gap: 14 },
   tipBoxText: { fontSize: 13, color: t.TEXT, textAlign: "center", lineHeight: 20 },
   tipBoxBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
   tipBoxBtnText: { color: "#fff", fontWeight: "700" as const },
 
-  // Steps sheet
+  // ── Steps sheet
   stepsSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, alignItems: "center", width: "100%" },
   stepsSheetTitle: { fontSize: 20, fontWeight: "700" as const, color: t.TEXT, marginBottom: 20 },
   stepsSheetInput: { fontSize: 56, fontWeight: "800" as const, color: t.TEXT, textAlign: "center", letterSpacing: -2, marginBottom: 4, width: "100%" },
@@ -1063,7 +1416,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   goalProgressFill: { height: 6, borderRadius: 3 },
   goalProgressText: { fontSize: 11, color: t.MUTED, marginBottom: 4 },
 
-  // Toast
+  // ── Toast
   toast: {
     position: "absolute" as const, bottom: 90, left: 20, right: 20,
     backgroundColor: t.CARD, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: t.BLUE + "44",
@@ -1071,7 +1424,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   },
   toastText: { fontSize: 13, fontWeight: "600" as const, color: t.TEXT, textAlign: "center" },
 
-  // Sticky bottom bar
+  // ── Sticky bottom bar
   stickyBottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: t.BG, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: t.BORDER, zIndex: 10 },
   stickyLogBtn: { backgroundColor: ACCENT, borderRadius: 14, paddingVertical: 14, alignItems: "center", justifyContent: "center" },
   stickyLogBtnText: { color: "#ffffff", fontSize: 16, fontWeight: "700" as const },
