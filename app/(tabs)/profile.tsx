@@ -802,7 +802,17 @@ export default function ProfileScreen() {
           <SettingRow icon="barbell" iconBg="#22C55E25" label="Calorie Display"
             sub={preferences.calorieDisplay === "kcal" ? "Kilocalories (kcal)" : "Kilojoules (kJ)"}
             onPress={() => setPreferences({ ...preferences, calorieDisplay: preferences.calorieDisplay === "kcal" ? "kj" : "kcal" })}
-            right={<Text style={[styles.prefNote, { color: ACCENT }]}>{preferences.calorieDisplay.toUpperCase()}</Text>} last />
+            right={<Text style={[styles.prefNote, { color: ACCENT }]}>{preferences.calorieDisplay.toUpperCase()}</Text>} />
+          <SettingRow icon="sparkles" iconBg="#FF6B3525" label="Habit Completion Effects"
+            sub="Sound & animation when a habit is completed"
+            right={
+              <Switch
+                value={preferences.habitEffectsEnabled}
+                onValueChange={(v) => setPreferences({ ...preferences, habitEffectsEnabled: v })}
+                trackColor={{ false: BORDER, true: ACCENT }}
+                thumbColor="#fff"
+              />
+            } last />
         </SectionCard>
 
         {/* ── Health Profile ────────────────────────────────────────── */}

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -15,6 +16,7 @@ import { AddHabitSheet } from "@/components/AddHabitSheet";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
 import { HABIT_COLORS, type Habit } from "@/context/HabitsContext";
 import { useHabits } from "@/context/HabitsContext";
+import { useProfile } from "@/context/ProfileContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
 
 function formatTime(seconds: number) {
@@ -23,6 +25,24 @@ function formatTime(seconds: number) {
   const s = seconds % 60;
   if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+// Play completion sound (respects device silent mode automatically via expo-av)
+async function playCompletionSound() {
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      require("../assets/sounds/complete.wav"),
+      { shouldPlay: true, volume: 0.7 }
+    );
+    // Unload sound after it finishes to free memory
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync().catch(() => {});
+      }
+    });
+  } catch {
+    // Silently fail if sound can't play (e.g., permissions, silent mode)
+  }
 }
 
 interface Props {
@@ -34,11 +54,20 @@ interface Props {
 
 export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
   const { getHabitLog, logHabit, deleteHabit, getStreak, getCompletionRate } = useHabits();
+  const { preferences } = useProfile();
   const theme = useAppTheme();
   const styles = makeStyles(theme);
   const log = getHabitLog(habit.id, date);
   const colorInfo = HABIT_COLORS.find((c) => c.id === habit.colorId) ?? HABIT_COLORS[0];
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Completion ring animation (success pulse around the checkbox)
+  const ringScale = useRef(new Animated.Value(1)).current;
+  const ringOpacity = useRef(new Animated.Value(0)).current;
+
+  // Timer active pulse animation
+  const timerPulse = useRef(new Animated.Value(1)).current;
+  const timerPulseAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   const [expanded, setExpanded] = useState(false);
   const [showEditSheet, setShowEditSheet] = useState(false);
@@ -74,8 +103,7 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
           clearInterval(id);
           setTimerActive(false);
           logHabitRef.current(habit.id, date, { timeSeconds: target, completed: true });
-          setConfettiTrigger((n) => n + 1);
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          triggerCompletion();
           return target;
         }
         return next;
@@ -83,6 +111,46 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, [timerActive, habit.targetTimeSeconds, habit.id, date]);
+
+  // Timer active: start/stop pulse animation on the checkbox
+  useEffect(() => {
+    if (timerActive) {
+      timerPulseAnim.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(timerPulse, { toValue: 1.08, duration: 600, useNativeDriver: true }),
+          Animated.timing(timerPulse, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      );
+      timerPulseAnim.current.start();
+    } else {
+      timerPulseAnim.current?.stop();
+      timerPulse.setValue(1);
+    }
+    return () => {
+      timerPulseAnim.current?.stop();
+    };
+  }, [timerActive]);
+
+  // Fire success ring animation + optional sound
+  const triggerCompletion = () => {
+    setConfettiTrigger((n) => n + 1);
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (preferences.habitEffectsEnabled) {
+      // Success ring: scale out + fade
+      ringScale.setValue(1);
+      ringOpacity.setValue(0.8);
+      Animated.parallel([
+        Animated.timing(ringScale, { toValue: 1.8, duration: 400, useNativeDriver: true }),
+        Animated.timing(ringOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
+
+      // Play sound
+      if (Platform.OS !== "web") {
+        playCompletionSound();
+      }
+    }
+  };
 
   const handleActionPress = async () => {
     Animated.sequence([
@@ -96,7 +164,7 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
       const newCompleted = !isDone;
       logHabit(habit.id, date, { completed: newCompleted });
       if (newCompleted) {
-        setConfettiTrigger((n) => n + 1);
+        triggerCompletion();
         // Check if all habits are now done
         if (onAllDone && allHabits) {
           const allNowDone = allHabits.every((h) => {
@@ -111,18 +179,43 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
       const max = habit.targetAmount ?? 10;
       const completed = newAmount >= max;
       logHabit(habit.id, date, { amount: Math.min(newAmount, max), completed });
-      if (completed && !log?.completed) setConfettiTrigger((n) => n + 1);
+      if (completed && !log?.completed) triggerCompletion();
     } else if (habit.trackMethod === "time") {
       if (timerActive) {
         // Stopping the timer — the effect cleanup handles clearInterval
         setTimerActive(false);
         const wasCompleted = timerSeconds >= (habit.targetTimeSeconds ?? 3600);
         logHabit(habit.id, date, { timeSeconds: timerSeconds, completed: wasCompleted });
-        if (wasCompleted) setConfettiTrigger((n) => n + 1);
+        if (wasCompleted) triggerCompletion();
       } else {
         setTimerActive(true);
       }
     }
+  };
+
+  // Manual complete for timer habits: keep current timerSeconds, mark completed: true
+  const handleManualComplete = () => {
+    if (isDone) return;
+    setTimerActive(false);
+    logHabit(habit.id, date, { timeSeconds: timerSeconds, completed: true });
+    triggerCompletion();
+  };
+
+  const handleLongPress = () => {
+    if (habit.trackMethod !== "time" || isDone) return;
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS === "web") {
+      handleManualComplete();
+      return;
+    }
+    Alert.alert(
+      "Mark as Complete?",
+      `Mark "${habit.name}" as completed for today?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Mark Complete ✓", onPress: handleManualComplete },
+      ]
+    );
   };
 
   const handleDelete = () => {
@@ -147,6 +240,12 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
     return "";
   };
 
+  // Border color system: green=done, orange=active/in-progress, grey=not started
+  const isInProgress =
+    (habit.trackMethod === "amount" && (log?.amount ?? 0) > 0 && !isDone) ||
+    (habit.trackMethod === "time" && timerActive);
+  const tileBorderColor = isDone ? "#22C55E" : isInProgress ? "#FF6B35" : theme.BORDER;
+
   const renderCheckbox = () => {
     const color = isDone ? "#22C55E" : colorInfo.icon;
     const bg = isDone ? "#22C55E" : timerActive ? colorInfo.icon : "transparent";
@@ -168,18 +267,18 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
     }
     if (habit.trackMethod === "time") {
       return (
-        <View style={[styles.checkbox, { borderColor: color, backgroundColor: bg }]}>
+        <Animated.View style={[styles.checkbox, { borderColor: color, backgroundColor: bg, transform: [{ scale: timerPulse }] }]}>
           {isDone && !timerActive
             ? <Ionicons name="checkmark" size={18} color="#fff" />
             : <Ionicons name={timerActive ? "pause" : "play"} size={16} color={timerActive ? "#fff" : colorInfo.icon} />}
-        </View>
+        </Animated.View>
       );
     }
     return null;
   };
 
   return (
-    <Animated.View style={[styles.wrapper, { transform: [{ scale: scaleAnim }], opacity: isDone ? 0.65 : 1 }]}>
+    <Animated.View style={[styles.wrapper, { transform: [{ scale: scaleAnim }], opacity: isDone ? 0.65 : 1, borderColor: tileBorderColor }]}>
       {/* Left color accent */}
       <View style={[styles.accentBar, { backgroundColor: colorInfo.icon }]} />
 
@@ -187,6 +286,8 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => setExpanded((p) => !p)}
+        onLongPress={handleLongPress}
+        delayLongPress={500}
         style={styles.mainRow}
       >
         {/* Emoji circle */}
@@ -199,6 +300,9 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
           <Text style={[styles.habitName, isDone && styles.doneText]} numberOfLines={1}>
             {habit.name}
           </Text>
+          {!!habit.description && (
+            <Text style={styles.descText} numberOfLines={2}>{habit.description}</Text>
+          )}
           <Text style={styles.subText}>
             {selectedDaysLabel(habit.weekDays)}
             {streak.best > 0 ? `  🔥 Best: ${streak.best}d` : ""}
@@ -216,13 +320,27 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
           style={{ marginRight: 8 }}
         />
 
-        {/* Checkbox / action button */}
-        <TouchableOpacity
-          onPress={handleActionPress}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          {renderCheckbox()}
-        </TouchableOpacity>
+        {/* Checkbox / action button with success ring */}
+        <View style={styles.checkboxWrap}>
+          {/* Success ring overlay */}
+          <Animated.View
+            style={[
+              styles.successRing,
+              {
+                borderColor: "#22C55E",
+                transform: [{ scale: ringScale }],
+                opacity: ringOpacity,
+              },
+            ]}
+            pointerEvents="none"
+          />
+          <TouchableOpacity
+            onPress={handleActionPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {renderCheckbox()}
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
 
       {/* Expanded panel */}
@@ -253,6 +371,17 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
               <Ionicons name="pencil" size={14} color={colorInfo.icon} />
               <Text style={[styles.actionBtnText, { color: colorInfo.icon }]}>Edit</Text>
             </TouchableOpacity>
+
+            {/* Manual complete for timer habits (when not yet done) */}
+            {habit.trackMethod === "time" && !isDone && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: "#22C55E15", borderColor: "#22C55E40" }]}
+                onPress={handleManualComplete}
+              >
+                <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                <Text style={[styles.actionBtnText, { color: "#22C55E" }]}>Mark Complete</Text>
+              </TouchableOpacity>
+            )}
 
             {habit.trackMethod === "amount" && (log?.amount ?? 0) > 0 && (
               <TouchableOpacity
@@ -308,8 +437,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     backgroundColor: t.CARD,
     borderRadius: 16,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: t.BORDER,
+    borderWidth: 1.5,
     overflow: "hidden",
     flexDirection: "column",
   },
@@ -340,16 +468,37 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     fontSize: 15,
     fontWeight: "700" as const,
     color: t.TEXT,
-    marginBottom: 3,
+    marginBottom: 1,
   },
   doneText: { textDecorationLine: "line-through" as const, color: t.MUTED },
-  subText: { fontSize: 11, color: t.MUTED, fontWeight: "500" as const },
+  descText: {
+    fontSize: 11,
+    color: t.MUTED,
+    fontStyle: "italic" as const,
+    marginBottom: 2,
+    lineHeight: 15,
+  },
+  subText: { fontSize: 11, color: t.MUTED, fontWeight: "500" as const, marginTop: 1 },
   progressText: { fontSize: 12, color: "#FF6B35", fontWeight: "600" as const, marginTop: 3 },
+  checkboxWrap: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 44,
+    height: 44,
+  },
+  successRing: {
+    position: "absolute",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 3,
+  },
   checkbox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2.5,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,

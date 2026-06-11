@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import {
+  Keyboard,
   Modal,
   Platform,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -16,7 +18,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   HABIT_COLORS,
-  HABIT_EMOJIS,
   Habit,
   HabitType,
   TrackMethod,
@@ -32,6 +33,37 @@ interface Props {
 
 type Step = "type" | "details";
 
+// ── Emoji categories (UI grouping only — context stores flat array) ────────────
+const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+  {
+    label: "Fitness",
+    emojis: ["🏃", "💪", "🏋️", "🚴", "🏊", "🤸", "⚽", "🎾", "🏸", "🥊", "🧗", "🏅"],
+  },
+  {
+    label: "Health",
+    emojis: ["💊", "💧", "🍎", "🥗", "🥦", "😴", "🩺", "🌡️", "🫀", "🧬", "🍵", "🫁"],
+  },
+  {
+    label: "Mind",
+    emojis: ["📚", "🧠", "🎯", "🎨", "🎵", "🌿", "📝", "💡", "🧩", "🎭", "🎲", "🔬"],
+  },
+  {
+    label: "Productivity",
+    emojis: ["⏰", "✅", "📋", "🗓️", "💼", "📊", "🚀", "💻", "✍️", "🔑", "📱", "🎙️"],
+  },
+  {
+    label: "Lifestyle",
+    emojis: ["☕", "🌙", "🌅", "🏠", "🌱", "🎁", "🛁", "🐕", "🌸", "❤️", "🍳", "🧹"],
+  },
+];
+
+// Helper: check if sorted arrays are equal
+function arraysEqual(a: number[], b: number[]) {
+  const sa = [...a].sort((x, y) => x - y);
+  const sb = [...b].sort((x, y) => x - y);
+  return sa.length === sb.length && sa.every((v, i) => v === sb[i]);
+}
+
 export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -42,6 +74,7 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
   const [step, setStep] = useState<Step>(isEditing ? "details" : "type");
   const [habitType, setHabitType] = useState<HabitType>(editHabit?.type ?? "build");
   const [name, setName] = useState(editHabit?.name ?? "");
+  const [description, setDescription] = useState(editHabit?.description ?? "");
   const [trackMethod, setTrackMethod] = useState<TrackMethod>(editHabit?.trackMethod ?? "task");
   const [colorId, setColorId] = useState(editHabit?.colorId ?? "green");
   const [emoji, setEmoji] = useState(editHabit?.emoji ?? "📚");
@@ -56,6 +89,7 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
         setStep("details");
         setHabitType(editHabit.type);
         setName(editHabit.name);
+        setDescription(editHabit.description ?? "");
         setTrackMethod(editHabit.trackMethod);
         setColorId(editHabit.colorId);
         setEmoji(editHabit.emoji);
@@ -66,6 +100,7 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
       } else {
         setStep("type");
         setName("");
+        setDescription("");
         setTrackMethod("task");
         setColorId("green");
         setEmoji("📚");
@@ -78,7 +113,7 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
   }, [visible, editHabit]);
 
   const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
-  const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0];
+  const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0]; // Mon→Sun order
 
   const handleClose = () => onClose();
 
@@ -91,6 +126,7 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
     if (!name.trim()) return;
     const data = {
       name: name.trim(),
+      description: description.trim() || undefined,
       type: habitType,
       trackMethod,
       colorId,
@@ -113,6 +149,16 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
       prev.includes(dayIdx) ? prev.filter((d) => d !== dayIdx) : [...prev, dayIdx]
     );
   };
+
+  // Frequency preset helpers
+  const setEveryDay = () => setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
+  const setWeekdays = () => setSelectedDays([1, 2, 3, 4, 5]);
+  const setWeekends = () => setSelectedDays([0, 6]);
+
+  const isEveryDay = arraysEqual(selectedDays, [0, 1, 2, 3, 4, 5, 6]);
+  const isWeekdays = arraysEqual(selectedDays, [1, 2, 3, 4, 5]);
+  const isWeekends = arraysEqual(selectedDays, [0, 6]);
+  const isCustom = !isEveryDay && !isWeekdays && !isWeekends;
 
   const selectedColor = HABIT_COLORS.find((c) => c.id === colorId) ?? HABIT_COLORS[0];
 
@@ -138,218 +184,270 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.handle} />
-
-              {step === "type" ? (
-                <>
-                  <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                    What type of a habit?
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.typeBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
-                    onPress={() => handleSelectType("build")}
-                  >
-                    <View style={[styles.typeIconWrap, { backgroundColor: "#E8F5E9" }]}>
-                      <MaterialCommunityIcons name="sprout" size={28} color="#34C759" />
-                    </View>
-                    <View style={styles.typeTextWrap}>
-                      <Text style={[styles.typeName, { color: colors.foreground }]}>Build</Text>
-                      <Text style={[styles.typeDesc, { color: colors.mutedForeground }]}>
-                        Build a good habit, like flossing, reading, or exercising
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.typeBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
-                    onPress={() => handleSelectType("quit")}
-                  >
-                    <View style={[styles.typeIconWrap, { backgroundColor: "#FEE2E2" }]}>
-                      <MaterialCommunityIcons name="fire" size={28} color="#FF4757" />
-                    </View>
-                    <View style={styles.typeTextWrap}>
-                      <Text style={[styles.typeName, { color: colors.foreground }]}>Quit</Text>
-                      <Text style={[styles.typeDesc, { color: colors.mutedForeground }]}>
-                        Quit a bad habit, like smoking, drinking, or eating junk food
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                </>
-              ) : (
+              {/* Tap inside sheet to dismiss keyboard without closing modal */}
+              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View>
-                  <View style={styles.detailHeader}>
-                    {!isEditing ? (
-                      <TouchableOpacity onPress={() => setStep("type")}>
-                        <Ionicons name="arrow-back" size={24} color={colors.foreground} />
-                      </TouchableOpacity>
-                    ) : <View style={{ width: 24 }} />}
-                    <Text style={[styles.sheetTitle, { color: colors.foreground, marginBottom: 0 }]}>
-                      {isEditing ? "Edit Habit" : "New Habit"}
-                    </Text>
-                    <TouchableOpacity onPress={handleClose}>
-                      <Ionicons name="close" size={24} color={colors.foreground} />
-                    </TouchableOpacity>
-                  </View>
+                  <View style={styles.handle} />
 
-                  <TextInput
-                    style={[styles.nameInput, { borderColor: colors.primary, color: colors.foreground }]}
-                    placeholder="Your awesome habit"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={name}
-                    onChangeText={setName}
-                    maxLength={40}
-                  />
-
-                  <Text style={[styles.label, { color: colors.foreground }]}>Track</Text>
-                  <View style={styles.segmentedRow}>
-                    {(["task", "amount", "time"] as TrackMethod[]).map((m) => (
+                  {step === "type" ? (
+                    <>
+                      <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+                        What type of a habit?
+                      </Text>
                       <TouchableOpacity
-                        key={m}
-                        style={[
-                          styles.segBtn,
-                          {
-                            backgroundColor: trackMethod === m ? colors.primary : colors.muted,
-                            borderColor: trackMethod === m ? colors.primary : "transparent",
-                          },
-                        ]}
-                        onPress={() => setTrackMethod(m)}
+                        style={[styles.typeBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
+                        onPress={() => handleSelectType("build")}
                       >
-                        <Ionicons
-                          name={m === "task" ? "checkmark-circle" : m === "amount" ? "stats-chart" : "timer"}
-                          size={18}
-                          color={trackMethod === m ? "#fff" : colors.mutedForeground}
-                        />
-                        <Text style={[styles.segText, { color: trackMethod === m ? "#fff" : colors.mutedForeground }]}>
-                          {m.charAt(0).toUpperCase() + m.slice(1)}
-                        </Text>
+                        <View style={[styles.typeIconWrap, { backgroundColor: "#E8F5E9" }]}>
+                          <MaterialCommunityIcons name="sprout" size={28} color="#34C759" />
+                        </View>
+                        <View style={styles.typeTextWrap}>
+                          <Text style={[styles.typeName, { color: colors.foreground }]}>Build</Text>
+                          <Text style={[styles.typeDesc, { color: colors.mutedForeground }]}>
+                            Build a good habit, like flossing, reading, or exercising
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
                       </TouchableOpacity>
-                    ))}
-                  </View>
 
-                  {trackMethod === "amount" && (
-                    <>
-                      <Text style={[styles.label, { color: colors.foreground }]}>Target amount</Text>
-                      <TextInput
-                        style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]}
-                        keyboardType="number-pad"
-                        value={targetAmount}
-                        onChangeText={setTargetAmount}
-                        placeholder="5"
-                        placeholderTextColor={colors.mutedForeground}
-                      />
+                      <TouchableOpacity
+                        style={[styles.typeBtn, { borderColor: colors.border, backgroundColor: colors.background }]}
+                        onPress={() => handleSelectType("quit")}
+                      >
+                        <View style={[styles.typeIconWrap, { backgroundColor: "#FEE2E2" }]}>
+                          <MaterialCommunityIcons name="fire" size={28} color="#FF4757" />
+                        </View>
+                        <View style={styles.typeTextWrap}>
+                          <Text style={[styles.typeName, { color: colors.foreground }]}>Quit</Text>
+                          <Text style={[styles.typeDesc, { color: colors.mutedForeground }]}>
+                            Quit a bad habit, like smoking, drinking, or eating junk food
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                      </TouchableOpacity>
                     </>
-                  )}
-
-                  {trackMethod === "time" && (
-                    <>
-                      <Text style={[styles.label, { color: colors.foreground }]}>Target duration</Text>
-                      <View style={styles.durationRow}>
-                        <View style={styles.durationField}>
-                          <TextInput
-                            style={[styles.durationInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                            keyboardType="number-pad"
-                            value={targetHr}
-                            onChangeText={(v) => setTargetHr(v.replace(/[^0-9]/g, ""))}
-                            placeholder="00"
-                            placeholderTextColor={colors.mutedForeground}
-                            maxLength={3}
-                            textAlign="center"
-                          />
-                          <Text style={[styles.durationLabel, { color: colors.mutedForeground }]}>Hr</Text>
-                        </View>
-                        <Text style={[styles.durationSep, { color: colors.foreground }]}>:</Text>
-                        <View style={styles.durationField}>
-                          <TextInput
-                            style={[styles.durationInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                            keyboardType="number-pad"
-                            value={targetMin}
-                            onChangeText={(v) => {
-                              const n = parseInt(v.replace(/[^0-9]/g, "") || "0");
-                              setTargetMin(String(Math.min(n, 59)));
-                            }}
-                            placeholder="00"
-                            placeholderTextColor={colors.mutedForeground}
-                            maxLength={2}
-                            textAlign="center"
-                          />
-                          <Text style={[styles.durationLabel, { color: colors.mutedForeground }]}>min</Text>
-                        </View>
+                  ) : (
+                    <View>
+                      <View style={styles.detailHeader}>
+                        {!isEditing ? (
+                          <TouchableOpacity onPress={() => setStep("type")}>
+                            <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+                          </TouchableOpacity>
+                        ) : <View style={{ width: 24 }} />}
+                        <Text style={[styles.sheetTitle, { color: colors.foreground, marginBottom: 0 }]}>
+                          {isEditing ? "Edit Habit" : "New Habit"}
+                        </Text>
+                        <TouchableOpacity onPress={handleClose}>
+                          <Ionicons name="close" size={24} color={colors.foreground} />
+                        </TouchableOpacity>
                       </View>
-                    </>
-                  )}
 
-                  <Text style={[styles.label, { color: colors.foreground }]}>Color & Emoji</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorRow}>
-                    {HABIT_COLORS.map((c) => (
-                      <TouchableOpacity
-                        key={c.id}
-                        onPress={() => setColorId(c.id)}
-                        style={[
-                          styles.colorCircle,
-                          { backgroundColor: c.icon },
-                          colorId === c.id && styles.colorSelected,
-                        ]}
+                      {/* Name input */}
+                      <TextInput
+                        style={[styles.nameInput, { borderColor: colors.primary, color: colors.foreground }]}
+                        placeholder="Your awesome habit"
+                        placeholderTextColor={colors.mutedForeground}
+                        value={name}
+                        onChangeText={setName}
+                        maxLength={40}
                       />
-                    ))}
-                  </ScrollView>
 
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiRow}>
-                    {HABIT_EMOJIS.map((e) => (
-                      <TouchableOpacity
-                        key={e}
-                        onPress={() => setEmoji(e)}
-                        style={[
-                          styles.emojiBtn,
-                          emoji === e && { backgroundColor: selectedColor.bg },
-                        ]}
-                      >
-                        <Text style={styles.emojiText}>{e}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                      {/* Description / note (optional) */}
+                      <Text style={[styles.label, { color: colors.foreground }]}>Note (optional)</Text>
+                      <TextInput
+                        style={[styles.noteInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                        placeholder="e.g. 30 min outdoor walk"
+                        placeholderTextColor={colors.mutedForeground}
+                        value={description}
+                        onChangeText={setDescription}
+                        maxLength={80}
+                      />
 
-                  <Text style={[styles.label, { color: colors.foreground }]}>Repeat</Text>
-                  <View style={styles.daysRow}>
-                    {DAY_INDICES.map((dayIdx, i) => (
-                      <TouchableOpacity
-                        key={dayIdx}
-                        onPress={() => toggleDay(dayIdx)}
-                        style={[
-                          styles.dayBtn,
-                          {
-                            backgroundColor: selectedDays.includes(dayIdx) ? "#4ECDC4" : colors.muted,
-                          },
-                        ]}
-                      >
-                        <Text style={[
-                          styles.dayBtnText,
-                          { color: selectedDays.includes(dayIdx) ? "#fff" : colors.mutedForeground },
-                        ]}>
-                          {DAY_LABELS[i]}
+                      {/* Track method */}
+                      <Text style={[styles.label, { color: colors.foreground }]}>Track</Text>
+                      <View style={styles.segmentedRow}>
+                        {(["task", "amount", "time"] as TrackMethod[]).map((m) => (
+                          <TouchableOpacity
+                            key={m}
+                            style={[
+                              styles.segBtn,
+                              {
+                                backgroundColor: trackMethod === m ? colors.primary : colors.muted,
+                                borderColor: trackMethod === m ? colors.primary : "transparent",
+                              },
+                            ]}
+                            onPress={() => setTrackMethod(m)}
+                          >
+                            <Ionicons
+                              name={m === "task" ? "checkmark-circle" : m === "amount" ? "stats-chart" : "timer"}
+                              size={18}
+                              color={trackMethod === m ? "#fff" : colors.mutedForeground}
+                            />
+                            <Text style={[styles.segText, { color: trackMethod === m ? "#fff" : colors.mutedForeground }]}>
+                              {m.charAt(0).toUpperCase() + m.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+
+                      {trackMethod === "amount" && (
+                        <>
+                          <Text style={[styles.label, { color: colors.foreground }]}>Target amount</Text>
+                          <TextInput
+                            style={[styles.smallInput, { borderColor: colors.border, color: colors.foreground }]}
+                            keyboardType="number-pad"
+                            value={targetAmount}
+                            onChangeText={setTargetAmount}
+                            placeholder="5"
+                            placeholderTextColor={colors.mutedForeground}
+                          />
+                        </>
+                      )}
+
+                      {trackMethod === "time" && (
+                        <>
+                          <Text style={[styles.label, { color: colors.foreground }]}>Target duration</Text>
+                          <View style={styles.durationRow}>
+                            <View style={styles.durationField}>
+                              <TextInput
+                                style={[styles.durationInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                                keyboardType="number-pad"
+                                value={targetHr}
+                                onChangeText={(v) => setTargetHr(v.replace(/[^0-9]/g, ""))}
+                                placeholder="00"
+                                placeholderTextColor={colors.mutedForeground}
+                                maxLength={3}
+                                textAlign="center"
+                              />
+                              <Text style={[styles.durationLabel, { color: colors.mutedForeground }]}>Hr</Text>
+                            </View>
+                            <Text style={[styles.durationSep, { color: colors.foreground }]}>:</Text>
+                            <View style={styles.durationField}>
+                              <TextInput
+                                style={[styles.durationInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                                keyboardType="number-pad"
+                                value={targetMin}
+                                onChangeText={(v) => {
+                                  const n = parseInt(v.replace(/[^0-9]/g, "") || "0");
+                                  setTargetMin(String(Math.min(n, 59)));
+                                }}
+                                placeholder="00"
+                                placeholderTextColor={colors.mutedForeground}
+                                maxLength={2}
+                                textAlign="center"
+                              />
+                              <Text style={[styles.durationLabel, { color: colors.mutedForeground }]}>min</Text>
+                            </View>
+                          </View>
+                        </>
+                      )}
+
+                      {/* Color picker */}
+                      <Text style={[styles.label, { color: colors.foreground }]}>Color</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorRow}>
+                        {HABIT_COLORS.map((c) => (
+                          <TouchableOpacity
+                            key={c.id}
+                            onPress={() => setColorId(c.id)}
+                            style={[
+                              styles.colorCircle,
+                              { backgroundColor: c.icon },
+                              colorId === c.id && styles.colorSelected,
+                            ]}
+                          />
+                        ))}
+                      </ScrollView>
+
+                      {/* Emoji picker — categorized sections */}
+                      <Text style={[styles.label, { color: colors.foreground }]}>Emoji</Text>
+                      {EMOJI_CATEGORIES.map((cat) => (
+                        <View key={cat.label} style={styles.emojiCat}>
+                          <Text style={[styles.emojiCatLabel, { color: colors.mutedForeground }]}>{cat.label}</Text>
+                          <View style={styles.emojiGrid}>
+                            {cat.emojis.map((e) => (
+                              <TouchableOpacity
+                                key={e}
+                                onPress={() => setEmoji(e)}
+                                style={[
+                                  styles.emojiBtn,
+                                  emoji === e && { backgroundColor: selectedColor.bg },
+                                ]}
+                              >
+                                <Text style={styles.emojiText}>{e}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+
+                      {/* Frequency presets */}
+                      <Text style={[styles.label, { color: colors.foreground }]}>Repeat</Text>
+                      <View style={styles.freqPresets}>
+                        {[
+                          { label: "Every Day", action: setEveryDay, active: isEveryDay },
+                          { label: "Weekdays", action: setWeekdays, active: isWeekdays },
+                          { label: "Weekends", action: setWeekends, active: isWeekends },
+                          { label: "Custom", action: () => {}, active: isCustom },
+                        ].map((p) => (
+                          <TouchableOpacity
+                            key={p.label}
+                            style={[
+                              styles.freqBtn,
+                              { backgroundColor: p.active ? "#4ECDC4" : colors.muted },
+                            ]}
+                            onPress={p.action}
+                          >
+                            <Text style={[styles.freqBtnText, { color: p.active ? "#fff" : colors.mutedForeground }]}>
+                              {p.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+
+                      {/* Individual day toggles (always visible for fine-tuning) */}
+                      <View style={styles.daysRow}>
+                        {DAY_INDICES.map((dayIdx, i) => (
+                          <TouchableOpacity
+                            key={dayIdx}
+                            onPress={() => toggleDay(dayIdx)}
+                            style={[
+                              styles.dayBtn,
+                              {
+                                backgroundColor: selectedDays.includes(dayIdx) ? "#4ECDC4" : colors.muted,
+                              },
+                            ]}
+                          >
+                            <Text style={[
+                              styles.dayBtnText,
+                              { color: selectedDays.includes(dayIdx) ? "#fff" : colors.mutedForeground },
+                            ]}>
+                              {DAY_LABELS[i]}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <View style={[styles.repeatInfo, { backgroundColor: colors.muted }]}>
+                        <Ionicons name="repeat" size={14} color={colors.mutedForeground} style={{ marginRight: 6 }} />
+                        <Text style={[styles.repeatText, { color: colors.mutedForeground }]}>
+                          {isEveryDay ? "Every day" :
+                           isWeekdays ? "Weekdays (Mon–Fri)" :
+                           isWeekends ? "Weekends (Sat–Sun)" :
+                           selectedDays.length === 0 ? "No days selected" :
+                           `${selectedDays.length} day${selectedDays.length !== 1 ? "s" : ""} per week`}
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={[styles.repeatInfo, { backgroundColor: colors.muted }]}>
-                    <Ionicons name="repeat" size={14} color={colors.mutedForeground} style={{ marginRight: 6 }} />
-                    <Text style={[styles.repeatText, { color: colors.mutedForeground }]}>
-                      {selectedDays.length === 7 ? "Every day" :
-                       selectedDays.length === 0 ? "No days selected" :
-                       "Every week"}
-                    </Text>
-                  </View>
+                      </View>
 
-                  <TouchableOpacity
-                    style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: name.trim() ? 1 : 0.5 }]}
-                    onPress={handleSave}
-                    disabled={!name.trim()}
-                  >
-                    <Text style={styles.saveBtnText}>{isEditing ? "Save Changes" : "Add Habit"}</Text>
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: name.trim() ? 1 : 0.5 }]}
+                        onPress={handleSave}
+                        disabled={!name.trim()}
+                      >
+                        <Text style={styles.saveBtnText}>{isEditing ? "Save Changes" : "Add Habit"}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-              )}
+              </TouchableWithoutFeedback>
             </KeyboardAwareScrollView>
           </View>
         </TouchableOpacity>
@@ -364,15 +462,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "flex-end",
   },
-  kvContainer: {
-    justifyContent: "flex-end",
-  },
   sheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
     paddingTop: 12,
-    maxHeight: "90%",
+    maxHeight: "92%",
   },
   handle: {
     width: 40,
@@ -427,7 +522,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600" as const,
     paddingVertical: 8,
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  noteInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    marginBottom: 20,
   },
   label: {
     fontSize: 13,
@@ -493,7 +596,7 @@ const styles = StyleSheet.create({
     marginTop: -16,
   },
   colorRow: {
-    marginBottom: 12,
+    marginBottom: 20,
   },
   colorCircle: {
     width: 36,
@@ -510,8 +613,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  emojiRow: {
-    marginBottom: 20,
+  // Categorized emoji picker
+  emojiCat: {
+    marginBottom: 12,
+  },
+  emojiCatLabel: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  emojiGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap" as const,
+    gap: 6,
   },
   emojiBtn: {
     width: 44,
@@ -519,10 +635,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 8,
   },
   emojiText: {
     fontSize: 24,
+  },
+  // Frequency presets
+  freqPresets: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 14,
+    flexWrap: "wrap" as const,
+  },
+  freqBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  freqBtnText: {
+    fontSize: 13,
+    fontWeight: "600" as const,
   },
   daysRow: {
     flexDirection: "row",

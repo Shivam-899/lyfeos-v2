@@ -26,6 +26,7 @@ export interface Reminders {
 export interface Preferences {
   units: "metric" | "imperial";
   calorieDisplay: "kcal" | "kj";
+  habitEffectsEnabled: boolean; // Completion sound & celebration animation
 }
 
 interface ProfileContextType {
@@ -56,7 +57,7 @@ const KEY_PREFS    = "@lyfeos_profile_prefs_v1";
 
 const DEFAULT_HEALTH: HealthProfile = { age: "", sex: "", height: "", weight: "", activityLevel: "", goal: "" };
 const DEFAULT_REMIND: Reminders = { morning: false, meal: false, water: false, evening: false };
-const DEFAULT_PREFS: Preferences = { units: "metric", calorieDisplay: "kcal" };
+const DEFAULT_PREFS: Preferences = { units: "metric", calorieDisplay: "kcal", habitEffectsEnabled: true };
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserNameState] = useState("LyfeOS User");
@@ -93,7 +94,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         if (ag) setActivityGoalState(parseInt(ag) || 30);
         if (health) setHealthProfileState(JSON.parse(health));
         if (remind) setRemindersState(JSON.parse(remind));
-        if (prefs) setPreferencesState(JSON.parse(prefs));
+        if (prefs) {
+          // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
+          const stored = JSON.parse(prefs);
+          setPreferencesState({ ...DEFAULT_PREFS, ...stored });
+        }
       } catch {}
     })();
   }, []);

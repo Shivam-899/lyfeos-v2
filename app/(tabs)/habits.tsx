@@ -30,10 +30,21 @@ const CATEGORIES = ["All", "Health", "Fitness", "Mind", "Sleep", "Custom"] as co
 type Category = (typeof CATEGORIES)[number];
 
 const CATEGORY_EMOJIS: Record<string, Category> = {
+  // Health
   "💊": "Health", "💧": "Health", "🍎": "Health", "☕": "Health",
+  "🥗": "Health", "🥦": "Health", "😴": "Health", "🩺": "Health",
+  "🌡️": "Health", "🫀": "Health", "🧬": "Health", "🍵": "Health", "🫁": "Health",
+  // Fitness
   "🏃": "Fitness", "💪": "Fitness", "🎯": "Fitness",
+  "🏋️": "Fitness", "🚴": "Fitness", "🏊": "Fitness", "🤸": "Fitness",
+  "⚽": "Fitness", "🎾": "Fitness", "🏸": "Fitness", "🥊": "Fitness",
+  "🧗": "Fitness", "🏅": "Fitness",
+  // Mind
   "📚": "Mind", "🧘": "Mind", "🎨": "Mind", "🎵": "Mind", "🌿": "Mind",
-  "🌙": "Sleep",
+  "🧠": "Mind", "📝": "Mind", "💡": "Mind", "🧩": "Mind",
+  "🎭": "Mind", "🎲": "Mind", "🔬": "Mind",
+  // Sleep / Lifestyle
+  "🌙": "Sleep", "🌅": "Sleep",
 };
 
 function habitCategory(h: Habit): Category {
@@ -73,32 +84,41 @@ function WeeklySummary({ habits, getHabitLog }: {
   const bestIdx = bars.reduce((bi, b, i) => (b.pct > bars[bi].pct ? i : bi), 0);
   const hasSomeData = bars.some((b) => b.pct > 0);
 
+  // Fixed bar height in pixels (60px track). Percentage strings don't work in RN
+  // when parent uses flex:1. Convert to pixel value.
+  const TRACK_HEIGHT = 60;
+
   return (
     <View style={styles.weekCard}>
       <Text style={styles.weekTitle}>This Week</Text>
-      <View style={styles.barsRow}>
-        {bars.map((b, i) => {
-          const isToday = i === 6;
-          return (
-            <View key={i} style={styles.barItem}>
-              <View style={styles.barTrack}>
-                <View
-                  style={[
-                    styles.barFill,
-                    {
-                      height: `${Math.max(b.pct * 100, b.pct > 0 ? 8 : 0)}%`,
-                      backgroundColor: isToday ? ACCENT : b.pct === 1 ? GREEN : ACCENT + "88",
-                    },
-                  ]}
-                />
+      {!hasSomeData ? (
+        <Text style={styles.weekEmpty}>Complete habits to see your weekly progress here ✨</Text>
+      ) : (
+        <View style={[styles.barsRow, { height: TRACK_HEIGHT + 20 }]}>
+          {bars.map((b, i) => {
+            const isToday = i === 6;
+            const fillH = Math.round(Math.max(b.pct * TRACK_HEIGHT, b.pct > 0 ? 6 : 0));
+            return (
+              <View key={i} style={styles.barItem}>
+                <View style={[styles.barTrack, { height: TRACK_HEIGHT }]}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      {
+                        height: fillH,
+                        backgroundColor: isToday ? ACCENT : b.pct === 1 ? GREEN : ACCENT + "88",
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.barDayLabel, isToday && { color: ACCENT }]}>
+                  {DAY_NAMES[b.d.getDay()].slice(0, 1)}
+                </Text>
               </View>
-              <Text style={[styles.barDayLabel, isToday && { color: ACCENT }]}>
-                {DAY_NAMES[b.d.getDay()].slice(0, 1)}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
+            );
+          })}
+        </View>
+      )}
       {hasSomeData && (
         <Text style={styles.weekBest}>
           Your best day was {DAY_NAMES[bars[bestIdx].d.getDay()]} 🏆
@@ -145,6 +165,11 @@ export default function HabitsScreen() {
   const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE, isDark } = theme;
   const styles = makeStyles(theme);
   const { habits, addHabit, getHabitsForDate, getHabitLog, getStreak } = useHabits();
+
+  // Earliest habit creation date for CalendarStrip back-nav limit
+  const earliestCreatedAt = habits.length > 0
+    ? habits.reduce((earliest, h) => h.createdAt < earliest ? h.createdAt : earliest, habits[0].createdAt)
+    : undefined;
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<"rituals" | "activity">("rituals");
@@ -281,7 +306,11 @@ export default function HabitsScreen() {
 
         {/* ── Calendar strip (only for rituals tab) ──────────────────── */}
         {activeTab === "rituals" && (
-          <CalendarStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+          <CalendarStrip
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            earliestCreatedAt={earliestCreatedAt}
+          />
         )}
       </View>
 
@@ -479,15 +508,13 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: ACCENT + "22",
-    borderRadius: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: ACCENT + "44",
+    backgroundColor: ACCENT,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  streakFire: { fontSize: 13 },
-  streakText: { fontSize: 12, fontWeight: "700" as const, color: ACCENT },
+  streakFire: { fontSize: 14 },
+  streakText: { fontSize: 12, fontWeight: "800" as const, color: "#fff" },
   addBtn: {
     width: 44,
     height: 44,
@@ -633,7 +660,6 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   emptyCategoryText: { fontSize: 14, color: t.MUTED, marginBottom: 8 },
   emptyCategoryAction: { fontSize: 14, color: ACCENT, fontWeight: "600" as const },
 
-  // Weekly summary
   weekCard: {
     backgroundColor: t.CARD,
     borderRadius: 16,
@@ -644,17 +670,17 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     borderColor: t.BORDER,
   },
   weekTitle: { fontSize: 15, fontWeight: "700" as const, color: t.TEXT, marginBottom: 14 },
-  barsRow: { flexDirection: "row", gap: 6, alignItems: "flex-end", height: 72 },
-  barItem: { flex: 1, alignItems: "center", gap: 6 },
+  weekEmpty: { fontSize: 13, color: t.MUTED, textAlign: "center", paddingVertical: 20, fontWeight: "500" as const },
+  barsRow: { flexDirection: "row", gap: 6, alignItems: "flex-end" },
+  barItem: { flex: 1, alignItems: "center", gap: 4 },
   barTrack: {
-    flex: 1,
     width: "100%",
     backgroundColor: t.BORDER,
     borderRadius: 6,
     overflow: "hidden",
     justifyContent: "flex-end",
   },
-  barFill: { width: "100%", borderRadius: 6, minHeight: 0 },
+  barFill: { width: "100%", borderRadius: 6 },
   barDayLabel: { fontSize: 10, color: t.MUTED, fontWeight: "600" as const },
   weekBest: { fontSize: 12, color: t.MUTED, marginTop: 12, textAlign: "center", fontWeight: "500" as const },
 
