@@ -948,15 +948,22 @@ export default function HomeScreen() {
   // ── Change 4: Show notification permission prompt once (native only) ───────
   useEffect(() => {
     if (Platform.OS === "web") return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
     (async () => {
       try {
         const asked = await AsyncStorage.getItem(NOTIF_ASKED_KEY);
-        if (!asked) {
-          const timer = setTimeout(() => setNotifPermSheetOpen(true), 2500);
-          return () => clearTimeout(timer);
+        if (!asked && !cancelled) {
+          timer = setTimeout(() => setNotifPermSheetOpen(true), 2500);
         }
       } catch {}
     })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // ── Change 4: Handle push notification tap → navigate to relevant screen ──

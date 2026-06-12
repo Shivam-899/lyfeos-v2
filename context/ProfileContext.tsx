@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -6,6 +5,8 @@ import React, {
   useEffect,
   useState,
 } from "react";
+
+import { getStoredJson, getStoredString, setStoredJson, setStoredString } from "@/utils/storage";
 
 export interface HealthProfile {
   age: string;
@@ -71,66 +72,61 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      try {
-        const [name, join, hg, ag, health, remind, prefs] = await Promise.all([
-          AsyncStorage.getItem(KEY_NAME),
-          AsyncStorage.getItem(KEY_JOIN),
-          AsyncStorage.getItem(KEY_HABIT_G),
-          AsyncStorage.getItem(KEY_ACT_G),
-          AsyncStorage.getItem(KEY_HEALTH),
-          AsyncStorage.getItem(KEY_REMIND),
-          AsyncStorage.getItem(KEY_PREFS),
-        ]);
-        if (name) setUserNameState(name);
-        // Bug 15 fix: always generate+save joinDate on first launch; never leave it as empty
-        if (join) {
-          setJoinDate(join);
-        } else {
-          const now = new Date().toISOString();
-          setJoinDate(now);
-          await AsyncStorage.setItem(KEY_JOIN, now);
-        }
-        if (hg) setHabitGoalState(parseInt(hg) || 5);
-        if (ag) setActivityGoalState(parseInt(ag) || 30);
-        if (health) setHealthProfileState(JSON.parse(health));
-        if (remind) setRemindersState(JSON.parse(remind));
-        if (prefs) {
-          // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
-          const stored = JSON.parse(prefs);
-          setPreferencesState({ ...DEFAULT_PREFS, ...stored });
-        }
-      } catch {}
+      const [name, join, hg, ag, health, remind, prefs] = await Promise.all([
+        getStoredString(KEY_NAME),
+        getStoredString(KEY_JOIN),
+        getStoredString(KEY_HABIT_G),
+        getStoredString(KEY_ACT_G),
+        getStoredJson<HealthProfile>(KEY_HEALTH, DEFAULT_HEALTH),
+        getStoredJson<Reminders>(KEY_REMIND, DEFAULT_REMIND),
+        getStoredJson<Partial<Preferences>>(KEY_PREFS, {}),
+      ]);
+      if (name) setUserNameState(name);
+      // Bug 15 fix: always generate+save joinDate on first launch; never leave it as empty
+      if (join) {
+        setJoinDate(join);
+      } else {
+        const now = new Date().toISOString();
+        setJoinDate(now);
+        await setStoredString(KEY_JOIN, now);
+      }
+      if (hg) setHabitGoalState(parseInt(hg) || 5);
+      if (ag) setActivityGoalState(parseInt(ag) || 30);
+      setHealthProfileState(health);
+      setRemindersState(remind);
+      // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
+      setPreferencesState({ ...DEFAULT_PREFS, ...prefs });
     })();
   }, []);
 
   const setUserName = useCallback(async (name: string) => {
     setUserNameState(name);
-    await AsyncStorage.setItem(KEY_NAME, name);
+    await setStoredString(KEY_NAME, name);
   }, []);
 
   const setHabitGoal = useCallback(async (v: number) => {
     setHabitGoalState(v);
-    await AsyncStorage.setItem(KEY_HABIT_G, String(v));
+    await setStoredString(KEY_HABIT_G, String(v));
   }, []);
 
   const setActivityGoal = useCallback(async (v: number) => {
     setActivityGoalState(v);
-    await AsyncStorage.setItem(KEY_ACT_G, String(v));
+    await setStoredString(KEY_ACT_G, String(v));
   }, []);
 
   const setHealthProfile = useCallback(async (p: HealthProfile) => {
     setHealthProfileState(p);
-    await AsyncStorage.setItem(KEY_HEALTH, JSON.stringify(p));
+    await setStoredJson(KEY_HEALTH, p);
   }, []);
 
   const setReminders = useCallback(async (r: Reminders) => {
     setRemindersState(r);
-    await AsyncStorage.setItem(KEY_REMIND, JSON.stringify(r));
+    await setStoredJson(KEY_REMIND, r);
   }, []);
 
   const setPreferences = useCallback(async (p: Preferences) => {
     setPreferencesState(p);
-    await AsyncStorage.setItem(KEY_PREFS, JSON.stringify(p));
+    await setStoredJson(KEY_PREFS, p);
   }, []);
 
   return (

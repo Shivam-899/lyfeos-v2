@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -6,6 +5,8 @@ import React, {
   useEffect,
   useState,
 } from "react";
+
+import { getStoredJson, setStoredJson } from "@/utils/storage";
 
 export type Priority = "urgent" | "high" | "medium" | "low";
 export type Category = "Work" | "Personal" | "Shopping" | "Health" | "Other";
@@ -42,23 +43,14 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(TODOS_KEY);
-        if (stored) {
-          const parsed: Todo[] = JSON.parse(stored);
-          // Migrate old "high" priority data — keep as-is, just ensure all have valid priority
-          setTodos(parsed);
-        } else {
-          setTodos([]);
-        }
-      } catch {
-        setTodos([]);
-      }
+      const parsed = await getStoredJson<Todo[]>(TODOS_KEY, []);
+      // Migrate old "high" priority data — keep as-is, just ensure all have valid priority
+      setTodos(parsed);
     })();
   }, []);
 
   const persist = useCallback(async (items: Todo[]) => {
-    await AsyncStorage.setItem(TODOS_KEY, JSON.stringify(items));
+    await setStoredJson(TODOS_KEY, items);
   }, []);
 
   const addTodo = useCallback((todo: Omit<Todo, "id" | "createdAt" | "order">) => {

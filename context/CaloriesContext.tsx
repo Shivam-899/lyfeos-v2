@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -6,6 +5,13 @@ import React, {
   useEffect,
   useState,
 } from "react";
+
+import {
+  getStoredJson,
+  getStoredString,
+  setStoredJson,
+  setStoredString,
+} from "@/utils/storage";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
 
@@ -105,21 +111,16 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      try {
-        const [food, water, goal, configured] = await Promise.all([
-          AsyncStorage.getItem(FOOD_KEY),
-          AsyncStorage.getItem(WATER_KEY),
-          AsyncStorage.getItem(GOAL_KEY),
-          AsyncStorage.getItem(GOALS_CONFIGURED_KEY),
-        ]);
-        setFoodItems(food ? JSON.parse(food) : []);
-        setWaterLogs(water ? JSON.parse(water) : []);
-        if (goal) setDailyGoalState(JSON.parse(goal));
-        setGoalsConfiguredState(configured === "true");
-      } catch {
-        setFoodItems([]);
-        setWaterLogs([]);
-      }
+      const [food, water, goal, configured] = await Promise.all([
+        getStoredJson<FoodItem[]>(FOOD_KEY, []),
+        getStoredJson<WaterLog[]>(WATER_KEY, []),
+        getStoredJson<DailyGoal>(GOAL_KEY, DEFAULT_GOAL),
+        getStoredString(GOALS_CONFIGURED_KEY),
+      ]);
+      setFoodItems(food);
+      setWaterLogs(water);
+      setDailyGoalState(goal);
+      setGoalsConfiguredState(configured === "true");
     })();
   }, []);
 
@@ -127,14 +128,14 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
     setDailyGoalState(goal);
     setGoalsConfiguredState(true);
     await Promise.all([
-      AsyncStorage.setItem(GOAL_KEY, JSON.stringify(goal)),
-      AsyncStorage.setItem(GOALS_CONFIGURED_KEY, "true"),
+      setStoredJson(GOAL_KEY, goal),
+      setStoredString(GOALS_CONFIGURED_KEY, "true"),
     ]);
   }, []);
 
   const setGoalsConfigured = useCallback(async (v: boolean) => {
     setGoalsConfiguredState(v);
-    await AsyncStorage.setItem(GOALS_CONFIGURED_KEY, String(v));
+    await setStoredString(GOALS_CONFIGURED_KEY, String(v));
   }, []);
 
   const addFoodItem = useCallback((item: Omit<FoodItem, "id">) => {
@@ -144,7 +145,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       };
       const next = [...prev, newItem];
-      AsyncStorage.setItem(FOOD_KEY, JSON.stringify(next));
+      void setStoredJson(FOOD_KEY, next);
       return next;
     });
   }, []);
@@ -152,7 +153,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   const deleteFoodItem = useCallback((id: string) => {
     setFoodItems((prev) => {
       const next = prev.filter((f) => f.id !== id);
-      AsyncStorage.setItem(FOOD_KEY, JSON.stringify(next));
+      void setStoredJson(FOOD_KEY, next);
       return next;
     });
   }, []);
@@ -167,7 +168,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       } else {
         next = [...prev, { id: Date.now().toString(), date, glasses: Math.max(0, delta) }];
       }
-      AsyncStorage.setItem(WATER_KEY, JSON.stringify(next));
+      void setStoredJson(WATER_KEY, next);
       return next;
     });
   }, []);
@@ -208,12 +209,12 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   const clearTodayData = useCallback((date: string) => {
     setFoodItems((prev) => {
       const next = prev.filter((f) => f.date !== date);
-      AsyncStorage.setItem(FOOD_KEY, JSON.stringify(next));
+      void setStoredJson(FOOD_KEY, next);
       return next;
     });
     setWaterLogs((prev) => {
       const next = prev.filter((w) => w.date !== date);
-      AsyncStorage.setItem(WATER_KEY, JSON.stringify(next));
+      void setStoredJson(WATER_KEY, next);
       return next;
     });
   }, []);

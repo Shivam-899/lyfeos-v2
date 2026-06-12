@@ -4,7 +4,7 @@
  *
  * Tests:
  *  1. .env file loading
- *  2. API key validity (text-only ping — no image needed)
+ *  2. Server API key validity (text-only ping — no image needed)
  *  3. Exact HTTP status + full error body from Gemini
  *  4. Network reachability to generativelanguage.googleapis.com
  */
@@ -47,10 +47,9 @@ if (existsSync(envPath)) {
 }
 
 // ─── 2. Identify keys ─────────────────────────────────────────────────────────
-const SERVER_KEY  = envVars["GEMINI_API_KEY"]         || process.env.GEMINI_API_KEY         || "";
-const CLIENT_KEY  = envVars["EXPO_PUBLIC_GEMINI_API_KEY"] || process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
-const PROXY_URL   = envVars["EXPO_PUBLIC_DEV_PROXY_URL"] || "";
-const DOMAIN      = envVars["EXPO_PUBLIC_DOMAIN"]     || "";
+const SERVER_KEY = envVars["GEMINI_API_KEY"] || process.env.GEMINI_API_KEY || "";
+const PROXY_URL = envVars["EXPO_PUBLIC_DEV_PROXY_URL"] || "";
+const DOMAIN = envVars["EXPO_PUBLIC_DOMAIN"] || "";
 
 function maskKey(k) {
   if (!k) return "(empty / not set)";
@@ -68,9 +67,7 @@ function keyFormat(k) {
 console.log("\n[2] API Key Status");
 console.log(`    GEMINI_API_KEY (server)         : ${maskKey(SERVER_KEY)}`);
 console.log(`    Format check                    : ${keyFormat(SERVER_KEY)}`);
-console.log(`    EXPO_PUBLIC_GEMINI_API_KEY (client): ${maskKey(CLIENT_KEY)}`);
-console.log(`    Format check                    : ${keyFormat(CLIENT_KEY)}`);
-console.log(`    EXPO_PUBLIC_DEV_PROXY_URL       : ${PROXY_URL || "(not set — direct API calls will be used)"}`);
+console.log(`    EXPO_PUBLIC_DEV_PROXY_URL       : ${PROXY_URL || "(not set)"}`);
 console.log(`    EXPO_PUBLIC_DOMAIN              : ${DOMAIN || "(not set)"}`);
 
 // ─── 3. Route resolution ──────────────────────────────────────────────────────
@@ -81,8 +78,7 @@ if (PROXY_URL) {
 } else if (DOMAIN) {
   console.log(`    → Proxy mode via domain: https://${DOMAIN}/api/gemini`);
 } else {
-  console.log(`    → Direct mode: app calls Gemini directly using EXPO_PUBLIC_GEMINI_API_KEY`);
-  console.log(`       Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`);
+  console.log(`    → No proxy domain configured. Set EXPO_PUBLIC_DEV_PROXY_URL or EXPO_PUBLIC_DOMAIN.`);
 }
 
 // ─── 4. Live API tests ────────────────────────────────────────────────────────
@@ -193,9 +189,8 @@ async function testKey(label, key) {
   }
 }
 
-// Test both keys
+// Test server key only. Do not use EXPO_PUBLIC_* Gemini keys; they are bundled client-side.
 await testKey("SERVER KEY (GEMINI_API_KEY)", SERVER_KEY);
-await testKey("CLIENT KEY (EXPO_PUBLIC_GEMINI_API_KEY)", CLIENT_KEY);
 
 // ─── 5. Summary ───────────────────────────────────────────────────────────────
 console.log("\n════════════════════════════════════════════════════");
@@ -203,7 +198,6 @@ console.log("  SUMMARY");
 console.log("════════════════════════════════════════════════════");
 console.log(`  .env file found      : ${existsSync(envPath) ? "Yes ✅" : "No ❌"}`);
 console.log(`  SERVER_KEY format    : ${keyFormat(SERVER_KEY)}`);
-console.log(`  CLIENT_KEY format    : ${keyFormat(CLIENT_KEY)}`);
-console.log(`  App routing in dev   : ${PROXY_URL ? "Via proxy → " + PROXY_URL : "Direct → generativelanguage.googleapis.com"}`);
-console.log(`  Key the app will use : ${PROXY_URL ? "GEMINI_API_KEY (server)" : "EXPO_PUBLIC_GEMINI_API_KEY (client)"}`);
+console.log(`  App routing in dev   : ${PROXY_URL ? "Via proxy → " + PROXY_URL : "Proxy/domain required for Gemini calls"}`);
+console.log(`  Key the app will use : GEMINI_API_KEY (server only)`);
 console.log("════════════════════════════════════════════════════\n");

@@ -61,6 +61,34 @@ const MIME_TYPES = {
   ".map": "application/json",
 };
 
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+function sendJson(res, status, body) {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateGeminiPayload(payload) {
+  if (!isPlainObject(payload) || !Array.isArray(payload.contents)) {
+    return false;
+  }
+
+  if (payload.generationConfig !== undefined && !isPlainObject(payload.generationConfig)) {
+    return false;
+  }
+
+  if (payload.systemInstruction !== undefined && !isPlainObject(payload.systemInstruction)) {
+    return false;
+  }
+
+  return true;
+}
+
 function getAppName() {
   try {
     const appJsonPath = path.resolve(__dirname, "..", "app.json");
@@ -99,36 +127,44 @@ function httpsPost(urlStr, headers, body) {
 async function handleGeminiProxy(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.writeHead(503, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "Gemini API key not configured on server." }));
+    sendJson(res, 503, { error: "Gemini API key not configured on server." });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(await readBody(req, GEMINI_MAX_BODY_BYTES));
+  } catch {
+    sendJson(res, 400, { error: "Invalid request body." });
+    return;
+  }
+
+  const payload = parsed?.payload;
+  if (!validateGeminiPayload(payload)) {
+    sendJson(res, 400, { error: "Invalid Gemini payload." });
     return;
   }
 
   try {
-    const body = await readBody(req, 10 * 1024 * 1024);
-    const { model, payload } = JSON.parse(body);
-    const targetModel = model || "gemini-2.5-flash";
     const upstream = await httpsPost(
-      `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       { "Content-Type": "application/json" },
       JSON.stringify(payload)
     );
 
     if (upstream.status === 400 || upstream.status === 401 || upstream.status === 403) {
       console.error(`[GeminiProxy] Auth error ${upstream.status}:`, upstream.body.slice(0, 500));
-      res.writeHead(upstream.status, { "content-type": "application/json" });
-      res.end(JSON.stringify({
+      sendJson(res, upstream.status, {
         error: "Food scanning is not working. This is usually caused by an invalid or missing API key. Please check your Gemini API key.",
         upstream_status: upstream.status,
-      }));
+      });
       return;
     }
 
     res.writeHead(upstream.status, { "content-type": "application/json" });
     res.end(upstream.body);
   } catch (err) {
-    res.writeHead(500, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "Proxy error: " + err.message }));
+    sendJson(res, 500, { error: "Proxy error: " + err.message });
   }
 }
 

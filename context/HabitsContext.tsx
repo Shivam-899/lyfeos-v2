@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -6,6 +5,8 @@ import React, {
   useEffect,
   useState,
 } from "react";
+
+import { getStoredJson, getStoredString, removeStoredItems, setStoredJson, setStoredString } from "@/utils/storage";
 
 export type TrackMethod = "task" | "amount" | "time";
 export type HabitType = "build" | "quit";
@@ -94,26 +95,26 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const version = await AsyncStorage.getItem(VERSION_KEY);
+        const version = await getStoredString(VERSION_KEY);
         if (version !== DATA_VERSION) {
           // Clear old mock data, start fresh
-          await AsyncStorage.multiRemove([
+          await removeStoredItems([
             "@lyfeos_habits",
             "@lyfeos_habit_logs",
             "@lyfeos_todos",
             "@lyfeos_food",
             "@lyfeos_water",
           ]);
-          await AsyncStorage.setItem(VERSION_KEY, DATA_VERSION);
+          await setStoredString(VERSION_KEY, DATA_VERSION);
           setHabits([]);
           setHabitLogs([]);
         } else {
-          const [h, l] = await Promise.all([
-            AsyncStorage.getItem(HABITS_KEY),
-            AsyncStorage.getItem(HABIT_LOGS_KEY),
+          const [storedHabits, storedLogs] = await Promise.all([
+            getStoredJson<Habit[]>(HABITS_KEY, []),
+            getStoredJson<HabitLog[]>(HABIT_LOGS_KEY, []),
           ]);
-          setHabits(h ? JSON.parse(h) : []);
-          setHabitLogs(l ? JSON.parse(l) : []);
+          setHabits(storedHabits);
+          setHabitLogs(storedLogs);
         }
       } catch {
         setHabits([]);
@@ -126,8 +127,8 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
 
   const persist = useCallback(async (h: Habit[], l: HabitLog[]) => {
     await Promise.all([
-      AsyncStorage.setItem(HABITS_KEY, JSON.stringify(h)),
-      AsyncStorage.setItem(HABIT_LOGS_KEY, JSON.stringify(l)),
+      setStoredJson(HABITS_KEY, h),
+      setStoredJson(HABIT_LOGS_KEY, l),
     ]);
   }, []);
 

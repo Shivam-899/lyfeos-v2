@@ -396,12 +396,19 @@ export function ActivityTracker() {
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (loadingSheet) {
-      Animated.loop(Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.2, duration: 600, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,   duration: 600, useNativeDriver: true }),
-      ])).start();
-    }
+    if (!loadingSheet) return;
+
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulseAnim, { toValue: 1.2, duration: 600, useNativeDriver: true }),
+      Animated.timing(pulseAnim, { toValue: 1,   duration: 600, useNativeDriver: true }),
+    ]));
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+      pulseAnim.setValue(1);
+    };
   }, [loadingSheet]);
 
   function showToast(msg: string) {

@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -7,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { getLocalDateString } from "@/utils/date";
+import { getStoredJson, removeStoredItem, setStoredJson } from "@/utils/storage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface ActivityLog {
@@ -97,22 +97,22 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   // ── Load from storage ──────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
+      const [logs, steps, banner, insight] = await Promise.all([
+        getStoredJson<ActivityLog[]>(LOGS_KEY, []),
+        getStoredJson<StepsLog[]>(STEPS_KEY, []),
+        getStoredJson<PostActivityBanner | null>(BANNER_KEY, null),
+        getStoredJson<WeeklyCoachInsight | null>(INSIGHT_KEY, null),
+      ]);
+      setActivityLogs(logs);
+      setStepsLogs(steps);
+
       try {
-        const [logs, steps, banner, insight] = await Promise.all([
-          AsyncStorage.getItem(LOGS_KEY),
-          AsyncStorage.getItem(STEPS_KEY),
-          AsyncStorage.getItem(BANNER_KEY),
-          AsyncStorage.getItem(INSIGHT_KEY),
-        ]);
-        if (logs)   setActivityLogs(JSON.parse(logs));
-        if (steps)  setStepsLogs(JSON.parse(steps));
         if (banner) {
-          const b: PostActivityBanner = JSON.parse(banner);
-          const hoursOld = (Date.now() - b.loggedAt) / 3_600_000;
-          if (hoursOld < 2) setPostActivityBannerState(b);
-          else AsyncStorage.removeItem(BANNER_KEY);
+          const hoursOld = (Date.now() - banner.loggedAt) / 3_600_000;
+          if (hoursOld < 2) setPostActivityBannerState(banner);
+          else void removeStoredItem(BANNER_KEY);
         }
-        if (insight) setWeeklyCoachInsightState(JSON.parse(insight));
+        if (insight) setWeeklyCoachInsightState(insight);
       } catch {}
     })();
   }, []);
@@ -121,7 +121,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     setActivityLogs(prev => {
       const newLog: ActivityLog = { ...log, id: Date.now().toString() + Math.random().toString(36).slice(2, 7) };
       const next = [...prev, newLog];
-      AsyncStorage.setItem(LOGS_KEY, JSON.stringify(next));
+      void setStoredJson(LOGS_KEY, next);
       return next;
     });
   }, []);
@@ -129,7 +129,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const deleteActivityLog = useCallback((id: string) => {
     setActivityLogs(prev => {
       const next = prev.filter(l => l.id !== id);
-      AsyncStorage.setItem(LOGS_KEY, JSON.stringify(next));
+      void setStoredJson(LOGS_KEY, next);
       return next;
     });
   }, []);
@@ -137,7 +137,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const logSteps = useCallback((entry: StepsLog) => {
     setStepsLogs(prev => {
       const next = [...prev.filter(s => s.date !== entry.date), entry];
-      AsyncStorage.setItem(STEPS_KEY, JSON.stringify(next));
+      void setStoredJson(STEPS_KEY, next);
       return next;
     });
   }, []);
@@ -148,13 +148,13 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
 
   const setPostActivityBanner = useCallback((b: PostActivityBanner | null) => {
     setPostActivityBannerState(b);
-    if (b) AsyncStorage.setItem(BANNER_KEY, JSON.stringify(b));
-    else   AsyncStorage.removeItem(BANNER_KEY);
+    if (b) void setStoredJson(BANNER_KEY, b);
+    else   void removeStoredItem(BANNER_KEY);
   }, []);
 
   const setWeeklyCoachInsight = useCallback((insight: WeeklyCoachInsight) => {
     setWeeklyCoachInsightState(insight);
-    AsyncStorage.setItem(INSIGHT_KEY, JSON.stringify(insight));
+    void setStoredJson(INSIGHT_KEY, insight);
   }, []);
 
   const getWeeklySports = useCallback(() => {
