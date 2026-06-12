@@ -29,6 +29,9 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   editHabit?: Habit;
+  initialName?: string;
+  initialEmoji?: string;
+  initialColorId?: string;
 }
 
 type Step = "type" | "details";
@@ -64,7 +67,7 @@ function arraysEqual(a: number[], b: number[]) {
   return sa.length === sb.length && sa.every((v, i) => v === sb[i]);
 }
 
-export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
+export function AddHabitSheet({ visible, onClose, editHabit, initialName, initialEmoji, initialColorId }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { addHabit, updateHabit } = useHabits();
@@ -98,19 +101,19 @@ export function AddHabitSheet({ visible, onClose, editHabit }: Props) {
         setTargetMin(String(Math.floor(((editHabit.targetTimeSeconds ?? 0) % 3600) / 60)));
         setSelectedDays(editHabit.weekDays);
       } else {
-        setStep("type");
-        setName("");
+        setStep(initialName ? "details" : "type");
+        setName(initialName ?? "");
         setDescription("");
         setTrackMethod("task");
-        setColorId("green");
-        setEmoji("📚");
+        setColorId(initialColorId ?? "green");
+        setEmoji(initialEmoji ?? "📚");
         setTargetAmount("5");
         setTargetHr("0");
         setTargetMin("0");
         setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
       }
     }
-  }, [visible, editHabit]);
+  }, [visible, editHabit, initialName, initialEmoji, initialColorId]);
 
   const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
   const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0]; // Mon→Sun order

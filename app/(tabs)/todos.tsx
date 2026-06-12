@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -252,8 +253,8 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={sStyles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={{ width: "100%", height: "100%", justifyContent: "flex-end" }}>
-          <View style={[sStyles.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
+        <View style={{ width: "100%", justifyContent: "flex-end", flexShrink: 1 }}>
+          <TouchableOpacity activeOpacity={1} style={[sStyles.sheet, { backgroundColor: theme.CARD, paddingBottom: insets.bottom + 24 }]}>
             <KeyboardAwareScrollView
               enableOnAndroid={true}
               extraScrollHeight={Platform.OS === "ios" ? 20 : 40}
@@ -368,8 +369,8 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
                   <Text style={sStyles.saveBtnText}>{isEditing ? "Save Changes" : "Add Task"}</Text>
                 </TouchableOpacity>
             </KeyboardAwareScrollView>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     </Modal>
   );
@@ -413,191 +414,81 @@ function TaskCard({ todo, onToggle, onDelete, onEdit, onDuplicate, onChangePrior
       onEdit(todo);
     } else {
       Alert.alert(todo.title, undefined, [
-        { text: "✏️ Edit", onPress: () => onEdit(todo) },
-        { text: "📋 Duplicate", onPress: () => onDuplicate(todo) },
-        { text: "🎨 Change Priority", onPress: () => onChangePriority(todo) },
-        { text: "🗑️ Delete", style: "destructive", onPress: () => onDelete(todo.id) },
-        { text: "Cancel", style: "cancel" },
+        { text: "✏️ Edit Task", onPress: () => onEdit(todo) },
+        { text: "📋 Duplicate Task", onPress: () => onDuplicate(todo) },
+        { text: "🗑️ Delete Task", style: "destructive", onPress: () => onDelete(todo.id) },
+        { text: "❌ Cancel", style: "cancel" },
       ]);
     }
   };
 
   const bgAnim = flashAnim.interpolate({ inputRange: [0, 1], outputRange: [CARD, "#22C55E18"] });
 
-  return (
-    <Animated.View style={[tStyles.card, { backgroundColor: bgAnim, opacity: todo.completed ? 0.55 : 1 }]}>
-      {/* Change 2: Accent bar — priority color on left edge */}
-      <View style={[tStyles.accentBar, { backgroundColor: todo.completed ? GREEN : pColor }]} />
-      <TouchableOpacity style={tStyles.row} onPress={handleToggle} onLongPress={handleLongPress} activeOpacity={0.85} delayLongPress={400}>
-        {/* Checkbox */}
-        <TouchableOpacity
-          onPress={handleToggle}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={[tStyles.checkbox, { borderColor: checkboxColor, backgroundColor: todo.completed ? GREEN : "transparent" }]}
-        >
-          {todo.completed && <Ionicons name="checkmark" size={14} color="#fff" />}
-        </TouchableOpacity>
-
-        {/* Content */}
-        <View style={tStyles.content}>
-          <Text style={[tStyles.title, todo.completed && tStyles.titleDone]} numberOfLines={2}>{todo.title}</Text>
-          <View style={tStyles.meta}>
-            {dueLabel && (
-              <View style={tStyles.metaChip}>
-                <Ionicons name="calendar-outline" size={10} color={overdue ? RED : MUTED} />
-                <Text style={[tStyles.metaText, overdue && { color: RED }]}>{dueLabel}</Text>
-              </View>
-            )}
-            {todo.repeat && todo.repeat !== "none" && (
-              <View style={tStyles.metaChip}>
-                <Ionicons name="repeat" size={10} color={MUTED} />
-                <Text style={tStyles.metaText}>{todo.repeat}</Text>
-              </View>
-            )}
-            <View style={[tStyles.priorityDot, { backgroundColor: todo.completed ? GREEN : pColor }]} />
-          </View>
-        </View>
-
-        {/* Priority pill */}
-        <View style={[tStyles.priorityPill, { backgroundColor: (todo.completed ? GREEN : pColor) + "20", borderColor: (todo.completed ? GREEN : pColor) + "50" }]}>
-          <Text style={[tStyles.priorityPillText, { color: todo.completed ? GREEN : pColor }]}>
-            {todo.completed ? "Done" : PRIORITY_LABELS[todo.priority]}
-          </Text>
-        </View>
-
-        {/* Change 4: Trash icon only on web (native uses long press) */}
-        {Platform.OS === "web" && (
-          <TouchableOpacity onPress={() => onDelete(todo.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 8 }}>
-            <Ionicons name="trash-outline" size={15} color={MUTED} />
-          </TouchableOpacity>
-        )}
+  const renderRightActions = (progress: any, dragX: any) => {
+    const scale = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [1, 0.5],
+      extrapolate: "clamp",
+    });
+    return (
+      <TouchableOpacity 
+        style={{ backgroundColor: RED, justifyContent: "center", alignItems: "flex-end", paddingHorizontal: 20, marginBottom: 9, borderRadius: 14 }} 
+        onPress={() => onDelete(todo.id)}
+      >
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <Ionicons name="trash" size={24} color="#fff" />
+        </Animated.View>
       </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
-// ── Change 1: Productivity Footer (fills empty space below tasks) ──────────────
-function ProductivityFooter({
-  todayDone, todayTotal, totalCount, doneCount,
-}: {
-  todayDone: number; todayTotal: number; totalCount: number; doneCount: number;
-}) {
-  const theme = useAppTheme();
-  const { CARD, CARD2, BORDER, MUTED, TEXT, GREEN } = theme;
-  const todayPct = todayTotal > 0 ? Math.round((todayDone / todayTotal) * 100) : 0;
-  const weeklyPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-
-  // Pick a rotating tip based on time of day + done count (so it changes as you complete tasks)
-  const tipIndex = (new Date().getHours() + doneCount) % PRODUCTIVITY_TIPS.length;
-  const tip = PRODUCTIVITY_TIPS[tipIndex];
-
-  const remaining = todayTotal - todayDone;
-
-  let motivationalMsg = "";
-  if (todayTotal === 0) {
-    motivationalMsg = "🎯 Plan something important for today";
-  } else if (todayDone === todayTotal) {
-    motivationalMsg = "🏆 All tasks done! Outstanding work today.";
-  } else if (remaining === 1) {
-    motivationalMsg = `🚀 Complete 1 more task to finish today's plan!`;
-  } else if (todayPct >= 50) {
-    motivationalMsg = `💪 You're ${todayPct}% done today. Keep the momentum!`;
-  } else {
-    motivationalMsg = `⚡ ${todayDone} of ${todayTotal} tasks done. You've got this!`;
-  }
+    );
+  };
 
   return (
-    <View style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 16, gap: 10 }}>
-      {/* Motivational message */}
-      <View style={[footerStyles.msgCard, { backgroundColor: ACCENT + "0E", borderColor: ACCENT + "28" }]}>
-        <Text style={[footerStyles.msgText, { color: TEXT }]}>{motivationalMsg}</Text>
-      </View>
+    <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+      <Animated.View style={[tStyles.card, { backgroundColor: bgAnim, opacity: todo.completed ? 0.55 : 1 }]}>
+        {/* Change 2: Accent bar — priority color on left edge */}
+        <View style={[tStyles.accentBar, { backgroundColor: todo.completed ? GREEN : pColor }]} />
+        <TouchableOpacity style={tStyles.row} onPress={handleToggle} onLongPress={handleLongPress} activeOpacity={0.85} delayLongPress={400}>
+          {/* Checkbox */}
+          <TouchableOpacity
+            onPress={handleToggle}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={[tStyles.checkbox, { borderColor: checkboxColor, backgroundColor: todo.completed ? GREEN : "transparent" }]}
+          >
+            {todo.completed && <Ionicons name="checkmark" size={14} color="#fff" />}
+          </TouchableOpacity>
 
-      {/* Today's focus + Weekly stat row */}
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        {/* Today progress */}
-        <View style={[footerStyles.statCard, { backgroundColor: CARD, borderColor: BORDER, flex: 1 }]}>
-          <Text style={[footerStyles.statLabel, { color: MUTED }]}>Today's Focus</Text>
-          <Text style={[footerStyles.statValue, { color: todayDone === todayTotal && todayTotal > 0 ? GREEN : ACCENT }]}>
-            {todayTotal > 0 ? `${todayPct}%` : "—"}
-          </Text>
-          <Text style={[footerStyles.statSub, { color: MUTED }]}>
-            {todayTotal > 0 ? `${todayDone}/${todayTotal} done` : "No tasks due"}
-          </Text>
-        </View>
+          {/* Content */}
+          <View style={tStyles.content}>
+            <Text style={[tStyles.title, todo.completed && tStyles.titleDone]} numberOfLines={2}>{todo.title}</Text>
+            <View style={tStyles.meta}>
+              {dueLabel && (
+                <View style={tStyles.metaChip}>
+                  <Ionicons name="calendar-outline" size={10} color={overdue ? RED : MUTED} />
+                  <Text style={[tStyles.metaText, overdue && { color: RED }]}>{dueLabel}</Text>
+                </View>
+              )}
+              {todo.repeat && todo.repeat !== "none" && (
+                <View style={tStyles.metaChip}>
+                  <Ionicons name="repeat" size={10} color={MUTED} />
+                  <Text style={tStyles.metaText}>{todo.repeat}</Text>
+                </View>
+              )}
+              <View style={[tStyles.priorityDot, { backgroundColor: todo.completed ? GREEN : pColor }]} />
+            </View>
+          </View>
 
-        {/* Overall completion */}
-        <View style={[footerStyles.statCard, { backgroundColor: CARD, borderColor: BORDER, flex: 1 }]}>
-          <Text style={[footerStyles.statLabel, { color: MUTED }]}>Overall</Text>
-          <Text style={[footerStyles.statValue, { color: theme.BLUE }]}>
-            {totalCount > 0 ? `${weeklyPct}%` : "—"}
-          </Text>
-          <Text style={[footerStyles.statSub, { color: MUTED }]}>
-            {totalCount > 0 ? `${doneCount}/${totalCount} done` : "No tasks yet"}
-          </Text>
-        </View>
-      </View>
-
-      {/* Productivity tip */}
-      <View style={[footerStyles.tipCard, { backgroundColor: CARD2, borderColor: BORDER }]}>
-        <Ionicons name="bulb-outline" size={14} color={ACCENT} style={{ marginTop: 1 }} />
-        <Text style={[footerStyles.tipText, { color: MUTED }]}>{tip}</Text>
-      </View>
-    </View>
+          {/* Priority pill */}
+          <View style={[tStyles.priorityPill, { backgroundColor: (todo.completed ? GREEN : pColor) + "20", borderColor: (todo.completed ? GREEN : pColor) + "50" }]}>
+            <Text style={[tStyles.priorityPillText, { color: todo.completed ? GREEN : pColor }]}>
+              {todo.completed ? "Done" : PRIORITY_LABELS[todo.priority]}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    </Swipeable>
   );
 }
 
-const footerStyles = StyleSheet.create({
-  msgCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-  msgText: {
-    fontSize: 13,
-    fontWeight: "600" as const,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  statCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-    gap: 2,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: "700" as const,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.6,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: "800" as const,
-    letterSpacing: -0.5,
-  },
-  statSub: {
-    fontSize: 10,
-    fontWeight: "500" as const,
-  },
-  tipCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-    fontStyle: "italic" as const,
-  },
-});
 
 // ── Celebration Overlay ───────────────────────────────────────────────────────
 function CelebrationOverlay({ visible }: { visible: boolean }) {
@@ -925,7 +816,7 @@ export default function TodosScreen() {
           </View>
         </ScrollView>
       ) : (
-        /* Change 1: FlatList with ProductivityFooter */
+        /* FlatList for Tasks */
         <FlatList
           data={listItems}
           keyExtractor={item => item.id}
@@ -933,14 +824,6 @@ export default function TodosScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
           keyboardShouldPersistTaps="handled"
-          ListFooterComponent={
-            <ProductivityFooter
-              todayDone={todayDone}
-              todayTotal={todayTotal}
-              totalCount={totalCount}
-              doneCount={doneCount}
-            />
-          }
         />
       )}
 

@@ -424,6 +424,97 @@ function GoalsSetupSheet({ visible, onClose }: { visible: boolean; onClose: () =
   );
 }
 
+// ── All Nutrients Sheet ──────────────────────────────────────────────────────
+function AllNutrientsSheet({ visible, onClose, stats }: { visible: boolean; onClose: () => void; stats: any }) {
+  const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+  const { CARD, MUTED, GREEN, BORDER, TEXT, CARD2 } = theme;
+  const s = makeS(theme);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const ALL_NUTRIENTS = [
+    { label: "Fiber",       value: stats.fiber,       unit: "g",   goal: 28 },
+    { label: "Sugar",       value: stats.sugar,       unit: "g",   goal: 50 },
+    { label: "Sodium",      value: stats.sodium,      unit: "mg",  goal: 2300 },
+    { label: "Potassium",   value: stats.potassium,   unit: "mg",  goal: 3500 },
+    { label: "Calcium",     value: stats.calcium,     unit: "mg",  goal: 1000 },
+    { label: "Iron",        value: stats.iron,        unit: "mg",  goal: 18 },
+    { label: "Magnesium",   value: stats.magnesium,   unit: "mg",  goal: 400 },
+    { label: "Zinc",        value: stats.zinc,        unit: "mg",  goal: 11 },
+    { label: "Vitamin A",   value: stats.vitaminA,    unit: "mcg", goal: 900 },
+    { label: "Vitamin C",   value: stats.vitaminC,    unit: "mg",  goal: 90 },
+    { label: "Vitamin D",   value: stats.vitaminD,    unit: "mcg", goal: 20 },
+    { label: "Vitamin B12", value: stats.vitaminB12,  unit: "mcg", goal: 2.4 },
+  ];
+
+  const filteredNutrients = ALL_NUTRIENTS.filter(n => n.label.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  React.useEffect(() => {
+    if (!visible) setSearchQuery("");
+  }, [visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%", justifyContent: "flex-end", flexShrink: 1 }}>
+          <TouchableOpacity activeOpacity={1} style={[s.sheet, { backgroundColor: CARD, paddingBottom: insets.bottom + 24, height: "85%" }]}>
+            <View style={s.handle} />
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <Text style={[s.sheetTitle, { marginBottom: 0 }]}>All Nutrients</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close-circle" size={28} color={MUTED} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: CARD2, borderRadius: 12, paddingHorizontal: 12, marginBottom: 16 }}>
+              <Ionicons name="search" size={20} color={MUTED} />
+              <TextInput
+                style={{ flex: 1, height: 44, color: TEXT, paddingLeft: 8 }}
+                placeholder="Search nutrients..."
+                placeholderTextColor={MUTED}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={20} color={MUTED} />
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} keyboardDismissMode="on-drag">
+              {filteredNutrients.map(({ label, value, unit, goal }) => {
+                const hasData = value !== undefined && value !== null;
+                const pct = hasData ? Math.min(value / goal, 1) : 0;
+                const col = hasData ? (pct >= 0.5 ? GREEN : pct >= 0.2 ? VIT_ORANGE : "#EF4444") : VIT_GREY;
+                const displayVal = hasData ? (value % 1 === 0 ? value : value.toFixed(1)) : "0";
+
+                return (
+                  <View key={label} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderColor: BORDER }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: TEXT, fontSize: 16, fontWeight: "600", marginBottom: 8 }}>{label}</Text>
+                      <View style={{ height: 6, backgroundColor: BORDER, borderRadius: 3, overflow: "hidden", width: "100%" }}>
+                        <View style={{ width: `${pct * 100}%`, height: "100%", backgroundColor: col, borderRadius: 3 }} />
+                      </View>
+                    </View>
+                    <View style={{ alignItems: "flex-end", marginLeft: 16 }}>
+                      <Text style={{ color: col, fontSize: 16, fontWeight: "bold" }}>{displayVal}<Text style={{ fontSize: 14, color: MUTED }}>{unit}</Text></Text>
+                      <Text style={{ color: MUTED, fontSize: 12 }}>/ {goal}{unit}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+              {filteredNutrients.length === 0 && (
+                <Text style={{ color: MUTED, textAlign: "center", marginTop: 32 }}>No nutrients found matching "{searchQuery}"</Text>
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 // ── Food Result Sheet ─────────────────────────────────────────────────────────
 interface FoodResultSheetProps {
   visible: boolean;
@@ -937,8 +1028,6 @@ function ProteinSuggestionsModal({
   );
 }
 
-
-
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CaloriesScreen() {
   const insets = useSafeAreaInsets();
@@ -961,10 +1050,9 @@ export default function CaloriesScreen() {
   const [showGoalsSetup, setShowGoalsSetup] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showProteinModal, setShowProteinModal] = useState(false);
+  const [showAllNutrients, setShowAllNutrients] = useState(false);
 
   const [textSearchQuery, setTextSearchQuery] = useState<string | undefined>(undefined);
-  const [microsExpanded, setMicrosExpanded] = useState(false);
-  const microsAnim = useRef(new Animated.Value(0)).current;
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -975,14 +1063,12 @@ export default function CaloriesScreen() {
   const mealItems = stats.items.filter((i) => i.meal === activeMeal);
   const mealCals = (meal: MealType) => stats.items.filter((i) => i.meal === meal).reduce((s, i) => s + i.calories, 0);
 
-  // ── Remaining card color (Change 2) ───────────────────────────────────────
   const remainingCardColor = exceeded
     ? RED
     : remaining <= 200
     ? ACCENT
     : GREEN;
 
-  // ── Recent & Frequent foods (Change 13) ───────────────────────────────────
   const recentFoods = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
@@ -1003,7 +1089,6 @@ export default function CaloriesScreen() {
       .map(([name, count]) => ({ name, count }));
   }, [foodItems]);
 
-  // ── Smart Insight (Changes 1 & 15) ───────────────────────────────────────
   const proteinGap = dailyGoal.protein - stats.protein;
   const waterRemLiters = Math.max(0, dailyGoal.water - water);
   const waterPct = water / dailyGoal.water;
@@ -1033,7 +1118,6 @@ export default function CaloriesScreen() {
     return { text: `🔥 ${remaining} kcal remaining — keep it up!`, tappable: false };
   };
 
-  // ── Today's Nutrition Insight card (replaces goals banner when configured) ─
   const getTodayInsightLines = (): string[] => {
     const lines: string[] = [];
     if (proteinGap > 20) lines.push(`🥩 Protein is low — ${proteinGap}g to go`);
@@ -1046,13 +1130,6 @@ export default function CaloriesScreen() {
 
   const insight = getInsight();
   const hasLoggedMeals = stats.calories > 0;
-
-  const toggleMicros = () => {
-    const toValue = microsExpanded ? 0 : 1;
-    Animated.timing(microsAnim, { toValue, duration: 300, useNativeDriver: false }).start();
-    setMicrosExpanded(!microsExpanded);
-    if (Platform.OS !== "web") Haptics.selectionAsync();
-  };
 
   const handleScanPress = () => {
     Alert.alert("Food Scan", "Food Scan is coming soon.");
@@ -1102,11 +1179,8 @@ export default function CaloriesScreen() {
     });
   };
 
-  // Vitamins grid height: 4 rows × ~80px + padding
-  const microsHeight = microsAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 360] });
   const totalMealsLogged = MEALS.filter((m) => mealCals(m.key) > 0).length;
 
-  // ── Water insights (Change 10) ─────────────────────────────────────────────
   const waterInsight = (): string => {
     if (water === 0) return "💧 Start drinking — log your first glass";
     if (waterPct >= 1) return "💧 Hydration goal completed — great job! 🎉";
@@ -1162,7 +1236,6 @@ export default function CaloriesScreen() {
           </View>
         </View>
 
-        {/* ── Change 1: Smart Goals Banner / Today's Insight ──────────── */}
         {!goalsConfigured && !hasLoggedMeals ? (
           <TouchableOpacity style={styles.goalsSetupCard} onPress={() => setShowGoalsSetup(true)}>
             <View style={styles.goalsSetupLeft}>
@@ -1185,11 +1258,9 @@ export default function CaloriesScreen() {
           </View>
         )}
 
-        {/* ── Calorie Ring Hero Card ────────────────────────────────── */}
         <View style={[styles.heroCard, { backgroundColor: CARD }]}>
           <View style={styles.heroLeft}>
             {stats.calories === 0 ? (
-              // Change 12: Empty state for calorie ring
               <View style={styles.emptyRingPlaceholder}>
                 <Text style={{ fontSize: 36 }}>🍽️</Text>
                 <Text style={[styles.emptyRingText, { color: MUTED }]}>No meals yet</Text>
@@ -1205,7 +1276,6 @@ export default function CaloriesScreen() {
             <Text style={styles.ringGoal}>of {dailyGoal.calories} kcal goal</Text>
           </View>
           <View style={styles.heroRight}>
-            {/* Eaten card */}
             <View style={[styles.statPill, { backgroundColor: ACCENT + "18", borderColor: ACCENT + "40" }]}>
               <Ionicons name="flame-outline" size={14} color={ACCENT} />
               <View>
@@ -1213,7 +1283,6 @@ export default function CaloriesScreen() {
                 <Text style={[styles.statPillLabel, { color: MUTED }]}>Eaten</Text>
               </View>
             </View>
-            {/* Change 2: Dynamic remaining card color */}
             <View style={[
               styles.statPill,
               {
@@ -1234,72 +1303,90 @@ export default function CaloriesScreen() {
           </View>
         </View>
 
-        {/* ── Macros Card ───────────────────────────────────────────── */}
         <View style={[styles.card, { backgroundColor: CARD }]}>
           <Text style={styles.cardTitle}>Macros</Text>
           {stats.calories === 0 ? (
-            // Change 12: Empty macro state
             <View style={styles.emptyMacroState}>
               <Text style={{ fontSize: 24 }}>📊</Text>
               <Text style={[styles.emptyStateText, { color: MUTED }]}>Log a meal to see your macro breakdown</Text>
             </View>
           ) : (
             <>
-              {/* Change 3: Consistent macro colors */}
               <HorizMacroBar label="Carbs"   value={stats.carbs}   goal={dailyGoal.carbs}   color={MACRO_CARB}    />
               <HorizMacroBar label="Protein" value={stats.protein} goal={dailyGoal.protein} color={MACRO_PROTEIN} />
               <HorizMacroBar label="Fat"     value={stats.fat}     goal={dailyGoal.fat}     color={MACRO_FAT}     />
             </>
           )}
 
-          {/* Change 11: Vitamins grid redesign */}
-          <TouchableOpacity style={styles.microsToggle} onPress={toggleMicros}>
-            <Text style={styles.microsToggleText}>Vitamins & Minerals</Text>
-            <Ionicons name={microsExpanded ? "chevron-up" : "chevron-down"} size={16} color={MUTED} />
-          </TouchableOpacity>
-          <Animated.View style={{ height: microsHeight, overflow: "hidden" }}>
-            <View style={styles.vitaminGrid}>
-              {[
-                { label: "Fiber",       value: stats.fiber,       unit: "g",   goal: 28 },
-                { label: "Sugar",       value: stats.sugar,       unit: "g",   goal: 50 },
-                { label: "Sodium",      value: stats.sodium,      unit: "mg",  goal: 2300 },
-                { label: "Potassium",   value: stats.potassium,   unit: "mg",  goal: 3500 },
-                { label: "Calcium",     value: stats.calcium,     unit: "mg",  goal: 1000 },
-                { label: "Iron",        value: stats.iron,        unit: "mg",  goal: 18 },
-                { label: "Magnesium",   value: stats.magnesium,   unit: "mg",  goal: 400 },
-                { label: "Zinc",        value: stats.zinc,        unit: "mg",  goal: 11 },
-                { label: "Vitamin A",   value: stats.vitaminA,    unit: "mcg", goal: 900 },
-                { label: "Vitamin C",   value: stats.vitaminC,    unit: "mg",  goal: 90 },
-                { label: "Vitamin D",   value: stats.vitaminD,    unit: "mcg", goal: 20 },
-                { label: "Vitamin B12", value: stats.vitaminB12,  unit: "mcg", goal: 2.4 },
-              ].map(({ label, value, unit, goal }) => {
-                const hasData = value !== undefined && value !== null;
-                const pct = hasData ? Math.min(value / goal, 1) : 0;
-                // Change 4: Dynamic vitamin/mineral colors
-                const col = hasData
-                  ? (pct > 0.5 ? GREEN : pct >= 0.2 ? VIT_ORANGE : VIT_GREY)
-                  : BORDER;
-                const displayVal = hasData
-                  ? (value % 1 === 0 ? value : value.toFixed(1))
-                  : "—";
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.cardTitle}>Top Nutrients</Text>
+            {stats.calories === 0 ? (
+              <View style={styles.emptyMacroState}>
+                <Text style={{ fontSize: 24, marginBottom: 8 }}>🥗</Text>
+                <Text style={[styles.emptyStateText, { color: MUTED, marginBottom: 12 }]}>
+                  Log your first meal to start tracking:{"\n"}• Fiber  • Iron  • Calcium{"\n"}• Potassium  • Vitamin D  • Vitamin B12
+                </Text>
+                <TouchableOpacity style={[styles.logMealBtn, { backgroundColor: ACCENT }]} onPress={() => setShowTextSearch(true)}>
+                  <Text style={styles.logMealBtnText}>Log Food</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.vitaminGrid}>
+                  {(() => {
+                    const allAvailable = [
+                      { label: "Fiber",       value: stats.fiber,       unit: "g",   goal: 28 },
+                      { label: "Iron",        value: stats.iron,        unit: "mg",  goal: 18 },
+                      { label: "Calcium",     value: stats.calcium,     unit: "mg",  goal: 1000 },
+                      { label: "Potassium",   value: stats.potassium,   unit: "mg",  goal: 3500 },
+                      { label: "Vitamin D",   value: stats.vitaminD,    unit: "mcg", goal: 20 },
+                      { label: "Vitamin B12", value: stats.vitaminB12,  unit: "mcg", goal: 2.4 },
+                      { label: "Sugar",       value: stats.sugar,       unit: "g",   goal: 50 },
+                      { label: "Sodium",      value: stats.sodium,      unit: "mg",  goal: 2300 },
+                      { label: "Magnesium",   value: stats.magnesium,   unit: "mg",  goal: 400 },
+                      { label: "Zinc",        value: stats.zinc,        unit: "mg",  goal: 11 },
+                      { label: "Vitamin A",   value: stats.vitaminA,    unit: "mcg", goal: 900 },
+                      { label: "Vitamin C",   value: stats.vitaminC,    unit: "mg",  goal: 90 },
+                    ];
+                    
+                    const consumed = allAvailable.filter(n => n.value !== undefined && n.value !== null && n.value > 0);
+                    const topNutrients = consumed.slice(0, 6);
 
-                return (
-                  <View key={label} style={[styles.vitaminCard, { backgroundColor: CARD2, borderColor: col + "50" }]}>
-                    <View style={[styles.vitaminDot, { backgroundColor: col }]} />
-                    <Text style={[styles.vitaminValue, { color: hasData ? col : MUTED }]}>{displayVal}</Text>
-                    <Text style={styles.vitaminUnit}>{unit}</Text>
-                    <Text style={styles.vitaminLabel} numberOfLines={1}>{label}</Text>
-                    <View style={styles.vitaminBarTrack}>
-                      <View style={[styles.vitaminBarFill, { width: `${pct * 100}%`, backgroundColor: col }]} />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </Animated.View>
+                    if (topNutrients.length === 0) {
+                      return (
+                        <Text style={{ color: MUTED, textAlign: "center", width: "100%", marginVertical: 12 }}>
+                          No specific nutrients tracked in today's meals yet.
+                        </Text>
+                      );
+                    }
+
+                    return topNutrients.map(({ label, value, unit, goal }) => {
+                      const pct = Math.min(value! / goal, 1);
+                      const col = pct >= 0.5 ? GREEN : pct >= 0.2 ? VIT_ORANGE : "#EF4444";
+                      const displayVal = value! % 1 === 0 ? value! : value!.toFixed(1);
+
+                      return (
+                        <View key={label} style={[styles.vitaminCard, { backgroundColor: CARD2, borderColor: col + "50" }]}>
+                          <View style={[styles.vitaminDot, { backgroundColor: col }]} />
+                          <Text style={[styles.vitaminValue, { color: col }]}>{displayVal}</Text>
+                          <Text style={styles.vitaminUnit}>{unit}</Text>
+                          <Text style={styles.vitaminLabel} numberOfLines={1}>{label}</Text>
+                          <View style={styles.vitaminBarTrack}>
+                            <View style={[styles.vitaminBarFill, { width: `${pct * 100}%`, backgroundColor: col }]} />
+                          </View>
+                        </View>
+                      );
+                    });
+                  })()}
+                </View>
+                <TouchableOpacity style={styles.viewAllMicrosBtn} onPress={() => setShowAllNutrients(true)}>
+                  <Text style={styles.viewAllMicrosText}>View All Nutrients →</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
 
-        {/* ── Water Tracker (Changes 9 & 10) ─────────────────────────── */}
         <View style={[styles.card, { backgroundColor: CARD }]}>
           <View style={styles.waterHeader}>
             <View>
@@ -1333,20 +1420,17 @@ export default function CaloriesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          {/* Change 10: Water insight */}
           <View style={[styles.waterInsightRow, { backgroundColor: BLUE + "12", borderColor: BLUE + "30" }]}>
             <Text style={[styles.waterInsightText, { color: BLUE }]}>{waterInsight()}</Text>
           </View>
         </View>
 
-        {/* ── Meal Tabs (Change 5: status indicator) ────────────────── */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mealTabsRow}>
           {MEALS.map((m) => {
             const cals   = mealCals(m.key);
             const active = activeMeal === m.key;
             const target = Math.round(dailyGoal.calories * m.targetPct);
             const mealPct = target > 0 ? cals / target : 0;
-            // Change 5: Meal tab status color
             const statusColor = cals === 0 ? BORDER : mealPct <= 0.9 ? GREEN : mealPct <= 1.0 ? ACCENT : RED;
             return (
               <TouchableOpacity
@@ -1361,19 +1445,16 @@ export default function CaloriesScreen() {
                     <Text style={[styles.mealCalBadgeText, { color: active ? "#fff" : ACCENT }]}>{cals}</Text>
                   </View>
                 )}
-                {/* Status indicator bar */}
                 <View style={[styles.mealTabIndicator, { backgroundColor: statusColor }]} />
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        {/* ── Meal Section ──────────────────────────────────────────── */}
         <View style={[styles.card, { backgroundColor: CARD }]}>
           <View style={styles.mealSectionHeader}>
             <Text style={styles.mealSectionTitle}>{MEALS.find((m) => m.key === activeMeal)?.label}</Text>
             <View style={styles.mealHeaderBtns}>
-              {/* Change 6: Larger scan button */}
               <TouchableOpacity
                 style={[styles.scanBtn, { backgroundColor: TEAL }]}
                 onPress={handleScanPress}
@@ -1673,6 +1754,10 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   emptyRingText:        { fontSize: 11, fontWeight: "600" as const, textAlign: "center" as const },
   emptyMacroState:      { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 4 },
   emptyStateText:       { fontSize: 13, fontWeight: "500" as const, flex: 1 },
+  logMealBtn:           { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignSelf: "flex-start" as const },
+  logMealBtnText:       { color: "#fff", fontSize: 13, fontWeight: "700" as const },
+  viewAllMicrosBtn:     { marginTop: 14, paddingVertical: 10, alignItems: "center" as const, borderRadius: 10, backgroundColor: t.CARD2 },
+  viewAllMicrosText:    { color: t.TEXT, fontSize: 13, fontWeight: "600" as const },
 
   card:      { borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
   cardTitle: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT, marginBottom: 14 },

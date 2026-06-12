@@ -54,8 +54,17 @@ const ACHIEVEMENTS = [
 // ── Goal presets (Mifflin-St Jeor BMR) ───────────────────────────────────────
 function calcGoals(hp: HealthProfile): { calories: number; carbs: number; protein: number; fat: number } | null {
   const age = parseInt(hp.age);
-  const h   = parseInt(hp.height);
-  const w   = parseInt(hp.weight);
+  let h = parseInt(hp.height);
+  if (hp.height.includes("'")) {
+    const parts = hp.height.split("'");
+    const ft = parseInt(parts[0]) || 0;
+    const in_ = parseInt(parts[1]) || 0;
+    h = Math.round((ft * 12 + in_) * 2.54);
+  }
+  let w = parseFloat(hp.weight);
+  if (hp.weight.includes("lb")) {
+    w = w * 0.453592;
+  }
   if (!age || !h || !w || !hp.sex || !hp.activityLevel || !hp.goal) return null;
 
   const bmr = hp.sex === "male"
@@ -598,6 +607,38 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const toggleWeightUnit = () => {
+    const isLb = hp.weight.includes("lb");
+    const val = parseFloat(hp.weight) || 0;
+    if (val === 0) {
+      setHp({ ...hp, weight: isLb ? "" : " lb" });
+      return;
+    }
+    if (isLb) {
+      setHp({ ...hp, weight: `${Math.round(val * 0.453592)} kg` });
+    } else {
+      setHp({ ...hp, weight: `${Math.round(val * 2.20462)} lb` });
+    }
+  };
+
+  const toggleHeightUnit = () => {
+    const isFt = hp.height.includes("'") || hp.height.includes("ft");
+    if (isFt) {
+      const parts = hp.height.split("'");
+      const ft = parseInt(parts[0]) || 0;
+      const in_ = parseInt(parts[1]) || 0;
+      const cm = Math.round((ft * 12 + in_) * 2.54);
+      setHp({ ...hp, height: cm ? `${cm} cm` : "" });
+    } else {
+      const cm = parseInt(hp.height) || 0;
+      if (cm === 0) { setHp({ ...hp, height: "" }); return; }
+      const totalInches = Math.round(cm / 2.54);
+      const ft = Math.floor(totalInches / 12);
+      const in_ = totalInches % 12;
+      setHp({ ...hp, height: `${ft}'${in_}` });
+    }
+  };
+
   const toggleWeek = () => {
     const to = weekExpanded ? 0 : 1;
     Animated.timing(weekAnim, { toValue: to, duration: 280, useNativeDriver: false }).start();
@@ -770,20 +811,27 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <Animated.View style={{ height: weekChartHeight, overflow: "hidden" }}>
-            <View style={styles.barChart}>
-              {weekDayCompletion.map((d, i) => (
-                <View key={i} style={styles.barCol}>
-                  <Text style={styles.barPct}>{d.pct > 0 ? `${d.pct}%` : ""}</Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, {
-                      height: `${Math.max(d.pct, 2)}%`,
-                      backgroundColor: d.isToday ? ACCENT : d.pct === 100 ? GREEN : BLUE,
-                    }]} />
+            {maxCompletion === 0 ? (
+              <View style={{ height: 130, paddingTop: 20, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 13, color: MUTED, fontWeight: "600", marginBottom: 4 }}>No weekly data yet</Text>
+                <Text style={{ fontSize: 11, color: MUTED, textAlign: "center", paddingHorizontal: 20 }}>Complete habits, tasks, and meals this week to unlock insights.</Text>
+              </View>
+            ) : (
+              <View style={styles.barChart}>
+                {weekDayCompletion.map((d, i) => (
+                  <View key={i} style={styles.barCol}>
+                    <Text style={styles.barPct}>{d.pct > 0 ? `${d.pct}%` : ""}</Text>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFill, {
+                        height: `${Math.max(d.pct, 2)}%`,
+                        backgroundColor: d.isToday ? ACCENT : d.pct === 100 ? GREEN : BLUE,
+                      }]} />
+                    </View>
+                    <Text style={[styles.barDay, d.isToday && { color: ACCENT }]}>{d.label}</Text>
                   </View>
-                  <Text style={[styles.barDay, d.isToday && { color: ACCENT }]}>{d.label}</Text>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </Animated.View>
         </SectionCard>
 
@@ -820,17 +868,17 @@ export default function ProfileScreen() {
         {/* ── Reminders ─────────────────────────────────────────────── */}
         <SectionCard title="Reminders" icon="notifications">
           {[
-            { key: "morning" as keyof typeof reminders, icon: "sunny",     iconBg: "#EAB30825", label: "Morning Reminder",   sub: "Daily habit check-in · 8:00 AM" },
-            { key: "meal"    as keyof typeof reminders, icon: "restaurant", iconBg: "#FF6B3525", label: "Meal Reminder",       sub: "Log your meals on time" },
-            { key: "water"   as keyof typeof reminders, icon: "water",      iconBg: "#3B82F625", label: "Water Reminder",      sub: "Stay hydrated every 2 hours" },
-            { key: "evening" as keyof typeof reminders, icon: "moon",       iconBg: "#8B5CF625", label: "Evening Check-in",    sub: "End-of-day summary · 9:00 PM" },
+            { key: "morning" as keyof typeof reminders, icon: "sunny",     iconBg: "#EAB30835", label: "Morning Reminder",   sub: "Daily habit check-in · 8:00 AM" },
+            { key: "meal"    as keyof typeof reminders, icon: "restaurant", iconBg: "#FF6B3535", label: "Meal Reminder",       sub: "Log your meals on time" },
+            { key: "water"   as keyof typeof reminders, icon: "water",      iconBg: "#3B82F635", label: "Water Reminder",      sub: "Stay hydrated every 2 hours" },
+            { key: "evening" as keyof typeof reminders, icon: "moon",       iconBg: "#8B5CF635", label: "Evening Check-in",    sub: "End-of-day summary · 9:00 PM" },
           ].map((row, i, arr) => (
             <SettingRow key={row.key} icon={row.icon} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
               right={
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ fontSize: 12, fontWeight: "600", color: reminders[row.key] ? GREEN : MUTED }}>{reminders[row.key] ? "ON" : "OFF"}</Text>
                   <Switch value={reminders[row.key]} onValueChange={v => setReminders({ ...reminders, [row.key]: v })}
-                    trackColor={{ false: BORDER, true: ACCENT }} thumbColor="#fff" />
+                    trackColor={{ false: BORDER, true: ACCENT }} thumbColor="#ffffff" />
                 </View>
               }
             />
@@ -839,7 +887,7 @@ export default function ProfileScreen() {
 
         {/* ── Preferences ───────────────────────────────────────────── */}
         <SectionCard title="Preferences" icon="options">
-          <SettingRow icon="moon" iconBg="#8B5CF625" label="Appearance"
+          <SettingRow icon="moon" iconBg="#8B5CF635" label="Appearance"
             sub={mode === "system" ? "Follows system setting" : mode === "dark" ? "Dark mode on" : "Light mode on"}
             right={
               <View style={styles.themeToggle}>
@@ -856,22 +904,22 @@ export default function ProfileScreen() {
                 ))}
               </View>
             } />
-          <SettingRow icon="resize" iconBg="#3B82F625" label="Units"
+          <SettingRow icon="resize" iconBg="#3B82F635" label="Units"
             sub={preferences.units === "metric" ? "Metric (kg, cm, ml)" : "Imperial (lbs, ft, oz)"}
             onPress={() => setPreferences({ ...preferences, units: preferences.units === "metric" ? "imperial" : "metric" })}
             right={<Text style={[styles.prefNote, { color: ACCENT }]}>{preferences.units === "metric" ? "Metric" : "Imperial"}</Text>} />
-          <SettingRow icon="barbell" iconBg="#22C55E25" label="Calorie Display"
+          <SettingRow icon="barbell" iconBg="#22C55E35" label="Calorie Display"
             sub={preferences.calorieDisplay === "kcal" ? "Kilocalories (kcal)" : "Kilojoules (kJ)"}
             onPress={() => setPreferences({ ...preferences, calorieDisplay: preferences.calorieDisplay === "kcal" ? "kj" : "kcal" })}
             right={<Text style={[styles.prefNote, { color: ACCENT }]}>{preferences.calorieDisplay.toUpperCase()}</Text>} />
-          <SettingRow icon="sparkles" iconBg="#FF6B3525" label="Habit Completion Effects"
+          <SettingRow icon="sparkles" iconBg="#FF6B3535" label="Habit Completion Effects"
             sub="Sound & animation when a habit is completed"
             right={
               <Switch
                 value={preferences.habitEffectsEnabled}
                 onValueChange={(v) => setPreferences({ ...preferences, habitEffectsEnabled: v })}
                 trackColor={{ false: BORDER, true: ACCENT }}
-                thumbColor="#fff"
+                thumbColor="#ffffff"
               />
             } last />
         </SectionCard>
@@ -901,8 +949,22 @@ export default function ProfileScreen() {
           <Animated.View style={{ height: hpHeight, overflow: "hidden" }}>
             <View style={{ paddingTop: 8 }}>
               <HpRow label="Age" value={hp.age} onChangeText={v => setHp(p => ({ ...p, age: v }))} keyboardType="number-pad" unit="years" />
-              <HpRow label="Height" value={hp.height} onChangeText={v => setHp(p => ({ ...p, height: v }))} keyboardType="number-pad" unit={preferences.units === "metric" ? "cm" : "in"} />
-              <HpRow label="Weight" value={hp.weight} onChangeText={v => setHp(p => ({ ...p, weight: v }))} keyboardType="decimal-pad" unit={preferences.units === "metric" ? "kg" : "lbs"} />
+              <HpRow 
+                label="Height" 
+                value={hp.height.replace(/cm/g, "").trim()} 
+                onChangeText={v => setHp(p => ({ ...p, height: (p.height.includes("'") || p.height.includes("ft")) ? v : `${v} cm` }))} 
+                keyboardType={(hp.height.includes("'") || hp.height.includes("ft")) ? "default" : "number-pad"} 
+                unit={(hp.height.includes("'") || hp.height.includes("ft")) ? "ft/in" : "cm"} 
+                onToggleUnit={toggleHeightUnit} 
+              />
+              <HpRow 
+                label="Weight" 
+                value={hp.weight.replace(/lb|kg/g, "").trim()} 
+                onChangeText={v => setHp(p => ({ ...p, weight: p.weight.includes("lb") ? `${v} lb` : `${v} kg` }))} 
+                keyboardType="decimal-pad" 
+                unit={hp.weight.includes("lb") ? "lb" : "kg"} 
+                onToggleUnit={toggleWeightUnit} 
+              />
 
               <Text style={styles.hpSelectLabel}>Biological Sex</Text>
               <View style={styles.chipRow}>
@@ -1006,10 +1068,11 @@ interface HpRowProps {
   onChangeText: (text: string) => void;
   keyboardType?: import("react-native").KeyboardTypeOptions;
   unit: string;
+  onToggleUnit?: () => void;
 }
 
 // ── Health profile row ────────────────────────────────────────────────────────
-function HpRow({ label, value, onChangeText, keyboardType, unit }: HpRowProps) {
+function HpRow({ label, value, onChangeText, keyboardType, unit, onToggleUnit }: HpRowProps) {
   const theme = useAppTheme();
   const { MUTED } = theme;
   const styles = makeStyles(theme);
@@ -1018,7 +1081,13 @@ function HpRow({ label, value, onChangeText, keyboardType, unit }: HpRowProps) {
       <Text style={styles.hpRowLabel}>{label}</Text>
       <View style={styles.hpRowRight}>
         <TextInput style={styles.hpInput} value={value} onChangeText={onChangeText} keyboardType={keyboardType} placeholder="—" placeholderTextColor={MUTED} maxLength={6} />
-        <Text style={styles.hpRowUnit}>{unit}</Text>
+        {onToggleUnit ? (
+          <TouchableOpacity onPress={onToggleUnit} style={{ paddingHorizontal: 6, paddingVertical: 4, backgroundColor: theme.BORDER, borderRadius: 6, width: 44, alignItems: "center" }}>
+            <Text style={{ fontSize: 11, color: theme.TEXT, fontWeight: "600" }}>{unit}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.hpRowUnit}>{unit}</Text>
+        )}
       </View>
     </View>
   );

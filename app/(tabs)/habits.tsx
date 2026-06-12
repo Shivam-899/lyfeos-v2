@@ -6,6 +6,7 @@ import {
   Animated,
   FlatList,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -53,8 +54,13 @@ function habitCategory(h: Habit): Category {
 
 const QUICK_HABITS = [
   { emoji: "💧", name: "Drink Water", colorId: "blue", weekDays: [0, 1, 2, 3, 4, 5, 6] },
-  { emoji: "🏃", name: "Daily Walk", colorId: "green", weekDays: [0, 1, 2, 3, 4, 5, 6] },
-  { emoji: "📚", name: "Read 10 mins", colorId: "purple", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "🚶", name: "Daily Walk", colorId: "green", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "📚", name: "Read 10 Min", colorId: "purple", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "🧘", name: "Meditation", colorId: "teal", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "🏃", name: "Morning Run", colorId: "orange", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "✍️", name: "Journal", colorId: "pink", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "📵", name: "No Social Media", colorId: "red", weekDays: [0, 1, 2, 3, 4, 5, 6] },
+  { emoji: "⏰", name: "Wake Up Early", colorId: "yellow", weekDays: [0, 1, 2, 3, 4, 5, 6] },
 ];
 
 // ── Weekly Summary ────────────────────────────────────────────────────────────
@@ -184,6 +190,7 @@ export default function HabitsScreen() {
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [quickTemplate, setQuickTemplate] = useState<{name: string, emoji: string, colorId: string} | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<Category>("All");
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -242,8 +249,9 @@ export default function HabitsScreen() {
   };
 
   const quickAddHabit = (q: (typeof QUICK_HABITS)[number]) => {
-    addHabit({ ...q, type: "build", trackMethod: "task", emoji: q.emoji });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setQuickTemplate({ name: q.name, emoji: q.emoji, colorId: q.colorId });
+    setShowAddSheet(true);
   };
 
   return (
@@ -429,10 +437,10 @@ export default function HabitsScreen() {
                   }}
                 >
                   <Ionicons name="add" size={20} color="#fff" />
-                  <Text style={styles.emptyAddBtnText}>＋ Add Your First Habit</Text>
+                  <Text style={styles.emptyAddBtnText}>Add Your First Habit</Text>
                 </TouchableOpacity>
                 <Text style={styles.emptyIdeasLabel}>Need ideas?</Text>
-                <View style={styles.quickChips}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickChips}>
                   {QUICK_HABITS.map((q) => (
                     <TouchableOpacity
                       key={q.name}
@@ -442,7 +450,7 @@ export default function HabitsScreen() {
                       <Text style={styles.quickChipText}>{q.emoji} {q.name}</Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             ) : (
               /* ── Category has no habits ───────────────────────────── */
@@ -462,7 +470,13 @@ export default function HabitsScreen() {
         />
       )}
 
-      <AddHabitSheet visible={showAddSheet} onClose={() => setShowAddSheet(false)} />
+      <AddHabitSheet 
+        visible={showAddSheet} 
+        onClose={() => { setShowAddSheet(false); setQuickTemplate(undefined); }}
+        initialName={quickTemplate?.name}
+        initialEmoji={quickTemplate?.emoji}
+        initialColorId={quickTemplate?.colorId}
+      />
       <CelebrationOverlay visible={showCelebration} />
     </View>
   );
@@ -644,7 +658,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   },
   emptyAddBtnText: { fontSize: 16, fontWeight: "700" as const, color: "#fff" },
   emptyIdeasLabel: { fontSize: 13, color: t.MUTED, marginBottom: 12, fontWeight: "600" as const },
-  quickChips: { flexDirection: "row", gap: 8, flexWrap: "wrap" as const, justifyContent: "center" },
+  quickChips: { flexDirection: "row", gap: 8 },
   quickChip: {
     backgroundColor: t.CARD,
     borderWidth: 1,

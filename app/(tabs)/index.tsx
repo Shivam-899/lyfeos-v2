@@ -896,11 +896,10 @@ export default function HomeScreen() {
   // ── Change 1: Time-based greeting with user name ──────────────────────────
   function getGreetingText(): string {
     const h = new Date().getHours();
-    const suffix = firstName ? `, ${firstName}` : "";
-    if (h >= 5 && h < 12)  return `Good morning${suffix} ☀️`;
-    if (h >= 12 && h < 17) return `Good afternoon${suffix} ⛅`;
-    if (h >= 17 && h < 21) return `Good evening${suffix} 🌙`;
-    return `Good night${suffix} 🌙`;
+    if (h >= 5 && h < 12)  return `Good Morning ☀️`;
+    if (h >= 12 && h < 17) return `Good Afternoon ⛅`;
+    if (h >= 17 && h < 21) return `Good Evening 🌙`;
+    return `Good Night 🌙`;
   }
 
   // ── Change 4: Load notifications from AsyncStorage ────────────────────────
@@ -1047,9 +1046,10 @@ export default function HomeScreen() {
       >
         {/* ── HEADER — Change 1: greeting + user name ─────────────────────── */}
         <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{getGreetingText()}</Text>
-            <Text style={styles.dateText}>
+          <View style={{ flex: 1, alignItems: "flex-start", gap: 2 }}>
+            <Text style={{ fontSize: 14, color: MUTED, fontWeight: "600" }}>{getGreetingText()}</Text>
+            {!!firstName && <Text style={{ fontSize: 26, color: WHITE, fontWeight: "800", letterSpacing: -0.5 }}>{firstName}</Text>}
+            <Text style={[styles.dateText, { marginTop: 0, fontSize: 12, opacity: 0.8 }]}>
               {new Date().toLocaleDateString("en-US", {
                 weekday: "long",
                 month: "long",
