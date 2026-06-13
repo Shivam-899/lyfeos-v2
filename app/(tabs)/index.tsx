@@ -969,14 +969,21 @@ export default function HomeScreen() {
   // ── Change 4: Handle push notification tap → navigate to relevant screen ──
   useEffect(() => {
     if (Platform.OS === "web") return;
-    const sub = Notifications.addNotificationResponseReceivedListener(
-      (resp) => {
-        const route = resp.notification.request.content.data
-          ?.route as string | undefined;
-        if (route) router.push(route as any);
-      },
-    );
-    return () => sub.remove();
+    let sub: { remove: () => void } | null = null;
+    try {
+      sub = Notifications.addNotificationResponseReceivedListener(
+        (resp) => {
+          const route = resp.notification.request.content.data
+            ?.route as string | undefined;
+          if (route) router.push(route as any);
+        },
+      );
+    } catch (e) {
+      console.warn("[LyfeOS] Notification listener failed:", e);
+    }
+    return () => {
+      if (sub) sub.remove();
+    };
   }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────────────

@@ -60,7 +60,7 @@
   "dependencies": {
     "expo": "~54.0.35",
     "expo-av": "^16.0.8",
-    "expo-notifications": "^56.0.16",
+    "expo-notifications": "^0.32.17",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-keyboard-aware-scroll-view": "^0.9.5"

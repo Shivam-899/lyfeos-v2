@@ -22,7 +22,7 @@ import { HabitsProvider } from "@/context/HabitsContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { TodosProvider } from "@/context/TodosContext";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const queryClient = new QueryClient();
 
@@ -44,7 +44,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
 
