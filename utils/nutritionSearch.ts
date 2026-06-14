@@ -256,17 +256,19 @@ export async function performNutritionSearch(query: string): Promise<FoodAnalysi
   }
 
   const searchPromise = (async () => {
-    const apiKey = process.env.EXPO_PUBLIC_USDA_API_KEY || process.env.USDA_API_KEY || "";
-    
-    // Primary Source: USDA FoodData Central (only if API Key is configured)
-    if (apiKey) {
-      const usdaResult = await searchUSDA(query, apiKey);
-      if (usdaResult) {
-        searchCache.set(normalizedQuery, usdaResult);
-        return usdaResult;
-      }
-    } else {
-      console.warn("[NutritionSearch] USDA API key not set. Skipping to Open Food Facts.");
+    // USDA API key: prefer env var, fallback to DEMO_KEY (official USDA free public key)
+    // DEMO_KEY is rate-limited to 30 req/hour per IP but sufficient for personal use.
+    // Never hardcode a paid key here — set EXPO_PUBLIC_USDA_API_KEY in .env.local instead.
+    const apiKey =
+      process.env.EXPO_PUBLIC_USDA_API_KEY ||
+      process.env.USDA_API_KEY ||
+      "DEMO_KEY";
+
+    // Primary Source: USDA FoodData Central
+    const usdaResult = await searchUSDA(query, apiKey);
+    if (usdaResult) {
+      searchCache.set(normalizedQuery, usdaResult);
+      return usdaResult;
     }
 
     // Secondary Source: Open Food Facts
