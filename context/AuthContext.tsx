@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { View } from "react-native";
+import { logEvent, logError } from "@/utils/analytics";
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
@@ -36,33 +37,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const { data } = await GoogleSignin.signIn();
-    const idToken = data?.idToken;
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const { data } = await GoogleSignin.signIn();
+      const idToken = data?.idToken;
 
-    if (!idToken) {
-      throw new Error("No ID token found");
+      if (!idToken) {
+        throw new Error("No ID token found");
+      }
+
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      await auth().signInWithCredential(googleCredential);
+      await logEvent("login", { method: "google" });
+    } catch (e) {
+      logError(e as Error, "signInWithGoogle");
+      throw e;
     }
-
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-    await auth().signInWithCredential(googleCredential);
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    await auth().signInWithEmailAndPassword(email, password);
+    try {
+      await auth().signInWithEmailAndPassword(email, password);
+      await logEvent("login", { method: "email" });
+    } catch (e) {
+      logError(e as Error, "signInWithEmail");
+      throw e;
+    }
   };
 
   const signUpWithEmail = async (name: string, email: string, password: string) => {
-    const result = await auth().createUserWithEmailAndPassword(email, password);
-    if (result.user) {
-      await result.user.updateProfile({ displayName: name });
-      // Update local user state immediately to reflect the new display name
-      setUser({ ...result.user, displayName: name } as FirebaseAuthTypes.User);
+    try {
+      const result = await auth().createUserWithEmailAndPassword(email, password);
+      if (result.user) {
+        await result.user.updateProfile({ displayName: name });
+        // Update local user state immediately to reflect the new display name
+        setUser({ ...result.user, displayName: name } as FirebaseAuthTypes.User);
+      }
+      await logEvent("sign_up", { method: "email" });
+    } catch (e) {
+      logError(e as Error, "signUpWithEmail");
+      throw e;
     }
   };
 
   const signInAsGuest = async () => {
-    await auth().signInAnonymously();
+    try {
+      await auth().signInAnonymously();
+      await logEvent("login", { method: "guest" });
+    } catch (e) {
+      logError(e as Error, "signInAsGuest");
+      throw e;
+    }
   };
 
   const signOut = async () => {

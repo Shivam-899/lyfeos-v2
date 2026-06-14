@@ -4,7 +4,9 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { logScreen, logError } from "@/utils/analytics";
+import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/notifications";
 import Svg, { Circle } from "react-native-svg";
 import {
   Alert,
@@ -421,6 +423,35 @@ export default function ProfileScreen() {
   const [hp, setHp] = useState<HealthProfile>(healthProfile);
   const [hpExpanded, setHpExpanded] = useState(false);
   const hpAnim = useRef(new Animated.Value(0)).current;
+
+  // ── Notifications enabled state (persisted) ────────────────────────────────
+  const NOTIF_ENABLED_KEY = "notificationsEnabled";
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Screen tracking + load notification preference on mount
+  useEffect(() => {
+    logScreen("Profile");
+    AsyncStorage.getItem(NOTIF_ENABLED_KEY)
+      .then((val) => {
+        if (val !== null) setNotificationsEnabled(val === "true");
+      })
+      .catch(() => {});
+  }, []);
+
+  // Handler for the master notifications toggle
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
+    try {
+      await AsyncStorage.setItem(NOTIF_ENABLED_KEY, String(enabled));
+      if (enabled) {
+        await scheduleDailyNotifications();
+      } else {
+        await cancelAllNotifications();
+      }
+    } catch (e) {
+      logError(e as Error, "handleNotificationsToggle");
+    }
+  };
 
   // ─── Computed stats ──────────────────────────────────────────────────────
   const today = getLocalDateString();
@@ -870,6 +901,23 @@ export default function ProfileScreen() {
 
         {/* ── Reminders ─────────────────────────────────────────────── */}
         <SectionCard title="Reminders" icon="notifications">
+          {/* Master Daily Reminders toggle */}
+          <SettingRow icon="notifications" iconBg="#FF6B3535" label="Daily Reminders"
+            sub={notificationsEnabled ? "Reminders are active" : "All reminders paused"}
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: notificationsEnabled ? GREEN : MUTED }}>
+                  {notificationsEnabled ? "ON" : "OFF"}
+                </Text>
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={handleNotificationsToggle}
+                  trackColor={{ false: BORDER, true: ACCENT }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            }
+          />
           {[
             { key: "morning" as keyof typeof reminders, icon: "sunny",     iconBg: "#EAB30835", label: "Morning Reminder",   sub: "Daily habit check-in · 8:00 AM" },
             { key: "meal"    as keyof typeof reminders, icon: "restaurant", iconBg: "#FF6B3535", label: "Meal Reminder",       sub: "Log your meals on time" },

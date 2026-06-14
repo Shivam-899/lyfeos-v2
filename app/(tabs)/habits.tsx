@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
+import { logScreen } from "@/utils/analytics";
 import { StatusBar } from "expo-status-bar";
 import {
   Animated,
@@ -179,6 +180,11 @@ export default function HabitsScreen() {
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<"rituals" | "activity">("rituals");
+
+  // Screen tracking (analytics)
+  useEffect(() => {
+    logScreen("Habits");
+  }, []);
 
   useEffect(() => {
     if (tab === "activity") {

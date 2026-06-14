@@ -12,6 +12,7 @@ import {
   setStoredJson,
   setStoredString,
 } from "@/utils/storage";
+import { logEvent, logError } from "@/utils/analytics";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
 
@@ -148,6 +149,8 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       void setStoredJson(FOOD_KEY, next);
       return next;
     });
+    // Fire analytics event (non-blocking)
+    logEvent("meal_logged", { mealType: item.meal }).catch(() => {});
   }, []);
 
   const deleteFoodItem = useCallback((id: string) => {

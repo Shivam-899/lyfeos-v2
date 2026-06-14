@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
+import { logScreen, logError } from "@/utils/analytics";
+import { requestNotificationPermissions, scheduleDailyNotifications } from "@/utils/notifications";
 import React, {
   useCallback,
   useEffect,
@@ -902,6 +904,26 @@ export default function HomeScreen() {
     return `Good Night 🌙`;
   }
 
+  // ── Screen tracking (analytics) ───────────────────────────────────────────
+  useEffect(() => {
+    logScreen("Home");
+  }, []);
+
+  // ── Setup notifications on mount (request + schedule if granted) ──────────
+  useEffect(() => {
+    const setupNotifications = async () => {
+      try {
+        const granted = await requestNotificationPermissions();
+        if (granted) {
+          await scheduleDailyNotifications();
+        }
+      } catch (e) {
+        logError(e as Error, "setupNotifications");
+      }
+    };
+    setupNotifications();
+  }, []);
+
   // ── Change 4: Load notifications from AsyncStorage ────────────────────────
   useEffect(() => {
     (async () => {
@@ -993,15 +1015,9 @@ export default function HomeScreen() {
       await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true");
       if (Platform.OS === "web") return;
 
-      const permResponse = (await Notifications.requestPermissionsAsync()) as any;
-      if (permResponse.granted || permResponse.status === "granted") {
-        if (Platform.OS === "android") {
-          await Notifications.setNotificationChannelAsync("lyfeos_default", {
-            name: "LyfeOS Reminders",
-            importance: Notifications.AndroidImportance.DEFAULT,
-          });
-        }
-        await scheduleAllNotifications(reminders, firstName);
+      const granted = await requestNotificationPermissions();
+      if (granted) {
+        await scheduleDailyNotifications();
 
         // Add in-app notification confirming push is enabled
         const notif: NotifItem = {
@@ -1020,7 +1036,9 @@ export default function HomeScreen() {
           return next;
         });
       }
-    } catch {}
+    } catch (e) {
+      logError(e as Error, "handleAllowNotifications");
+    }
   }
 
   async function handleLaterNotifications() {

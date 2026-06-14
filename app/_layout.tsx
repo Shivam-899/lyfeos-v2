@@ -28,6 +28,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSegments } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setAnalyticsUser, setCrashlyticsUser } from "@/utils/analytics";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,12 @@ function RootLayoutNav() {
 
     const inTabsGroup = segments[0] === "(tabs)";
     const isLoggedIn = user !== null || isGuest;
+
+    // Identify user in Analytics + Crashlytics when auth resolves
+    if (user !== null) {
+      setAnalyticsUser(user.uid, { isGuest: String(user.isAnonymous) });
+      setCrashlyticsUser(user.uid);
+    }
 
     if (isLoggedIn) {
       // Logged-in user: always go to tabs

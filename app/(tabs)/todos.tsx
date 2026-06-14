@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { logScreen } from "@/utils/analytics";
 import {
   Alert,
   Animated,
@@ -530,6 +531,11 @@ export default function TodosScreen() {
   const [quickTitle, setQuickTitle] = useState("");
   const [showCelebration, setShowCelebration] = useState(false);
   const [changePriorityTodo, setChangePriorityTodo] = useState<Todo | null>(null);
+
+  // Screen tracking (analytics)
+  useEffect(() => {
+    logScreen("Todos");
+  }, []);
 
   // Change 7: FAB scale animation
   const fabScale = useRef(new Animated.Value(1)).current;

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { logScreen } from "@/utils/analytics";
 import {
   ActivityIndicator,
   Alert,
@@ -1039,6 +1040,11 @@ export default function CaloriesScreen() {
   const { postActivityBanner, setPostActivityBanner } = useActivity();
 
   const today = getLocalDateString();
+
+  // Screen tracking (analytics)
+  useEffect(() => {
+    logScreen("Calories");
+  }, []);
   const stats = getDayStats(today);
   const water = getWaterForDate(today);
 

@@ -7,6 +7,7 @@ import React, {
 } from "react";
 
 import { getStoredJson, getStoredString, removeStoredItems, setStoredJson, setStoredString } from "@/utils/storage";
+import { logEvent, logError } from "@/utils/analytics";
 
 export type TrackMethod = "task" | "amount" | "time";
 export type HabitType = "build" | "quit";
@@ -144,6 +145,8 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       setHabitLogs((prevLogs) => { persist(next, prevLogs); return prevLogs; });
       return next;
     });
+    // Fire analytics event (non-blocking)
+    logEvent("habit_created", { habitName: habit.name }).catch(() => {});
   }, [persist]);
 
   const updateHabit = useCallback((habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt">>) => {
@@ -185,6 +188,11 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
         next = [...prev, newLog];
       }
       persist(habits, next);
+      // Fire analytics when habit is completed
+      if (data.completed === true) {
+        const habit = habits.find((h) => h.id === habitId);
+        logEvent("habit_completed", { habitName: habit?.name ?? habitId }).catch(() => {});
+      }
       return next;
     });
   }, [habits, persist]);
