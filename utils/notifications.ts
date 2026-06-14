@@ -5,7 +5,6 @@
  */
 
 import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { logError } from "./analytics";
 
@@ -24,7 +23,8 @@ Notifications.setNotificationHandler({
 
 export const requestNotificationPermissions = async (): Promise<boolean> => {
   try {
-    if (!Device.isDevice) return false;
+    // Notifications only work on native (Android/iOS), not web
+    if (Platform.OS === "web") return false;
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
