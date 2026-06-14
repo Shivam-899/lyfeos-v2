@@ -37,33 +37,52 @@ function RootLayoutNav() {
   const router = useRouter();
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null);
 
+  // Re-read AsyncStorage whenever the route changes so we see the updated
+  // flag after onboarding writes it and navigates away.
   React.useEffect(() => {
-    AsyncStorage.getItem("hasSeenOnboarding").then((val) => {
+    const loadOnboarding = async () => {
+      const val = await AsyncStorage.getItem("hasSeenOnboarding");
       setHasSeenOnboarding(val === "true");
-    });
-  }, []);
+    };
+    loadOnboarding();
+  }, [segments]); // re-read on every segment change so we catch the write from onboarding.tsx
 
   React.useEffect(() => {
+    // Wait until both auth and onboarding states are resolved
     if (isInitializing || hasSeenOnboarding === null) return;
 
-    const inAuthGroup = segments[0] !== "(tabs)";
+    const inTabsGroup = segments[0] === "(tabs)";
     const isLoggedIn = user !== null || isGuest;
 
-    if (!isLoggedIn) {
-      if (!hasSeenOnboarding && segments[0] !== ("onboarding" as any)) {
-        router.replace("/onboarding" as any);
-      } else if (hasSeenOnboarding && segments[0] !== ("login" as any)) {
-        router.replace("/login" as any);
+    if (isLoggedIn) {
+      // Logged-in user: always go to tabs
+      if (!inTabsGroup) {
+        router.replace("/(tabs)");
       }
-    } else if (inAuthGroup) {
-      router.replace("/(tabs)");
+    } else {
+      // Not logged in: route based on onboarding status
+      if (!hasSeenOnboarding) {
+        // Only redirect to onboarding if not already there
+        if (segments[0] !== ("onboarding" as any)) {
+          router.replace("/onboarding" as any);
+        }
+      } else {
+        // Only redirect to login if not already there
+        if (segments[0] !== ("login" as any)) {
+          router.replace("/login" as any);
+        }
+      }
     }
-    
-    // Hide splash screen once we've successfully resolved the initial route
+
     setTimeout(() => {
       SplashScreen.hideAsync().catch(() => {});
     }, 100);
-  }, [user, isInitializing, isGuest, hasSeenOnboarding, segments]);
+    // NOTE: `segments` is intentionally NOT in the dependency array.
+    // If segments were included, every navigation would re-trigger this
+    // effect and create a redirect loop (the original bug).
+    // We only want to re-route when auth state or onboarding state changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isInitializing, isGuest, hasSeenOnboarding]);
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>

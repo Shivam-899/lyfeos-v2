@@ -14,8 +14,7 @@
       "backgroundColor": "#F8F9FA"
     },
     "ios": {
-      "supportsTablet": false,
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "supportsTablet": false
     },
     "android": {
       "googleServicesFile": "./google-services.json",
