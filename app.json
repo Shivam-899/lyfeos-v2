@@ -15,8 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "googleServicesFile": "./GoogleService-Info.plist",
-      "usesAppleSignIn": true
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -42,9 +41,7 @@
       "expo-font",
       "expo-web-browser",
       "expo-notifications",
-      "expo-apple-authentication",
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics",
       "@react-native-google-signin/google-signin",
       [
         "expo-image-picker",
