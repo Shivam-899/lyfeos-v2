@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "66808080139",
+    "project_id": "lyfe-os-2c7cd",
+    "storage_bucket": "lyfe-os-2c7cd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66808080139:android:a25eeea86b98a39ec0640e",
+        "android_client_info": {
+          "package_name": "com.lyfeos.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIE8EEOnW1juUWchPyce-TGU7jp4vag5k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

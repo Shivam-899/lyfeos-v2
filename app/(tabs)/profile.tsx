@@ -24,6 +24,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "expo-router";
 import { useCalories } from "@/context/CaloriesContext";
 import { useHabits } from "@/context/HabitsContext";
 import { HealthProfile, useProfile } from "@/context/ProfileContext";
@@ -383,9 +385,10 @@ function BadgePopup({ badge, unlocked, onClose }: { badge: typeof ACHIEVEMENTS[0
 // MAIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  "use no memo";
-  const insets = useSafeAreaInsets();
+  const { user, isGuest, signOut } = useAuth();
+  const router = useRouter();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT: WHITE, mode, setMode } = theme;
   const styles = makeStyles(theme);
   const st = makeSt(theme);
@@ -1007,6 +1010,29 @@ export default function ProfileScreen() {
             </View>
           </Animated.View>
         </View>
+
+        {/* ── Account Settings ──────────────────────────────────────── */}
+        <SectionCard title="Account" icon="person-circle-outline">
+          {isGuest || !user ? (
+            <View style={{ padding: 16, backgroundColor: ACCENT + "15", borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: ACCENT + "30" }}>
+              <Text style={{ color: WHITE, fontWeight: "700", fontSize: 16, marginBottom: 6 }}>Sign in to save your data</Text>
+              <Text style={{ color: MUTED, fontSize: 14, marginBottom: 16, lineHeight: 20 }}>Your progress syncs when you create an account</Text>
+              <TouchableOpacity onPress={() => router.replace("/login" as any)} style={{ backgroundColor: ACCENT, paddingVertical: 12, borderRadius: 10, alignItems: "center" }}>
+                <Text style={{ color: WHITE, fontWeight: "700", fontSize: 15 }}>Sign In / Create Account</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              <SettingRow icon="mail-outline" iconBg="#3B82F625" label={user.displayName || "User"} sub={user.email || ""} />
+              <TouchableOpacity onPress={async () => { await signOut(); router.replace("/login" as any); }} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 12, marginTop: 4 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: RED + "25", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                  <Ionicons name="log-out-outline" size={18} color={RED} />
+                </View>
+                <Text style={{ color: RED, fontSize: 15, fontWeight: "600" }}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </SectionCard>
 
         {/* ── Data & Privacy ────────────────────────────────────────── */}
         <SectionCard title="Data & Privacy" icon="shield-checkmark">
