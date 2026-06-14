@@ -23,18 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Configure Google Sign-In
-    // IMPORTANT: Replace this with your actual Web Client ID from Firebase Console
-    // → Firebase Console → Authentication → Sign-in method → Google → Web SDK configuration → Web client ID
-    // Also ensure google-services.json has your OAuth client registered (oauth_client array must not be empty)
-    const WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
-    if (WEB_CLIENT_ID.startsWith("YOUR_")) {
-      console.warn(
-        "[AuthContext] Google Sign-In is NOT configured. " +
-        "Replace WEB_CLIENT_ID in AuthContext.tsx with your actual Firebase Web Client ID."
-      );
-    }
     GoogleSignin.configure({
-      webClientId: WEB_CLIENT_ID,
+      webClientId: "66808080139-r6t78lrsqsoabug2jlrltb1bbevt2003.apps.googleusercontent.com",
     });
 
     // Auth state listener:
