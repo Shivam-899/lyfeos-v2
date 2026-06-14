@@ -40,7 +40,6 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-notifications",
       "@react-native-firebase/app",
       "@react-native-google-signin/google-signin",
       [
