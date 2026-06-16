@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { logScreen, logError } from "@/utils/analytics";
+import { showInterstitialAd } from "../../utils/ads";
 import { requestNotificationPermissions, scheduleDailyNotifications } from "@/utils/notifications";
 import React, {
   useCallback,
@@ -63,26 +64,26 @@ const NOTIF_ICONS: Record<NotifType, string> = {
 // ─── Change 3: 6-tier color helpers ─────────────────────────────────────────
 function getProgressColor(pct: number): string {
   if (pct === 100) return "#F59E0B"; // Gold
-  if (pct >= 81)   return "#22C55E"; // Green
-  if (pct >= 61)   return "#86EFAC"; // Light Green
-  if (pct >= 41)   return "#EAB308"; // Yellow
-  if (pct >= 21)   return "#FF6B35"; // Orange
+  if (pct >= 81) return "#22C55E"; // Green
+  if (pct >= 61) return "#86EFAC"; // Light Green
+  if (pct >= 41) return "#EAB308"; // Yellow
+  if (pct >= 21) return "#FF6B35"; // Orange
   return "#EF4444";                  // Red (0–20)
 }
 
 function getPillColor(pct: number): string {
   if (pct === 100) return "#F59E0B";
-  if (pct >= 70)   return "#22C55E";
-  if (pct >= 40)   return "#FF6B35";
+  if (pct >= 70) return "#22C55E";
+  if (pct >= 40) return "#FF6B35";
   return "#EF4444";
 }
 
 function getRingMotivation(pct: number): string {
   if (pct === 100) return "Perfect day! 🏆";
-  if (pct >= 80)   return "Almost there! 💪";
-  if (pct >= 60)   return "Great progress! 🌟";
-  if (pct >= 40)   return "Keep going! 🔥";
-  if (pct > 0)     return "Building momentum";
+  if (pct >= 80) return "Almost there! 💪";
+  if (pct >= 60) return "Great progress! 🌟";
+  if (pct >= 40) return "Keep going! 🔥";
+  if (pct > 0) return "Building momentum";
   return "Let's start! 🚀";
 }
 
@@ -346,12 +347,12 @@ function CalendarModal({
                             color: done
                               ? "#fff"
                               : isToday
-                              ? "#FF6B35"
-                              : !day.inMonth
-                              ? theme.MUTED
-                              : isFuture
-                              ? theme.BORDER
-                              : theme.TEXT,
+                                ? "#FF6B35"
+                                : !day.inMonth
+                                  ? theme.MUTED
+                                  : isFuture
+                                    ? theme.BORDER
+                                    : theme.TEXT,
                             fontWeight: isToday ? ("800" as const) : ("500" as const),
                           },
                         ]}
@@ -495,7 +496,7 @@ function ScrollableWeekStrip({
         })}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig.current}
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={() => { }}
         renderItem={({ item }) => {
           const isFuture = item.date > todayStr;
           const isToday = item.date === todayStr;
@@ -538,10 +539,10 @@ function ScrollableWeekStrip({
                     color: done
                       ? "#fff"
                       : isToday
-                      ? "#FF6B35"
-                      : isFuture
-                      ? theme.BORDER
-                      : theme.TEXT,
+                        ? "#FF6B35"
+                        : isFuture
+                          ? theme.BORDER
+                          : theme.TEXT,
                   }}
                 >
                   {item.d.getDate()}
@@ -863,8 +864,8 @@ export default function HomeScreen() {
   const avgCompletion =
     habits.length > 0
       ? Math.round(
-          habits.reduce((s, h) => s + getCompletionRate(h.id), 0) / habits.length,
-        )
+        habits.reduce((s, h) => s + getCompletionRate(h.id), 0) / habits.length,
+      )
       : 0;
 
   const maxStreak =
@@ -898,7 +899,7 @@ export default function HomeScreen() {
   // ── Change 1: Time-based greeting with user name ──────────────────────────
   function getGreetingText(): string {
     const h = new Date().getHours();
-    if (h >= 5 && h < 12)  return `Good Morning ☀️`;
+    if (h >= 5 && h < 12) return `Good Morning ☀️`;
     if (h >= 12 && h < 17) return `Good Afternoon ⛅`;
     if (h >= 17 && h < 21) return `Good Evening 🌙`;
     return `Good Night 🌙`;
@@ -907,6 +908,26 @@ export default function HomeScreen() {
   // ── Screen tracking (analytics) ───────────────────────────────────────────
   useEffect(() => {
     logScreen("Home");
+  }, []);
+
+  // ── Show interstitial ad once per day ─────────────────────────────────────
+  useEffect(() => {
+    const showDailyAd = async () => {
+      try {
+        const lastAdDate = await AsyncStorage.getItem("lastInterstitialDate");
+        const today = new Date().toDateString();
+        if (lastAdDate !== today) {
+          await AsyncStorage.setItem("lastInterstitialDate", today);
+          // Wait 3 seconds after app load before showing ad
+          setTimeout(() => {
+            showInterstitialAd();
+          }, 3000);
+        }
+      } catch (e) {
+        // Silently fail — never block the user
+      }
+    };
+    showDailyAd();
   }, []);
 
   // ── Setup notifications on mount (request + schedule if granted) ──────────
@@ -946,7 +967,7 @@ export default function HomeScreen() {
         } else {
           setNotifications(stored);
         }
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -962,7 +983,7 @@ export default function HomeScreen() {
             setConfettiTrigger((t) => t + 1);
             await AsyncStorage.setItem(CONFETTI_DATE_KEY, today);
           }
-        } catch {}
+        } catch { }
       })();
     }
   }, [overallPct, today]);
@@ -979,7 +1000,7 @@ export default function HomeScreen() {
         if (!asked && !cancelled) {
           timer = setTimeout(() => setNotifPermSheetOpen(true), 2500);
         }
-      } catch {}
+      } catch { }
     })();
 
     return () => {
@@ -1031,7 +1052,7 @@ export default function HomeScreen() {
         setNotifications((prev) => {
           const next = [notif, ...prev].slice(0, 20);
           AsyncStorage.setItem(NOTIF_STORE_KEY, JSON.stringify(next)).catch(
-            () => {},
+            () => { },
           );
           return next;
         });
@@ -1045,7 +1066,7 @@ export default function HomeScreen() {
     setNotifPermSheetOpen(false);
     try {
       await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true");
-    } catch {}
+    } catch { }
   }
 
   async function handleMarkAllRead() {
@@ -1053,14 +1074,14 @@ export default function HomeScreen() {
     setNotifications(next);
     try {
       await AsyncStorage.setItem(NOTIF_STORE_KEY, JSON.stringify(next));
-    } catch {}
+    } catch { }
   }
 
   // Bug 2 fix: FAB actions navigate to correct screens
   function handleFabAction(key: string) {
-    if (key === "habit")         router.push("/(tabs)/habits");
-    else if (key === "scan")     router.push("/(tabs)/calories");
-    else if (key === "task")     router.push("/(tabs)/todos");
+    if (key === "habit") router.push("/(tabs)/habits");
+    else if (key === "scan") router.push("/(tabs)/calories");
+    else if (key === "task") router.push("/(tabs)/todos");
     else if (key === "activity") router.push("/(tabs)/habits?tab=activity");
   }
 
@@ -1344,8 +1365,8 @@ export default function HomeScreen() {
                 t.priority === "high" || t.priority === "urgent"
                   ? "#FF4757"
                   : t.priority === "medium"
-                  ? "#F59E0B"
-                  : "#34C759";
+                    ? "#F59E0B"
+                    : "#34C759";
               return (
                 <View
                   key={t.id}

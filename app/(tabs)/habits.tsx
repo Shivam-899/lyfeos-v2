@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
+import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
+import { AD_UNIT_IDS } from "../../utils/ads";
 import { StatusBar } from "expo-status-bar";
 import {
   Animated,
@@ -196,7 +198,7 @@ export default function HabitsScreen() {
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [quickTemplate, setQuickTemplate] = useState<{name: string, emoji: string, colorId: string} | undefined>(undefined);
+  const [quickTemplate, setQuickTemplate] = useState<{ name: string, emoji: string, colorId: string } | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<Category>("All");
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -476,8 +478,17 @@ export default function HabitsScreen() {
         />
       )}
 
-      <AddHabitSheet 
-        visible={showAddSheet} 
+      {/* ── Banner Ad ─────────────────────────────────────────────── */}
+      <View style={{ alignItems: "center", marginBottom: insets.bottom > 0 ? 0 : 4 }}>
+        <BannerAd
+          unitId={AD_UNIT_IDS.banner}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        />
+      </View>
+
+      <AddHabitSheet
+        visible={showAddSheet}
         onClose={() => { setShowAddSheet(false); setQuickTemplate(undefined); }}
         initialName={quickTemplate?.name}
         initialEmoji={quickTemplate?.emoji}

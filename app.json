@@ -47,6 +47,12 @@
           "photosPermission": "LyfeOS needs access to your photos to analyze food images.",
           "cameraPermission": "LyfeOS needs camera access to take food photos for nutrition analysis."
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-7658674851177824~1838662014"
+        }
       ]
     ],
     "experiments": {

@@ -5,6 +5,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import { initializeAds } from "@/utils/ads";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -23,7 +24,7 @@ import { HabitsProvider } from "@/context/HabitsContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { TodosProvider } from "@/context/TodosContext";
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSegments } from "expo-router";
@@ -82,13 +83,13 @@ function RootLayoutNav() {
     }
 
     setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => { });
     }, 100);
     // NOTE: `segments` is intentionally NOT in the dependency array.
     // If segments were included, every navigation would re-trigger this
     // effect and create a redirect loop (the original bug).
     // We only want to re-route when auth state or onboarding state changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isInitializing, isGuest, hasSeenOnboarding]);
 
   return (
@@ -112,6 +113,16 @@ export default function RootLayout() {
   // We now let RootLayoutNav hide the splash screen after redirects
   // to prevent flashing the index screen
 
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        await initializeAds();
+      } catch (e) {
+        console.log('AdMob init failed silently:', e);
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

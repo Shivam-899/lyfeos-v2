@@ -3,10 +3,13 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import { getStoredJson, setStoredJson } from "@/utils/storage";
+import { syncTodosToCloud, fetchTodosFromCloud } from "@/utils/cloudSync";
+import { useAuth } from "@/context/AuthContext";
 
 export type Priority = "urgent" | "high" | "medium" | "low";
 export type Category = "Work" | "Personal" | "Shopping" | "Health" | "Other";
@@ -39,6 +42,11 @@ const TodosContext = createContext<TodosContextType | undefined>(undefined);
 const TODOS_KEY = "@lyfeos_todos_v2";
 
 export function TodosProvider({ children }: { children: React.ReactNode }) {
+  const { user, isGuest } = useAuth();
+  // Keep a ref so callbacks always see the latest user/isGuest without re-creating them
+  const authRef = useRef({ user, isGuest });
+  useEffect(() => { authRef.current = { user, isGuest }; }, [user, isGuest]);
+
   const [todos, setTodos] = useState<Todo[]>([]);
 
   useEffect(() => {
@@ -46,8 +54,17 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       const parsed = await getStoredJson<Todo[]>(TODOS_KEY, []);
       // Migrate old "high" priority data — keep as-is, just ensure all have valid priority
       setTodos(parsed);
+
+      // Cloud sync: fetch from Firestore if logged-in non-guest user
+      if (user && !isGuest) {
+        const cloudTodos = await fetchTodosFromCloud(user.uid);
+        if (cloudTodos && cloudTodos.length > 0) {
+          setTodos(cloudTodos);
+          await setStoredJson(TODOS_KEY, cloudTodos);
+        }
+      }
     })();
-  }, []);
+  }, [user, isGuest]);
 
   const persist = useCallback(async (items: Todo[]) => {
     await setStoredJson(TODOS_KEY, items);
@@ -64,6 +81,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       };
       const next = [...prev, newTodo];
       persist(next);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncTodosToCloud(u.uid, next); }
       return next;
     });
   }, [persist]);
@@ -72,6 +91,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
     setTodos((prev) => {
       const next = prev.map((t) => t.id === id ? { ...t, completed: !t.completed } : t);
       persist(next);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncTodosToCloud(u.uid, next); }
       return next;
     });
   }, [persist]);
@@ -80,6 +101,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
     setTodos((prev) => {
       const next = prev.filter((t) => t.id !== id);
       persist(next);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncTodosToCloud(u.uid, next); }
       return next;
     });
   }, [persist]);
@@ -88,6 +111,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
     setTodos((prev) => {
       const next = prev.map((t) => t.id === id ? { ...t, ...updates } : t);
       persist(next);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncTodosToCloud(u.uid, next); }
       return next;
     });
   }, [persist]);
@@ -99,6 +124,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       next.splice(toIdx, 0, removed);
       const reordered = next.map((t, i) => ({ ...t, order: i }));
       persist(reordered);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncTodosToCloud(u.uid, reordered); }
       return reordered;
     });
   }, [persist]);

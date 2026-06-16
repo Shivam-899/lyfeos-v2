@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import { View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logEvent, logError } from "@/utils/analytics";
+import { migrateGuestDataToAccount } from "@/utils/cloudSync";
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
   loading: boolean;
   isInitializing: boolean; // Kept for backward compatibility with existing layout routing
   isGuest: boolean;
+  migrationDone: boolean;
+  clearMigrationDone: () => void;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
@@ -21,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [migrationDone, setMigrationDone] = useState(false);
 
   useEffect(() => {
     // Configure Google Sign-In
@@ -36,6 +40,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return subscriber; // unsubscribe on unmount
   }, []);
 
+  // ── Guest migration helper ─────────────────────────────────────────────────
+  const handleGuestMigration = async (newUid: string) => {
+    try {
+      // Read current local data
+      const localHabits = await AsyncStorage.getItem("habits");
+      const localTodos = await AsyncStorage.getItem("todos");
+      const localCalories = await AsyncStorage.getItem("calories");
+
+      const habits = localHabits ? JSON.parse(localHabits) : [];
+      const todos = localTodos ? JSON.parse(localTodos) : [];
+      const calories = localCalories ? JSON.parse(localCalories) : {};
+
+      // Only migrate if there's actual data
+      if (habits.length > 0 || todos.length > 0) {
+        const success = await migrateGuestDataToAccount(newUid, habits, todos, calories);
+        if (success) {
+          setMigrationDone(true);
+        }
+      }
+    } catch (e) {
+      logError(e as Error, "handleGuestMigration");
+    }
+  };
+
+  const clearMigrationDone = () => setMigrationDone(false);
+
   const signInWithGoogle = async () => {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -47,7 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      await auth().signInWithCredential(googleCredential);
+      const result = await auth().signInWithCredential(googleCredential);
+      await handleGuestMigration(result.user.uid);
       await logEvent("login", { method: "google" });
     } catch (e) {
       logError(e as Error, "signInWithGoogle");
@@ -57,7 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
-      await auth().signInWithEmailAndPassword(email, password);
+      const result = await auth().signInWithEmailAndPassword(email, password);
+      await handleGuestMigration(result.user.uid);
       await logEvent("login", { method: "email" });
     } catch (e) {
       logError(e as Error, "signInWithEmail");
@@ -73,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Update local user state immediately to reflect the new display name
         setUser({ ...result.user, displayName: name } as FirebaseAuthTypes.User);
       }
+      await handleGuestMigration(result.user.uid);
       await logEvent("sign_up", { method: "email" });
     } catch (e) {
       logError(e as Error, "signUpWithEmail");
@@ -107,6 +140,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isInitializing: loading,
         isGuest,
+        migrationDone,
+        clearMigrationDone,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

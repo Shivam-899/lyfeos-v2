@@ -3,6 +3,8 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
+import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
+import { AD_UNIT_IDS } from "../../utils/ads";
 import {
   ActivityIndicator,
   Alert,
@@ -31,21 +33,21 @@ import { getLocalDateString } from "@/utils/date";
 
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const ACCENT        = "#FF6B35";
-const TEAL          = "#14B8A6";
+const ACCENT = "#FF6B35";
+const TEAL = "#14B8A6";
 const INDIAN_SAFFRON = "#FF9933";
-const MACRO_CARB    = "#3B82F6";   // Blue
+const MACRO_CARB = "#3B82F6";   // Blue
 const MACRO_PROTEIN = "#FF6B35";   // Orange (ACCENT)
-const MACRO_FAT     = "#EAB308";   // Gold
-const VIT_ORANGE    = "#F97316";   // Vitamin 20–50%
-const VIT_GREY      = "#D1D5DB";   // Vitamin <20%
+const MACRO_FAT = "#EAB308";   // Gold
+const VIT_ORANGE = "#F97316";   // Vitamin 20–50%
+const VIT_GREY = "#D1D5DB";   // Vitamin <20%
 
 // ── Meals config ──────────────────────────────────────────────────────────────
 const MEALS: { key: MealType; label: string; icon: string; emptyText: string; targetPct: number }[] = [
-  { key: "breakfast", label: "Breakfast", icon: "sunny-outline",      emptyText: "Start your day right — log your breakfast 🌅", targetPct: 0.25 },
-  { key: "lunch",     label: "Lunch",     icon: "restaurant-outline", emptyText: "Lunchtime! What did you eat? 🥗",              targetPct: 0.35 },
-  { key: "dinner",    label: "Dinner",    icon: "moon-outline",       emptyText: "Dinner time — log your last meal 🍽️",         targetPct: 0.30 },
-  { key: "snacks",    label: "Snacks",    icon: "nutrition-outline",  emptyText: "Any snacks today? Log them here 🍎",           targetPct: 0.10 },
+  { key: "breakfast", label: "Breakfast", icon: "sunny-outline", emptyText: "Start your day right — log your breakfast 🌅", targetPct: 0.25 },
+  { key: "lunch", label: "Lunch", icon: "restaurant-outline", emptyText: "Lunchtime! What did you eat? 🥗", targetPct: 0.35 },
+  { key: "dinner", label: "Dinner", icon: "moon-outline", emptyText: "Dinner time — log your last meal 🍽️", targetPct: 0.30 },
+  { key: "snacks", label: "Snacks", icon: "nutrition-outline", emptyText: "Any snacks today? Log them here 🍎", targetPct: 0.10 },
 ];
 
 function getDefaultMeal(): MealType {
@@ -80,7 +82,7 @@ function isIndianFood(result: FoodAnalysisResult): boolean {
 
 // ── Confidence percentage mapping ─────────────────────────────────────────────
 function confidencePct(confidence: "high" | "medium" | "low"): string {
-  if (confidence === "high")   return "94%";
+  if (confidence === "high") return "94%";
   if (confidence === "medium") return "82%";
   return "65%";
 }
@@ -94,11 +96,11 @@ function calculateBMR(age: number, sex: string, heightCm: number, weightKg: numb
 }
 
 const ACTIVITY_MULTIPLIERS: Record<string, number> = {
-  sedentary:   1.2,
-  lightly:     1.375,
-  moderately:  1.55,
-  very:        1.725,
-  "":          1.4,
+  sedentary: 1.2,
+  lightly: 1.375,
+  moderately: 1.55,
+  very: 1.725,
+  "": 1.4,
 };
 
 function calculateTDEE(bmr: number, activityLevel: string): number {
@@ -109,21 +111,21 @@ function calculateTDEE(bmr: number, activityLevel: string): number {
 
 // ── Protein suggestions ────────────────────────────────────────────────────────
 const PROTEIN_SUGGESTIONS = [
-  { name: "Paneer", emoji: "🧀", protein: 18, per: "100g",  query: "Paneer Sabzi" },
+  { name: "Paneer", emoji: "🧀", protein: 18, per: "100g", query: "Paneer Sabzi" },
   { name: "Chicken Tikka", emoji: "🍗", protein: 28, per: "150g", query: "Chicken Tikka" },
   { name: "Eggs (2)", emoji: "🥚", protein: 12, per: "2 eggs", query: "egg bhurji" },
   { name: "Dal Chawal", emoji: "🍚", protein: 15, per: "1 plate", query: "Dal Chawal" },
-  { name: "Milk", emoji: "🥛", protein: 8,  per: "250ml",  query: "milk" },
+  { name: "Milk", emoji: "🥛", protein: 8, per: "250ml", query: "milk" },
   { name: "Greek Yogurt", emoji: "🍶", protein: 10, per: "100g", query: "yogurt" },
-  { name: "Soy Milk", emoji: "🌱", protein: 7,  per: "250ml",  query: "soy milk" },
+  { name: "Soy Milk", emoji: "🌱", protein: 7, per: "250ml", query: "soy milk" },
   { name: "Peanut Butter", emoji: "🥜", protein: 8, per: "2 tbsp", query: "peanut butter" },
 ];
 
 // ── Goals Presets (redesigned) ─────────────────────────────────────────────────
 const GOAL_PRESETS: { emoji: string; label: string; desc: string; goal: DailyGoal }[] = [
-  { emoji: "🔥", label: "Fat Loss",       desc: "1500 kcal · High protein · Moderate carbs", goal: { calories: 1500, carbs: 150, protein: 130, fat: 50,  water: 8 } },
-  { emoji: "⚖️", label: "Maintain Weight", desc: "2000 kcal · Balanced macros",               goal: { calories: 2000, carbs: 250, protein: 150, fat: 65,  water: 8 } },
-  { emoji: "💪", label: "Build Muscle",    desc: "2500 kcal · High protein · High carbs",      goal: { calories: 2500, carbs: 300, protein: 180, fat: 80,  water: 9 } },
+  { emoji: "🔥", label: "Fat Loss", desc: "1500 kcal · High protein · Moderate carbs", goal: { calories: 1500, carbs: 150, protein: 130, fat: 50, water: 8 } },
+  { emoji: "⚖️", label: "Maintain Weight", desc: "2000 kcal · Balanced macros", goal: { calories: 2000, carbs: 250, protein: 150, fat: 65, water: 8 } },
+  { emoji: "💪", label: "Build Muscle", desc: "2500 kcal · High protein · High carbs", goal: { calories: 2500, carbs: 300, protein: 180, fat: 80, water: 9 } },
 ];
 
 // ── Goals Setup Sheet ─────────────────────────────────────────────────────────
@@ -136,43 +138,43 @@ function GoalsSetupSheet({ visible, onClose }: { visible: boolean; onClose: () =
   const [selected, setSelected] = useState<number | "custom">(1);
 
   // Custom fields — pre-filled from profile
-  const [customAge,      setCustomAge]      = useState(healthProfile.age      || "");
-  const [customSex,      setCustomSex]      = useState<"male" | "female" | "other">(
+  const [customAge, setCustomAge] = useState(healthProfile.age || "");
+  const [customSex, setCustomSex] = useState<"male" | "female" | "other">(
     (healthProfile.sex as "male" | "female" | "other") || "male"
   );
-  const [customHeight,   setCustomHeight]   = useState(healthProfile.height   || "");
-  const [customWeight,   setCustomWeight]   = useState(healthProfile.weight   || "");
+  const [customHeight, setCustomHeight] = useState(healthProfile.height || "");
+  const [customWeight, setCustomWeight] = useState(healthProfile.weight || "");
   const [customActivity, setCustomActivity] = useState(healthProfile.activityLevel || "moderately");
   const [customGoalType, setCustomGoalType] = useState<"fat_loss" | "maintain" | "muscle">("maintain");
 
-  const [customCals,    setCustomCals]    = useState("");
+  const [customCals, setCustomCals] = useState("");
   const [customProtein, setCustomProtein] = useState("");
-  const [customCarbs,   setCustomCarbs]   = useState("");
-  const [customFat,     setCustomFat]     = useState("");
-  const [customWater,   setCustomWater]   = useState("");
-  const [autoCalced,    setAutoCalced]    = useState(false);
+  const [customCarbs, setCustomCarbs] = useState("");
+  const [customFat, setCustomFat] = useState("");
+  const [customWater, setCustomWater] = useState("");
+  const [autoCalced, setAutoCalced] = useState(false);
 
   const handleAutoCalculate = () => {
-    const age    = parseInt(customAge);
+    const age = parseInt(customAge);
     const height = parseFloat(customHeight);
     const weight = parseFloat(customWeight);
     if (!age || !height || !weight) {
       Alert.alert("Missing info", "Please enter age, height, and weight to auto-calculate.");
       return;
     }
-    const bmr  = calculateBMR(age, customSex, height, weight);
-    let tdee   = calculateTDEE(bmr, customActivity);
+    const bmr = calculateBMR(age, customSex, height, weight);
+    let tdee = calculateTDEE(bmr, customActivity);
     let targetCals = tdee;
     let protein = Math.round(weight * 1.6);
-    let fat     = Math.round((targetCals * 0.25) / 9);
+    let fat = Math.round((targetCals * 0.25) / 9);
     if (customGoalType === "fat_loss") {
       targetCals = Math.max(1200, tdee - 500);
-      protein    = Math.round(weight * 2.0);
-      fat        = Math.round((targetCals * 0.25) / 9);
+      protein = Math.round(weight * 2.0);
+      fat = Math.round((targetCals * 0.25) / 9);
     } else if (customGoalType === "muscle") {
       targetCals = tdee + 300;
-      protein    = Math.round(weight * 2.2);
-      fat        = Math.round((targetCals * 0.25) / 9);
+      protein = Math.round(weight * 2.2);
+      fat = Math.round((targetCals * 0.25) / 9);
     }
     const carbs = Math.round((targetCals - protein * 4 - fat * 9) / 4);
     const water = Math.round((weight * 35) / 250); // glasses (250ml each)
@@ -190,11 +192,11 @@ function GoalsSetupSheet({ visible, onClose }: { visible: boolean; onClose: () =
     let g: DailyGoal;
     if (selected === "custom") {
       g = {
-        calories: parseInt(customCals)    || 2000,
-        carbs:    parseInt(customCarbs)   || 250,
-        protein:  parseInt(customProtein) || 150,
-        fat:      parseInt(customFat)     || 65,
-        water:    parseInt(customWater)   || 8,
+        calories: parseInt(customCals) || 2000,
+        carbs: parseInt(customCarbs) || 250,
+        protein: parseInt(customProtein) || 150,
+        fat: parseInt(customFat) || 65,
+        water: parseInt(customWater) || 8,
       };
     } else {
       g = GOAL_PRESETS[selected]?.goal ?? GOAL_PRESETS[1].goal;
@@ -205,15 +207,15 @@ function GoalsSetupSheet({ visible, onClose }: { visible: boolean; onClose: () =
   };
 
   const ACTIVITY_OPTIONS = [
-    { value: "sedentary",  label: "Sedentary" },
-    { value: "lightly",    label: "Lightly active" },
+    { value: "sedentary", label: "Sedentary" },
+    { value: "lightly", label: "Lightly active" },
     { value: "moderately", label: "Moderately active" },
-    { value: "very",       label: "Very active" },
+    { value: "very", label: "Very active" },
   ];
   const GOAL_TYPE_OPTIONS = [
     { value: "fat_loss", label: "Fat Loss" },
     { value: "maintain", label: "Maintain" },
-    { value: "muscle",   label: "Build Muscle" },
+    { value: "muscle", label: "Build Muscle" },
   ];
 
   return (
@@ -432,20 +434,20 @@ function AllNutrientsSheet({ visible, onClose, stats }: { visible: boolean; onCl
   const { CARD, MUTED, GREEN, BORDER, TEXT, CARD2 } = theme;
   const s = makeS(theme);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const ALL_NUTRIENTS = [
-    { label: "Fiber",       value: stats.fiber,       unit: "g",   goal: 28 },
-    { label: "Sugar",       value: stats.sugar,       unit: "g",   goal: 50 },
-    { label: "Sodium",      value: stats.sodium,      unit: "mg",  goal: 2300 },
-    { label: "Potassium",   value: stats.potassium,   unit: "mg",  goal: 3500 },
-    { label: "Calcium",     value: stats.calcium,     unit: "mg",  goal: 1000 },
-    { label: "Iron",        value: stats.iron,        unit: "mg",  goal: 18 },
-    { label: "Magnesium",   value: stats.magnesium,   unit: "mg",  goal: 400 },
-    { label: "Zinc",        value: stats.zinc,        unit: "mg",  goal: 11 },
-    { label: "Vitamin A",   value: stats.vitaminA,    unit: "mcg", goal: 900 },
-    { label: "Vitamin C",   value: stats.vitaminC,    unit: "mg",  goal: 90 },
-    { label: "Vitamin D",   value: stats.vitaminD,    unit: "mcg", goal: 20 },
-    { label: "Vitamin B12", value: stats.vitaminB12,  unit: "mcg", goal: 2.4 },
+    { label: "Fiber", value: stats.fiber, unit: "g", goal: 28 },
+    { label: "Sugar", value: stats.sugar, unit: "g", goal: 50 },
+    { label: "Sodium", value: stats.sodium, unit: "mg", goal: 2300 },
+    { label: "Potassium", value: stats.potassium, unit: "mg", goal: 3500 },
+    { label: "Calcium", value: stats.calcium, unit: "mg", goal: 1000 },
+    { label: "Iron", value: stats.iron, unit: "mg", goal: 18 },
+    { label: "Magnesium", value: stats.magnesium, unit: "mg", goal: 400 },
+    { label: "Zinc", value: stats.zinc, unit: "mg", goal: 11 },
+    { label: "Vitamin A", value: stats.vitaminA, unit: "mcg", goal: 900 },
+    { label: "Vitamin C", value: stats.vitaminC, unit: "mg", goal: 90 },
+    { label: "Vitamin D", value: stats.vitaminD, unit: "mcg", goal: 20 },
+    { label: "Vitamin B12", value: stats.vitaminB12, unit: "mcg", goal: 2.4 },
   ];
 
   const filteredNutrients = ALL_NUTRIENTS.filter(n => n.label.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -466,7 +468,7 @@ function AllNutrientsSheet({ visible, onClose, stats }: { visible: boolean; onCl
                 <Ionicons name="close-circle" size={28} color={MUTED} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: CARD2, borderRadius: 12, paddingHorizontal: 12, marginBottom: 16 }}>
               <Ionicons name="search" size={20} color={MUTED} />
               <TextInput
@@ -482,7 +484,7 @@ function AllNutrientsSheet({ visible, onClose, stats }: { visible: boolean; onCl
                 </TouchableOpacity>
               )}
             </View>
-            
+
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} keyboardDismissMode="on-drag">
               {filteredNutrients.map(({ label, value, unit, goal }) => {
                 const hasData = value !== undefined && value !== null;
@@ -545,13 +547,13 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   if (!result) return null;
 
   const p = portion;
-  const cal     = Math.round(result.calories * p);
-  const carbs   = Math.round(result.carbs * p);
+  const cal = Math.round(result.calories * p);
+  const carbs = Math.round(result.carbs * p);
   const protein = Math.round(result.protein * p);
-  const fat     = Math.round(result.fat * p);
-  const fiber   = result.fiber !== undefined ? Math.round(result.fiber * p) : undefined;
-  const sugar   = result.sugar !== undefined ? Math.round(result.sugar * p) : undefined;
-  const sodium  = result.sodium !== undefined ? Math.round(result.sodium * p) : undefined;
+  const fat = Math.round(result.fat * p);
+  const fiber = result.fiber !== undefined ? Math.round(result.fiber * p) : undefined;
+  const sugar = result.sugar !== undefined ? Math.round(result.sugar * p) : undefined;
+  const sodium = result.sodium !== undefined ? Math.round(result.sodium * p) : undefined;
 
   const PORTIONS = [0.5, 1, 1.5, 2];
   const showIndianGuidance = isIndianFood(result);
@@ -560,7 +562,7 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   // Confidence color and percent
   const confPct = confidencePct(result.confidence);
   const confColor = result.confidence === "high" ? GREEN : result.confidence === "medium" ? YELLOW : "#EF4444";
-  const confBg    = result.confidence === "high" ? GREEN + "22" : result.confidence === "medium" ? YELLOW + "22" : "#EF444422";
+  const confBg = result.confidence === "high" ? GREEN + "22" : result.confidence === "medium" ? YELLOW + "22" : "#EF444422";
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -574,104 +576,104 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
               showsVerticalScrollIndicator={false}
             >
               <View style={s.handle} />
-                {/* Header */}
-                <View style={s.resultHeader}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Text style={s.resultDetected}>
-                      {result.source === "local-db"
-                        ? "🇮🇳 Indian DB"
-                        : result.source === "usda"
+              {/* Header */}
+              <View style={s.resultHeader}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={s.resultDetected}>
+                    {result.source === "local-db"
+                      ? "🇮🇳 Indian DB"
+                      : result.source === "usda"
                         ? "USDA Database"
                         : result.source === "open-food-facts"
-                        ? "Open Food Facts"
-                        : "Database"}
-                    </Text>
-                  </View>
-                  {/* Confidence with % value */}
-                  <View style={[s.confidencePill, { backgroundColor: confBg }]}>
-                    <Text style={[s.confidenceText, { color: confColor }]}>{confPct} Confidence</Text>
-                  </View>
+                          ? "Open Food Facts"
+                          : "Database"}
+                  </Text>
                 </View>
-
-                <TextInput
-                  style={s.resultNameInput}
-                  value={editedName}
-                  onChangeText={setEditedName}
-                  placeholder="Food name"
-                  placeholderTextColor="#444"
-                  maxLength={80}
-                />
-                <Text style={s.resultServing}>{result.servingDescription}</Text>
-
-                {/* Local DB note */}
-                {isLocalDB && (
-                  <View style={s.localDBBanner}>
-                    <Ionicons name="checkmark-circle" size={13} color={TEAL} />
-                    <Text style={[s.localDBBannerText, { color: TEAL }]}>
-                      Nutrition based on standard serving size — adjust portion as needed
-                    </Text>
-                  </View>
-                )}
-
-                {/* Portion selector */}
-                <Text style={s.fieldLabel}>Portion Size</Text>
-                <View style={s.portionRow}>
-                  {PORTIONS.map((pt) => (
-                    <TouchableOpacity key={pt} style={[s.portionBtn, portion === pt && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setPortion(pt)}>
-                      <Text style={[s.portionBtnText, portion === pt && { color: "#fff" }]}>{pt}x</Text>
-                    </TouchableOpacity>
-                  ))}
+                {/* Confidence with % value */}
+                <View style={[s.confidencePill, { backgroundColor: confBg }]}>
+                  <Text style={[s.confidenceText, { color: confColor }]}>{confPct} Confidence</Text>
                 </View>
+              </View>
 
-                {/* Indian portion guidance */}
-                {showIndianGuidance && (
-                  <View style={s.indianTipBanner}>
-                    <Text style={s.indianTipIcon}>🍛</Text>
-                    <Text style={s.indianTipText}>
-                      {result.dishNotes
-                        ? result.dishNotes
-                        : "Tip: 1 katori ≈ 150ml · 1 medium roti ≈ 40g · 1 cup cooked rice ≈ 200g. Adjust portion if your serving was different."}
-                    </Text>
-                  </View>
-                )}
+              <TextInput
+                style={s.resultNameInput}
+                value={editedName}
+                onChangeText={setEditedName}
+                placeholder="Food name"
+                placeholderTextColor="#444"
+                maxLength={80}
+              />
+              <Text style={s.resultServing}>{result.servingDescription}</Text>
 
-                {/* Macros grid — Calories most prominent, then protein > carbs > fat */}
-                <View style={s.macroGrid}>
-                  <MacroCell label="Calories" value={cal}     unit="kcal" color={ACCENT}        big />
-                  <MacroCell label="Protein"  value={protein} unit="g"    color={MACRO_PROTEIN} />
-                  <MacroCell label="Carbs"    value={carbs}   unit="g"    color={MACRO_CARB}    />
-                  <MacroCell label="Fat"      value={fat}     unit="g"    color={MACRO_FAT}     />
-                  <MacroCell label="Fiber"    value={fiber}   unit="g"    color={GREEN}         />
-                  <MacroCell label="Sugar"    value={sugar}   unit="g"    color="#EC4899"       />
-                  <MacroCell label="Sodium"   value={sodium}  unit="mg"   color={MUTED}         />
+              {/* Local DB note */}
+              {isLocalDB && (
+                <View style={s.localDBBanner}>
+                  <Ionicons name="checkmark-circle" size={13} color={TEAL} />
+                  <Text style={[s.localDBBannerText, { color: TEAL }]}>
+                    Nutrition based on standard serving size — adjust portion as needed
+                  </Text>
                 </View>
+              )}
 
-                {/* Meal selector */}
-                <Text style={s.fieldLabel}>Add to Meal</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-                  {MEALS.map((m) => (
-                    <TouchableOpacity key={m.key} style={[s.mealSelectChip, meal === m.key && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setMeal(m.key)}>
-                      <Text style={[s.mealSelectChipText, meal === m.key && { color: "#fff" }]}>{m.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+              {/* Portion selector */}
+              <Text style={s.fieldLabel}>Portion Size</Text>
+              <View style={s.portionRow}>
+                {PORTIONS.map((pt) => (
+                  <TouchableOpacity key={pt} style={[s.portionBtn, portion === pt && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setPortion(pt)}>
+                    <Text style={[s.portionBtnText, portion === pt && { color: "#fff" }]}>{pt}x</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-                {/* Add button */}
-                <TouchableOpacity style={[s.addLogBtn, { backgroundColor: ACCENT }]} onPress={() => onAdd(meal, { ...result, name: editedName }, portion)}>
-                  <Ionicons name="add-circle-outline" size={20} color="#fff" />
-                  <Text style={s.addLogBtnText}>Add to Log</Text>
+              {/* Indian portion guidance */}
+              {showIndianGuidance && (
+                <View style={s.indianTipBanner}>
+                  <Text style={s.indianTipIcon}>🍛</Text>
+                  <Text style={s.indianTipText}>
+                    {result.dishNotes
+                      ? result.dishNotes
+                      : "Tip: 1 katori ≈ 150ml · 1 medium roti ≈ 40g · 1 cup cooked rice ≈ 200g. Adjust portion if your serving was different."}
+                  </Text>
+                </View>
+              )}
+
+              {/* Macros grid — Calories most prominent, then protein > carbs > fat */}
+              <View style={s.macroGrid}>
+                <MacroCell label="Calories" value={cal} unit="kcal" color={ACCENT} big />
+                <MacroCell label="Protein" value={protein} unit="g" color={MACRO_PROTEIN} />
+                <MacroCell label="Carbs" value={carbs} unit="g" color={MACRO_CARB} />
+                <MacroCell label="Fat" value={fat} unit="g" color={MACRO_FAT} />
+                <MacroCell label="Fiber" value={fiber} unit="g" color={GREEN} />
+                <MacroCell label="Sugar" value={sugar} unit="g" color="#EC4899" />
+                <MacroCell label="Sodium" value={sodium} unit="mg" color={MUTED} />
+              </View>
+
+              {/* Meal selector */}
+              <Text style={s.fieldLabel}>Add to Meal</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                {MEALS.map((m) => (
+                  <TouchableOpacity key={m.key} style={[s.mealSelectChip, meal === m.key && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setMeal(m.key)}>
+                    <Text style={[s.mealSelectChipText, meal === m.key && { color: "#fff" }]}>{m.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Add button */}
+              <TouchableOpacity style={[s.addLogBtn, { backgroundColor: ACCENT }]} onPress={() => onAdd(meal, { ...result, name: editedName }, portion)}>
+                <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                <Text style={s.addLogBtnText}>Add to Log</Text>
+              </TouchableOpacity>
+
+              <View style={s.resultActions}>
+                <TouchableOpacity style={s.resultActionBtn} onPress={onRescan}>
+                  <Ionicons name="camera-outline" size={16} color={MUTED} />
+                  <Text style={s.resultActionText}>Rescan</Text>
                 </TouchableOpacity>
-
-                <View style={s.resultActions}>
-                  <TouchableOpacity style={s.resultActionBtn} onPress={onRescan}>
-                    <Ionicons name="camera-outline" size={16} color={MUTED} />
-                    <Text style={s.resultActionText}>Rescan</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.resultActionBtn} onPress={onClose}>
-                    <Ionicons name="close-outline" size={16} color={MUTED} />
-                    <Text style={s.resultActionText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity style={s.resultActionBtn} onPress={onClose}>
+                  <Ionicons name="close-outline" size={16} color={MUTED} />
+                  <Text style={s.resultActionText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </KeyboardAwareScrollView>
           </View>
         </TouchableOpacity>
@@ -1064,7 +1066,7 @@ export default function CaloriesScreen() {
 
   const calPct = Math.min(stats.calories / dailyGoal.calories, 1);
   const remaining = Math.max(0, dailyGoal.calories - stats.calories);
-  const exceeded  = stats.calories > dailyGoal.calories;
+  const exceeded = stats.calories > dailyGoal.calories;
   const ringCol = ringColor(calPct);
   const mealItems = stats.items.filter((i) => i.meal === activeMeal);
   const mealCals = (meal: MealType) => stats.items.filter((i) => i.meal === meal).reduce((s, i) => s + i.calories, 0);
@@ -1072,8 +1074,8 @@ export default function CaloriesScreen() {
   const remainingCardColor = exceeded
     ? RED
     : remaining <= 200
-    ? ACCENT
-    : GREEN;
+      ? ACCENT
+      : GREEN;
 
   const recentFoods = useMemo(() => {
     const seen = new Set<string>();
@@ -1145,20 +1147,20 @@ export default function CaloriesScreen() {
     addFoodItem({
       name: result.name,
       calories: Math.round(result.calories * portion),
-      carbs:    Math.round(result.carbs * portion),
-      protein:  Math.round(result.protein * portion),
-      fat:      Math.round(result.fat * portion),
-      fiber:    result.fiber !== undefined ? Math.round(result.fiber * portion) : undefined,
-      sugar:    result.sugar !== undefined ? Math.round(result.sugar * portion) : undefined,
-      sodium:   result.sodium !== undefined ? Math.round(result.sodium * portion) : undefined,
+      carbs: Math.round(result.carbs * portion),
+      protein: Math.round(result.protein * portion),
+      fat: Math.round(result.fat * portion),
+      fiber: result.fiber !== undefined ? Math.round(result.fiber * portion) : undefined,
+      sugar: result.sugar !== undefined ? Math.round(result.sugar * portion) : undefined,
+      sodium: result.sodium !== undefined ? Math.round(result.sodium * portion) : undefined,
       potassium: result.potassium !== undefined ? Math.round(result.potassium * portion) : undefined,
-      calcium:   result.calcium !== undefined ? Math.round(result.calcium * portion) : undefined,
-      iron:      result.iron !== undefined ? Math.round(result.iron * portion) : undefined,
+      calcium: result.calcium !== undefined ? Math.round(result.calcium * portion) : undefined,
+      iron: result.iron !== undefined ? Math.round(result.iron * portion) : undefined,
       magnesium: result.magnesium !== undefined ? Math.round(result.magnesium * portion) : undefined,
-      zinc:      result.zinc !== undefined ? Math.round(result.zinc * portion) : undefined,
-      vitaminA:  result.vitaminA !== undefined ? Math.round(result.vitaminA * portion) : undefined,
-      vitaminC:  result.vitaminC !== undefined ? Math.round(result.vitaminC * portion) : undefined,
-      vitaminD:  result.vitaminD !== undefined ? Math.round(result.vitaminD * portion) : undefined,
+      zinc: result.zinc !== undefined ? Math.round(result.zinc * portion) : undefined,
+      vitaminA: result.vitaminA !== undefined ? Math.round(result.vitaminA * portion) : undefined,
+      vitaminC: result.vitaminC !== undefined ? Math.round(result.vitaminC * portion) : undefined,
+      vitaminD: result.vitaminD !== undefined ? Math.round(result.vitaminD * portion) : undefined,
       vitaminB12: result.vitaminB12 !== undefined ? Math.round(result.vitaminB12 * portion) : undefined,
       portionSize: result.servingDescription,
       meal,
@@ -1173,12 +1175,12 @@ export default function CaloriesScreen() {
     addFoodItem({
       name: result.name,
       calories: result.calories,
-      carbs:    result.carbs,
-      protein:  result.protein,
-      fat:      result.fat,
-      fiber:    result.fiber !== undefined ? result.fiber : undefined,
-      sugar:    result.sugar !== undefined ? result.sugar : undefined,
-      sodium:   result.sodium !== undefined ? result.sodium : undefined,
+      carbs: result.carbs,
+      protein: result.protein,
+      fat: result.fat,
+      fiber: result.fiber !== undefined ? result.fiber : undefined,
+      sugar: result.sugar !== undefined ? result.sugar : undefined,
+      sodium: result.sodium !== undefined ? result.sodium : undefined,
       portionSize: result.servingDescription,
       meal,
       date: today,
@@ -1293,7 +1295,7 @@ export default function CaloriesScreen() {
               styles.statPill,
               {
                 backgroundColor: remainingCardColor + "18",
-                borderColor:     remainingCardColor + "40",
+                borderColor: remainingCardColor + "40",
               }
             ]}>
               <Ionicons name={exceeded ? "warning-outline" : "arrow-down-circle-outline"} size={14} color={remainingCardColor} />
@@ -1318,9 +1320,9 @@ export default function CaloriesScreen() {
             </View>
           ) : (
             <>
-              <HorizMacroBar label="Carbs"   value={stats.carbs}   goal={dailyGoal.carbs}   color={MACRO_CARB}    />
+              <HorizMacroBar label="Carbs" value={stats.carbs} goal={dailyGoal.carbs} color={MACRO_CARB} />
               <HorizMacroBar label="Protein" value={stats.protein} goal={dailyGoal.protein} color={MACRO_PROTEIN} />
-              <HorizMacroBar label="Fat"     value={stats.fat}     goal={dailyGoal.fat}     color={MACRO_FAT}     />
+              <HorizMacroBar label="Fat" value={stats.fat} goal={dailyGoal.fat} color={MACRO_FAT} />
             </>
           )}
 
@@ -1341,20 +1343,20 @@ export default function CaloriesScreen() {
                 <View style={styles.vitaminGrid}>
                   {(() => {
                     const allAvailable = [
-                      { label: "Fiber",       value: stats.fiber,       unit: "g",   goal: 28 },
-                      { label: "Iron",        value: stats.iron,        unit: "mg",  goal: 18 },
-                      { label: "Calcium",     value: stats.calcium,     unit: "mg",  goal: 1000 },
-                      { label: "Potassium",   value: stats.potassium,   unit: "mg",  goal: 3500 },
-                      { label: "Vitamin D",   value: stats.vitaminD,    unit: "mcg", goal: 20 },
-                      { label: "Vitamin B12", value: stats.vitaminB12,  unit: "mcg", goal: 2.4 },
-                      { label: "Sugar",       value: stats.sugar,       unit: "g",   goal: 50 },
-                      { label: "Sodium",      value: stats.sodium,      unit: "mg",  goal: 2300 },
-                      { label: "Magnesium",   value: stats.magnesium,   unit: "mg",  goal: 400 },
-                      { label: "Zinc",        value: stats.zinc,        unit: "mg",  goal: 11 },
-                      { label: "Vitamin A",   value: stats.vitaminA,    unit: "mcg", goal: 900 },
-                      { label: "Vitamin C",   value: stats.vitaminC,    unit: "mg",  goal: 90 },
+                      { label: "Fiber", value: stats.fiber, unit: "g", goal: 28 },
+                      { label: "Iron", value: stats.iron, unit: "mg", goal: 18 },
+                      { label: "Calcium", value: stats.calcium, unit: "mg", goal: 1000 },
+                      { label: "Potassium", value: stats.potassium, unit: "mg", goal: 3500 },
+                      { label: "Vitamin D", value: stats.vitaminD, unit: "mcg", goal: 20 },
+                      { label: "Vitamin B12", value: stats.vitaminB12, unit: "mcg", goal: 2.4 },
+                      { label: "Sugar", value: stats.sugar, unit: "g", goal: 50 },
+                      { label: "Sodium", value: stats.sodium, unit: "mg", goal: 2300 },
+                      { label: "Magnesium", value: stats.magnesium, unit: "mg", goal: 400 },
+                      { label: "Zinc", value: stats.zinc, unit: "mg", goal: 11 },
+                      { label: "Vitamin A", value: stats.vitaminA, unit: "mcg", goal: 900 },
+                      { label: "Vitamin C", value: stats.vitaminC, unit: "mg", goal: 90 },
                     ];
-                    
+
                     const consumed = allAvailable.filter(n => n.value !== undefined && n.value !== null && n.value > 0);
                     const topNutrients = consumed.slice(0, 6);
 
@@ -1433,7 +1435,7 @@ export default function CaloriesScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mealTabsRow}>
           {MEALS.map((m) => {
-            const cals   = mealCals(m.key);
+            const cals = mealCals(m.key);
             const active = activeMeal === m.key;
             const target = Math.round(dailyGoal.calories * m.targetPct);
             const mealPct = target > 0 ? cals / target : 0;
@@ -1569,6 +1571,15 @@ export default function CaloriesScreen() {
         </View>
       )}
 
+      {/* ── Banner Ad ─────────────────────────────────────────────── */}
+      <View style={{ alignItems: "center", marginBottom: insets.bottom > 0 ? 0 : 4 }}>
+        <BannerAd
+          unitId={AD_UNIT_IDS.banner}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        />
+      </View>
+
       {/* ── Modals ────────────────────────────────────────────────── */}
       <FoodResultSheet
         visible={showFoodResult}
@@ -1622,226 +1633,226 @@ function HorizMacroBar({ label, value, goal, color }: { label: string; value: nu
 
 // ── Shared sheet styles ───────────────────────────────────────────────────────
 const makeS = (t: AppTheme) => StyleSheet.create({
-  overlay:            { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  sheet:              { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 22, paddingTop: 10, maxHeight: "92%" },
-  handle:             { width: 40, height: 4, backgroundColor: t.BORDER, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  sheetTitle:         { fontSize: 21, fontWeight: "700" as const, color: t.TEXT, marginBottom: 6 },
-  sheetSub:           { fontSize: 13, color: t.MUTED, marginBottom: 20 },
-  presetBtn:          { flexDirection: "row", alignItems: "center", backgroundColor: t.CARD, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1.5, borderColor: t.BORDER },
-  presetLabel:        { fontSize: 15, fontWeight: "700" as const, color: t.TEXT, marginBottom: 3 },
-  presetDesc:         { fontSize: 12, color: t.MUTED },
-  saveGoalBtn:        { paddingVertical: 16, borderRadius: 16, alignItems: "center", marginTop: 8 },
-  saveGoalBtnText:    { color: "#fff", fontSize: 16, fontWeight: "700" as const },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 22, paddingTop: 10, maxHeight: "92%" },
+  handle: { width: 40, height: 4, backgroundColor: t.BORDER, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
+  sheetTitle: { fontSize: 21, fontWeight: "700" as const, color: t.TEXT, marginBottom: 6 },
+  sheetSub: { fontSize: 13, color: t.MUTED, marginBottom: 20 },
+  presetBtn: { flexDirection: "row", alignItems: "center", backgroundColor: t.CARD, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1.5, borderColor: t.BORDER },
+  presetLabel: { fontSize: 15, fontWeight: "700" as const, color: t.TEXT, marginBottom: 3 },
+  presetDesc: { fontSize: 12, color: t.MUTED },
+  saveGoalBtn: { paddingVertical: 16, borderRadius: 16, alignItems: "center", marginTop: 8 },
+  saveGoalBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" as const },
 
   // Custom form
-  customForm:         { backgroundColor: t.CARD2, borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
-  segBtn:             { flex: 1, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1.5, borderColor: t.BORDER, alignItems: "center" },
-  segBtnText:         { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
-  calcBtn:            { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginBottom: 14 },
-  calcBtnText:        { color: "#fff", fontSize: 14, fontWeight: "700" as const },
-  calcResultBox:      { backgroundColor: TEAL + "10", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TEAL + "30", marginTop: 4 },
+  customForm: { backgroundColor: t.CARD2, borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
+  segBtn: { flex: 1, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1.5, borderColor: t.BORDER, alignItems: "center" },
+  segBtnText: { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
+  calcBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginBottom: 14 },
+  calcBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" as const },
+  calcResultBox: { backgroundColor: TEAL + "10", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TEAL + "30", marginTop: 4 },
 
   // Food result sheet
-  resultHeader:       { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  resultDetected:     { fontSize: 12, color: t.MUTED, fontWeight: "600" as const, textTransform: "uppercase" as const, letterSpacing: 0.5 },
-  confidencePill:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  confidenceText:     { fontSize: 12, fontWeight: "700" as const },
-  resultNameInput:    { fontSize: 18, fontWeight: "700" as const, color: t.TEXT, borderBottomWidth: 2, borderBottomColor: ACCENT, paddingVertical: 6, marginBottom: 6 },
-  resultServing:      { fontSize: 12, color: t.MUTED, marginBottom: 10 },
-  fieldLabel:         { fontSize: 11, fontWeight: "700" as const, color: t.MUTED, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 8 },
+  resultHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  resultDetected: { fontSize: 12, color: t.MUTED, fontWeight: "600" as const, textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  confidencePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  confidenceText: { fontSize: 12, fontWeight: "700" as const },
+  resultNameInput: { fontSize: 18, fontWeight: "700" as const, color: t.TEXT, borderBottomWidth: 2, borderBottomColor: ACCENT, paddingVertical: 6, marginBottom: 6 },
+  resultServing: { fontSize: 12, color: t.MUTED, marginBottom: 10 },
+  fieldLabel: { fontSize: 11, fontWeight: "700" as const, color: t.MUTED, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 8 },
 
   // Local DB banner
-  localDBBanner:      { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: TEAL + "18", borderRadius: 10, padding: 10, marginBottom: 14, borderWidth: 1, borderColor: TEAL + "30" },
-  localDBBannerText:  { fontSize: 11, fontWeight: "600" as const, flex: 1, lineHeight: 15 },
+  localDBBanner: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: TEAL + "18", borderRadius: 10, padding: 10, marginBottom: 14, borderWidth: 1, borderColor: TEAL + "30" },
+  localDBBannerText: { fontSize: 11, fontWeight: "600" as const, flex: 1, lineHeight: 15 },
 
   // Indian tip banner
-  indianTipBanner:    { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: INDIAN_SAFFRON + "15", borderRadius: 10, padding: 10, marginBottom: 14, borderWidth: 1, borderColor: INDIAN_SAFFRON + "30" },
-  indianTipIcon:      { fontSize: 16, marginTop: 1 },
-  indianTipText:      { fontSize: 11, color: t.TEXT, flex: 1, lineHeight: 16, fontWeight: "500" as const },
+  indianTipBanner: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: INDIAN_SAFFRON + "15", borderRadius: 10, padding: 10, marginBottom: 14, borderWidth: 1, borderColor: INDIAN_SAFFRON + "30" },
+  indianTipIcon: { fontSize: 16, marginTop: 1 },
+  indianTipText: { fontSize: 11, color: t.TEXT, flex: 1, lineHeight: 16, fontWeight: "500" as const },
 
   // Portion
-  portionRow:         { flexDirection: "row", gap: 8, marginBottom: 12 },
-  portionBtn:         { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", backgroundColor: t.CARD, borderWidth: 1, borderColor: t.BORDER },
-  portionBtnText:     { fontSize: 14, fontWeight: "700" as const, color: t.MUTED },
+  portionRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  portionBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", backgroundColor: t.CARD, borderWidth: 1, borderColor: t.BORDER },
+  portionBtnText: { fontSize: 14, fontWeight: "700" as const, color: t.MUTED },
 
   // Macros
-  macroGrid:          { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, marginBottom: 20 },
-  macroCell:          { backgroundColor: t.CARD, borderRadius: 12, padding: 10, minWidth: "29%", flex: 1 },
-  macroCellBig:       { width: "100%", flex: undefined, backgroundColor: "#FF6B3515", borderWidth: 1, borderColor: ACCENT + "30" },
-  macroCellValue:     { fontWeight: "700" as const },
-  macroCellUnit:      { fontSize: 11, fontWeight: "400" as const },
-  macroCellLabel:     { fontSize: 11, color: t.MUTED, marginTop: 2 },
+  macroGrid: { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, marginBottom: 20 },
+  macroCell: { backgroundColor: t.CARD, borderRadius: 12, padding: 10, minWidth: "29%", flex: 1 },
+  macroCellBig: { width: "100%", flex: undefined, backgroundColor: "#FF6B3515", borderWidth: 1, borderColor: ACCENT + "30" },
+  macroCellValue: { fontWeight: "700" as const },
+  macroCellUnit: { fontSize: 11, fontWeight: "400" as const },
+  macroCellLabel: { fontSize: 11, color: t.MUTED, marginTop: 2 },
 
   // Meal selector
-  mealSelectChip:     { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: t.CARD, borderWidth: 1, borderColor: t.BORDER },
+  mealSelectChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: t.CARD, borderWidth: 1, borderColor: t.BORDER },
   mealSelectChipText: { fontSize: 13, fontWeight: "600" as const, color: t.MUTED },
 
   // Add log btn
-  addLogBtn:          { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 16, marginVertical: 16 },
-  addLogBtnText:      { color: "#fff", fontSize: 16, fontWeight: "700" as const },
+  addLogBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 16, marginVertical: 16 },
+  addLogBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" as const },
 
   // Result actions
-  resultActions:      { flexDirection: "row", gap: 16, justifyContent: "center", paddingBottom: 8 },
-  resultActionBtn:    { flexDirection: "row", alignItems: "center", gap: 4 },
-  resultActionText:   { fontSize: 13, color: t.MUTED },
+  resultActions: { flexDirection: "row", gap: 16, justifyContent: "center", paddingBottom: 8 },
+  resultActionBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  resultActionText: { fontSize: 13, color: t.MUTED },
 
   // Text search
-  searchInput:        { backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: t.TEXT, marginBottom: 16, minHeight: 70, textAlignVertical: "top" as const },
+  searchInput: { backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: t.TEXT, marginBottom: 16, minHeight: 70, textAlignVertical: "top" as const },
 
   // Quick chips (recent/frequent)
-  quickSection:       { marginTop: 12 },
-  quickSectionTitle:  { fontSize: 13, fontWeight: "700" as const, color: t.TEXT, marginBottom: 8 },
-  quickChipsRow:      { gap: 8, paddingBottom: 4 },
-  quickChip:          { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, maxWidth: 160 },
-  quickChipLabel:     { fontSize: 12, fontWeight: "600" as const },
+  quickSection: { marginTop: 12 },
+  quickSectionTitle: { fontSize: 13, fontWeight: "700" as const, color: t.TEXT, marginBottom: 8 },
+  quickChipsRow: { gap: 8, paddingBottom: 4 },
+  quickChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, maxWidth: 160 },
+  quickChipLabel: { fontSize: 12, fontWeight: "600" as const },
 
   // Indian food chips
   indianChipsSection: { marginTop: 12 },
-  indianChipsHeader:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  indianChipsTitle:   { fontSize: 14, fontWeight: "700" as const, color: t.TEXT },
-  indianChipsSub:     { fontSize: 11, color: t.MUTED },
-  indianChipsRow:     { gap: 8, paddingBottom: 4 },
-  indianChip:         { alignItems: "center", backgroundColor: INDIAN_SAFFRON + "18", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: INDIAN_SAFFRON + "30", minWidth: 80 },
-  indianChipEmoji:    { fontSize: 20, marginBottom: 4 },
-  indianChipLabel:    { fontSize: 10, fontWeight: "700" as const, color: t.TEXT, textAlign: "center" as const },
+  indianChipsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  indianChipsTitle: { fontSize: 14, fontWeight: "700" as const, color: t.TEXT },
+  indianChipsSub: { fontSize: 11, color: t.MUTED },
+  indianChipsRow: { gap: 8, paddingBottom: 4 },
+  indianChip: { alignItems: "center", backgroundColor: INDIAN_SAFFRON + "18", borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: INDIAN_SAFFRON + "30", minWidth: 80 },
+  indianChipEmoji: { fontSize: 20, marginBottom: 4 },
+  indianChipLabel: { fontSize: 10, fontWeight: "700" as const, color: t.TEXT, textAlign: "center" as const },
 
   // Manual entry
-  manualInput:        { backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: t.TEXT, marginBottom: 12 },
+  manualInput: { backgroundColor: t.CARD2, borderWidth: 1, borderColor: t.BORDER, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: t.TEXT, marginBottom: 12 },
 
   // Protein suggestions
-  proteinSuggRow:     { flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, gap: 10 },
-  proteinSuggName:    { fontSize: 15, fontWeight: "600" as const, marginBottom: 2 },
-  proteinSuggMeta:    { fontSize: 12 },
-  proteinSuggValue:   { fontSize: 18, fontWeight: "800" as const },
+  proteinSuggRow: { flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, gap: 10 },
+  proteinSuggName: { fontSize: 15, fontWeight: "600" as const, marginBottom: 2 },
+  proteinSuggMeta: { fontSize: 12 },
+  proteinSuggValue: { fontSize: 18, fontWeight: "800" as const },
 });
 
 // ── Screen styles ─────────────────────────────────────────────────────────────
 const makeStyles = (t: AppTheme) => StyleSheet.create({
-  container:     { flex: 1 },
+  container: { flex: 1 },
   scrollContent: { paddingHorizontal: 14 },
 
-  activityBanner:        { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#22C55E18", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#22C55E33", marginBottom: 10 },
-  activityBannerTitle:   { fontSize: 13, fontWeight: "700" as const, color: t.TEXT, marginBottom: 2 },
-  activityBannerSub:     { fontSize: 11, color: t.SUBTEXT },
-  activityBannerBtn:     { backgroundColor: "#22C55E", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  activityBanner: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#22C55E18", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#22C55E33", marginBottom: 10 },
+  activityBannerTitle: { fontSize: 13, fontWeight: "700" as const, color: t.TEXT, marginBottom: 2 },
+  activityBannerSub: { fontSize: 11, color: t.SUBTEXT },
+  activityBannerBtn: { backgroundColor: "#22C55E", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
   activityBannerBtnText: { fontSize: 12, fontWeight: "700" as const, color: "#fff" },
 
-  headerRow:    { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 },
-  screenTitle:  { fontSize: 30, fontWeight: "800" as const, color: t.TEXT, letterSpacing: -0.5 },
-  remainingLine:{ fontSize: 12, color: t.MUTED, marginTop: 3, fontWeight: "500" as const },
-  headerRight:  { alignItems: "flex-end", gap: 6 },
-  dateLabel:    { fontSize: 13, color: t.MUTED, fontWeight: "600" as const },
-  goalsBtn:     { padding: 6 },
+  headerRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 },
+  screenTitle: { fontSize: 30, fontWeight: "800" as const, color: t.TEXT, letterSpacing: -0.5 },
+  remainingLine: { fontSize: 12, color: t.MUTED, marginTop: 3, fontWeight: "500" as const },
+  headerRight: { alignItems: "flex-end", gap: 6 },
+  dateLabel: { fontSize: 13, color: t.MUTED, fontWeight: "600" as const },
+  goalsBtn: { padding: 6 },
 
   // Change 1: Smart goals banner / insight card
-  goalsSetupCard:    { backgroundColor: ACCENT + "18", borderRadius: 16, padding: 16, marginBottom: 14, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: ACCENT + "40" },
-  goalsSetupLeft:    { flex: 1 },
-  goalsSetupTitle:   { fontSize: 15, fontWeight: "700" as const, color: t.TEXT, marginBottom: 3 },
-  goalsSetupSub:     { fontSize: 12, color: t.MUTED },
-  goalsSetupBtn:     { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  goalsSetupCard: { backgroundColor: ACCENT + "18", borderRadius: 16, padding: 16, marginBottom: 14, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: ACCENT + "40" },
+  goalsSetupLeft: { flex: 1 },
+  goalsSetupTitle: { fontSize: 15, fontWeight: "700" as const, color: t.TEXT, marginBottom: 3 },
+  goalsSetupSub: { fontSize: 12, color: t.MUTED },
+  goalsSetupBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   goalsSetupBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" as const },
-  insightTopCard:    { backgroundColor: t.CARD, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: ACCENT + "30" },
-  insightTopTitle:   { fontSize: 12, fontWeight: "700" as const, color: ACCENT, textTransform: "uppercase" as const, letterSpacing: 0.5 },
-  insightTopLine:    { fontSize: 13, color: t.TEXT, fontWeight: "500" as const, marginTop: 4 },
+  insightTopCard: { backgroundColor: t.CARD, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: ACCENT + "30" },
+  insightTopTitle: { fontSize: 12, fontWeight: "700" as const, color: ACCENT, textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  insightTopLine: { fontSize: 13, color: t.TEXT, fontWeight: "500" as const, marginTop: 4 },
 
-  heroCard:   { borderRadius: 20, padding: 16, marginBottom: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: t.BORDER },
-  heroLeft:   { flex: 1, alignItems: "center" },
-  ringInner:  { alignItems: "center" },
-  ringCals:   { fontSize: 24, fontWeight: "800" as const, letterSpacing: -0.5 },
-  ringUnit:   { fontSize: 11, color: t.MUTED, fontWeight: "500" as const },
-  ringGoal:   { fontSize: 11, color: t.MUTED, marginTop: 8 },
-  heroRight:  { gap: 10 },
-  statPill:   { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, padding: 10, borderWidth: 1, minWidth: 110 },
+  heroCard: { borderRadius: 20, padding: 16, marginBottom: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: t.BORDER },
+  heroLeft: { flex: 1, alignItems: "center" },
+  ringInner: { alignItems: "center" },
+  ringCals: { fontSize: 24, fontWeight: "800" as const, letterSpacing: -0.5 },
+  ringUnit: { fontSize: 11, color: t.MUTED, fontWeight: "500" as const },
+  ringGoal: { fontSize: 11, color: t.MUTED, marginTop: 8 },
+  heroRight: { gap: 10 },
+  statPill: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, padding: 10, borderWidth: 1, minWidth: 110 },
   statPillValue: { fontSize: 17, fontWeight: "800" as const, letterSpacing: -0.5 },
   statPillLabel: { fontSize: 10, fontWeight: "600" as const },
 
   // Change 12: Empty states
   emptyRingPlaceholder: { width: 130, height: 130, borderRadius: 65, backgroundColor: t.CARD2, alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 2, borderColor: t.BORDER, borderStyle: "dashed" as const },
-  emptyRingText:        { fontSize: 11, fontWeight: "600" as const, textAlign: "center" as const },
-  emptyMacroState:      { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 4 },
-  emptyStateText:       { fontSize: 13, fontWeight: "500" as const, flex: 1 },
-  logMealBtn:           { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignSelf: "flex-start" as const },
-  logMealBtnText:       { color: "#fff", fontSize: 13, fontWeight: "700" as const },
-  viewAllMicrosBtn:     { marginTop: 14, paddingVertical: 10, alignItems: "center" as const, borderRadius: 10, backgroundColor: t.CARD2 },
-  viewAllMicrosText:    { color: t.TEXT, fontSize: 13, fontWeight: "600" as const },
+  emptyRingText: { fontSize: 11, fontWeight: "600" as const, textAlign: "center" as const },
+  emptyMacroState: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 4 },
+  emptyStateText: { fontSize: 13, fontWeight: "500" as const, flex: 1 },
+  logMealBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignSelf: "flex-start" as const },
+  logMealBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" as const },
+  viewAllMicrosBtn: { marginTop: 14, paddingVertical: 10, alignItems: "center" as const, borderRadius: 10, backgroundColor: t.CARD2 },
+  viewAllMicrosText: { color: t.TEXT, fontSize: 13, fontWeight: "600" as const },
 
-  card:      { borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
+  card: { borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
   cardTitle: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT, marginBottom: 14 },
 
-  horizMacroRow:   { flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 10 },
+  horizMacroRow: { flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 10 },
   horizMacroLabel: { fontSize: 13, fontWeight: "600" as const, color: t.MUTED, width: 52 },
   horizMacroTrack: { flex: 1, height: 7, backgroundColor: t.BORDER, borderRadius: 4, overflow: "hidden" },
-  horizMacroFill:  { height: 7, borderRadius: 4 },
+  horizMacroFill: { height: 7, borderRadius: 4 },
   horizMacroValue: { fontSize: 13, fontWeight: "700" as const, textAlign: "right", minWidth: 70 },
-  horizMacroGoal:  { fontSize: 11, color: t.MUTED, fontWeight: "400" as const },
+  horizMacroGoal: { fontSize: 11, color: t.MUTED, fontWeight: "400" as const },
 
-  microsToggle:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTopWidth: 1, borderTopColor: t.BORDER, marginTop: 4 },
+  microsToggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTopWidth: 1, borderTopColor: t.BORDER, marginTop: 4 },
   microsToggleText: { fontSize: 13, fontWeight: "600" as const, color: t.MUTED },
 
   // Change 11: Vitamin/Mineral grid
-  vitaminGrid:    { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, paddingTop: 12, paddingBottom: 4 },
-  vitaminCard:    { width: "30%", flexGrow: 1, backgroundColor: t.CARD2, borderRadius: 12, padding: 10, borderWidth: 1, alignItems: "center", minWidth: 90 },
-  vitaminDot:     { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
-  vitaminValue:   { fontSize: 15, fontWeight: "700" as const },
-  vitaminUnit:    { fontSize: 9, color: t.MUTED, fontWeight: "400" as const, marginTop: -2 },
-  vitaminLabel:   { fontSize: 10, color: t.MUTED, marginTop: 3, fontWeight: "600" as const, textAlign: "center" as const },
-  vitaminBarTrack:{ width: "100%", height: 3, backgroundColor: t.BORDER, borderRadius: 2, marginTop: 6, overflow: "hidden" },
+  vitaminGrid: { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, paddingTop: 12, paddingBottom: 4 },
+  vitaminCard: { width: "30%", flexGrow: 1, backgroundColor: t.CARD2, borderRadius: 12, padding: 10, borderWidth: 1, alignItems: "center", minWidth: 90 },
+  vitaminDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  vitaminValue: { fontSize: 15, fontWeight: "700" as const },
+  vitaminUnit: { fontSize: 9, color: t.MUTED, fontWeight: "400" as const, marginTop: -2 },
+  vitaminLabel: { fontSize: 10, color: t.MUTED, marginTop: 3, fontWeight: "600" as const, textAlign: "center" as const },
+  vitaminBarTrack: { width: "100%", height: 3, backgroundColor: t.BORDER, borderRadius: 2, marginTop: 6, overflow: "hidden" },
   vitaminBarFill: { height: 3, borderRadius: 2 },
 
   // Water
-  waterHeader:    { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 },
-  waterLiters:    { fontSize: 11, fontWeight: "600" as const, marginTop: 2 },
-  waterCount:     { fontSize: 13, fontWeight: "700" as const },
+  waterHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 },
+  waterLiters: { fontSize: 11, fontWeight: "600" as const, marginTop: 2 },
+  waterCount: { fontSize: 13, fontWeight: "700" as const },
 
-  dropletRow:     { flexDirection: "row", gap: 4, marginBottom: 14, flexWrap: "wrap" as const },
-  waterCtrlRow:   { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
-  waterBtns:      { flexDirection: "row", gap: 8 },
-  waterBtn:       { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  waterInsightRow:{ flexDirection: "row", alignItems: "center", padding: 10, borderRadius: 10, borderWidth: 1, marginTop: 12 },
-  waterInsightText:{ fontSize: 12, fontWeight: "600" as const },
+  dropletRow: { flexDirection: "row", gap: 4, marginBottom: 14, flexWrap: "wrap" as const },
+  waterCtrlRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
+  waterBtns: { flexDirection: "row", gap: 8 },
+  waterBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  waterInsightRow: { flexDirection: "row", alignItems: "center", padding: 10, borderRadius: 10, borderWidth: 1, marginTop: 12 },
+  waterInsightText: { fontSize: 12, fontWeight: "600" as const },
 
   // Change 5: Meal tabs with status indicator
-  mealTabsRow:      { gap: 8, marginBottom: 10 },
-  mealTab:          { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 14, backgroundColor: t.CARD, gap: 5, borderWidth: 1, borderColor: t.BORDER, overflow: "hidden" as const },
-  mealTabText:      { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
-  mealCalBadge:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  mealTabsRow: { gap: 8, marginBottom: 10 },
+  mealTab: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, borderRadius: 14, backgroundColor: t.CARD, gap: 5, borderWidth: 1, borderColor: t.BORDER, overflow: "hidden" as const },
+  mealTabText: { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
+  mealCalBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   mealCalBadgeText: { fontSize: 10, fontWeight: "700" as const },
   mealTabIndicator: { position: "absolute" as const, bottom: 0, left: 0, right: 0, height: 3 },
 
   mealSectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  mealSectionTitle:  { fontSize: 16, fontWeight: "700" as const, color: t.TEXT },
-  mealHeaderBtns:    { flexDirection: "row", gap: 8, alignItems: "center" },
+  mealSectionTitle: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT },
+  mealHeaderBtns: { flexDirection: "row", gap: 8, alignItems: "center" },
   // Change 6: Larger scan button
-  scanBtn:           { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, shadowColor: TEAL, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 3 },
-  scanBtnText:       { color: "#fff", fontSize: 13, fontWeight: "700" as const },
-  iconBtn:           { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  mealEmpty:         { alignItems: "center", paddingVertical: 24, gap: 16 },
-  mealEmptyText:     { fontSize: 13, color: t.MUTED, textAlign: "center", fontWeight: "500" as const },
-  mealEmptyBtns:     { flexDirection: "row", gap: 8, flexWrap: "wrap" as const, justifyContent: "center" as const },
-  emptyActionBtn:    { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
-  emptyActionBtnText:{ color: "#fff", fontSize: 12, fontWeight: "700" as const },
+  scanBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, shadowColor: TEAL, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 3 },
+  scanBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" as const },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  mealEmpty: { alignItems: "center", paddingVertical: 24, gap: 16 },
+  mealEmptyText: { fontSize: 13, color: t.MUTED, textAlign: "center", fontWeight: "500" as const },
+  mealEmptyBtns: { flexDirection: "row", gap: 8, flexWrap: "wrap" as const, justifyContent: "center" as const },
+  emptyActionBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
+  emptyActionBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" as const },
 
-  foodRow:     { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 8 },
+  foodRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 8 },
   foodRowBody: { flex: 1 },
-  foodName:    { fontSize: 14, fontWeight: "600" as const, color: t.TEXT, marginBottom: 3 },
-  foodMeta:    { fontSize: 11, color: t.MUTED },
-  foodRowRight:{ flexDirection: "row", alignItems: "baseline", gap: 2 },
-  foodCals:    { fontSize: 16, fontWeight: "700" as const },
-  foodCalsUnit:{ fontSize: 10, color: t.MUTED },
-  mealTotal:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 4, borderTopWidth: 1 },
+  foodName: { fontSize: 14, fontWeight: "600" as const, color: t.TEXT, marginBottom: 3 },
+  foodMeta: { fontSize: 11, color: t.MUTED },
+  foodRowRight: { flexDirection: "row", alignItems: "baseline", gap: 2 },
+  foodCals: { fontSize: 16, fontWeight: "700" as const },
+  foodCalsUnit: { fontSize: 10, color: t.MUTED },
+  mealTotal: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 4, borderTopWidth: 1 },
   mealTotalLabel: { fontSize: 13, color: t.MUTED, fontWeight: "600" as const },
-  mealTotalCals:  { fontSize: 16, fontWeight: "800" as const },
+  mealTotalCals: { fontSize: 16, fontWeight: "800" as const },
 
   summaryCard: { borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.BORDER, marginBottom: 12 },
-  summaryRow:  { flexDirection: "row", marginBottom: 14 },
+  summaryRow: { flexDirection: "row", marginBottom: 14 },
   summaryItem: { flex: 1, alignItems: "center" },
-  summaryValue:{ fontSize: 22, fontWeight: "800" as const, letterSpacing: -0.5 },
-  summaryLabel:{ fontSize: 10, color: t.MUTED, fontWeight: "600" as const, marginTop: 2 },
-  insightBanner:{ flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
+  summaryValue: { fontSize: 22, fontWeight: "800" as const, letterSpacing: -0.5 },
+  summaryLabel: { fontSize: 10, color: t.MUTED, fontWeight: "600" as const, marginTop: 2 },
+  insightBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   insightText: { fontSize: 12, fontWeight: "600" as const, lineHeight: 17 },
 
   scanningOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", zIndex: 100 },
-  scanningBox:     { borderRadius: 24, padding: 36, alignItems: "center", gap: 14, minWidth: 240, borderWidth: 1, borderColor: t.BORDER },
-  scanningTitle:   { fontSize: 16, fontWeight: "700" as const, color: t.TEXT },
+  scanningBox: { borderRadius: 24, padding: 36, alignItems: "center", gap: 14, minWidth: 240, borderWidth: 1, borderColor: t.BORDER },
+  scanningTitle: { fontSize: 16, fontWeight: "700" as const, color: t.TEXT },
   scanningSubText: { fontSize: 13, color: t.MUTED, textAlign: "center" },
 });

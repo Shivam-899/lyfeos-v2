@@ -44,15 +44,15 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // ── Achievements definition ───────────────────────────────────────────────────
 const ACHIEVEMENTS = [
-  { id: "first_step",   emoji: "🌱", name: "First Step",    desc: "Log your first habit",                     how: "Complete any habit for the first time" },
-  { id: "on_fire",      emoji: "🔥", name: "On Fire",       desc: "7-day habit streak",                       how: "Maintain a streak of 7 consecutive days on any habit" },
-  { id: "consistent",   emoji: "💪", name: "Consistent",    desc: "30 habits completed",                      how: "Complete a total of 30 habits across all time" },
-  { id: "nutrition_pro",emoji: "🥗", name: "Nutrition Pro", desc: "Logged meals 7 days",                      how: "Log at least one meal on 7 different days" },
-  { id: "hydrated",     emoji: "💧", name: "Hydrated",      desc: "Hit water goal 7 days in a row",           how: "Meet your daily water goal for 7 consecutive days" },
-  { id: "unstoppable",  emoji: "🏆", name: "Unstoppable",   desc: "30-day habit streak",                      how: "Maintain a streak of 30 consecutive days on any habit" },
-  { id: "all_rounder",  emoji: "⭐", name: "All Rounder",   desc: "Complete habits + tasks + nutrition in one day", how: "Log habits, a task, and a meal all on the same day" },
-  { id: "task_master",  emoji: "📋", name: "Task Master",   desc: "Complete 10 tasks",                        how: "Check off 10 tasks in your to-do list" },
-  { id: "mover",        emoji: "🏃", name: "Mover",         desc: "Log 10 activities",                        how: "Coming soon — activity logging is on the way!" },
+  { id: "first_step", emoji: "🌱", name: "First Step", desc: "Log your first habit", how: "Complete any habit for the first time" },
+  { id: "on_fire", emoji: "🔥", name: "On Fire", desc: "7-day habit streak", how: "Maintain a streak of 7 consecutive days on any habit" },
+  { id: "consistent", emoji: "💪", name: "Consistent", desc: "30 habits completed", how: "Complete a total of 30 habits across all time" },
+  { id: "nutrition_pro", emoji: "🥗", name: "Nutrition Pro", desc: "Logged meals 7 days", how: "Log at least one meal on 7 different days" },
+  { id: "hydrated", emoji: "💧", name: "Hydrated", desc: "Hit water goal 7 days in a row", how: "Meet your daily water goal for 7 consecutive days" },
+  { id: "unstoppable", emoji: "🏆", name: "Unstoppable", desc: "30-day habit streak", how: "Maintain a streak of 30 consecutive days on any habit" },
+  { id: "all_rounder", emoji: "⭐", name: "All Rounder", desc: "Complete habits + tasks + nutrition in one day", how: "Log habits, a task, and a meal all on the same day" },
+  { id: "task_master", emoji: "📋", name: "Task Master", desc: "Complete 10 tasks", how: "Check off 10 tasks in your to-do list" },
+  { id: "mover", emoji: "🏃", name: "Mover", desc: "Log 10 activities", how: "Coming soon — activity logging is on the way!" },
 ];
 
 // ── Goal presets (Mifflin-St Jeor BMR) ───────────────────────────────────────
@@ -76,18 +76,18 @@ function calcGoals(hp: HealthProfile): { calories: number; carbs: number; protei
     : 10 * w + 6.25 * h - 5 * age - 161;
 
   const mult = { sedentary: 1.2, lightly: 1.375, moderately: 1.55, very: 1.725 }[hp.activityLevel] ?? 1.375;
-  const adj  = { lose: -500, maintain: 0, muscle: +300, fitness: 0 }[hp.goal] ?? 0;
-  const cal  = Math.round(bmr * mult + adj);
+  const adj = { lose: -500, maintain: 0, muscle: +300, fitness: 0 }[hp.goal] ?? 0;
+  const cal = Math.round(bmr * mult + adj);
 
   const proteinPct = hp.goal === "muscle" ? 0.30 : 0.25;
-  const carbsPct   = hp.goal === "lose"   ? 0.40 : 0.50;
-  const fatPct     = 1 - proteinPct - carbsPct;
+  const carbsPct = hp.goal === "lose" ? 0.40 : 0.50;
+  const fatPct = 1 - proteinPct - carbsPct;
 
   return {
     calories: cal,
-    carbs:    Math.round((cal * carbsPct) / 4),
-    protein:  Math.round((cal * proteinPct) / 4),
-    fat:      Math.round((cal * fatPct) / 9),
+    carbs: Math.round((cal * carbsPct) / 4),
+    protein: Math.round((cal * proteinPct) / 4),
+    fat: Math.round((cal * fatPct) / 9),
   };
 }
 
@@ -387,7 +387,7 @@ function BadgePopup({ badge, unlocked, onClose }: { badge: typeof ACHIEVEMENTS[0
 // MAIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { user, isGuest, signOut } = useAuth();
+  const { user, isGuest, signOut, migrationDone, clearMigrationDone } = useAuth();
   const router = useRouter();
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -398,7 +398,7 @@ export default function ProfileScreen() {
   const { todos } = useTodos();
   const { foodItems, waterLogs, dailyGoal, setDailyGoal, clearTodayData } = useCalories();
   const { userName, setUserName, joinDate, habitGoal, setHabitGoal, activityGoal, setActivityGoal,
-          healthProfile, setHealthProfile, reminders, setReminders, preferences, setPreferences } = useProfile();
+    healthProfile, setHealthProfile, reminders, setReminders, preferences, setPreferences } = useProfile();
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -424,6 +424,18 @@ export default function ProfileScreen() {
   const [hpExpanded, setHpExpanded] = useState(false);
   const hpAnim = useRef(new Animated.Value(0)).current;
 
+  // ── Migration success banner ───────────────────────────────────────────────
+  const [migrationSuccess, setMigrationSuccess] = useState(false);
+
+  useEffect(() => {
+    if (migrationDone && user && !isGuest) {
+      setMigrationSuccess(true);
+      clearMigrationDone();
+      const timer = setTimeout(() => setMigrationSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [migrationDone, user, isGuest]);
+
   // ── Notifications enabled state (persisted) ────────────────────────────────
   const NOTIF_ENABLED_KEY = "notificationsEnabled";
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -435,7 +447,7 @@ export default function ProfileScreen() {
       .then((val) => {
         if (val !== null) setNotificationsEnabled(val === "true");
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Handler for the master notifications toggle
@@ -458,7 +470,7 @@ export default function ProfileScreen() {
 
   const completedHabitLogs = habitLogs.filter(l => l.completed);
   const totalHabitsDone = completedHabitLogs.length;
-  const totalTasksDone  = todos.filter(t => t.completed).length;
+  const totalTasksDone = todos.filter(t => t.completed).length;
   const totalMealsLogged = foodItems.length;
 
   const bestStreak = habits.reduce((best, h) => Math.max(best, getStreak(h.id).best), 0);
@@ -505,17 +517,17 @@ export default function ProfileScreen() {
   const unlockedSet = new Set<string>();
   if (completedHabitLogs.length > 0) unlockedSet.add("first_step");
   if (bestStreak >= 7 || currentStreak >= 7) unlockedSet.add("on_fire");
-  if (totalHabitsDone >= 30)         unlockedSet.add("consistent");
+  if (totalHabitsDone >= 30) unlockedSet.add("consistent");
   if (new Set(foodItems.map(f => f.date)).size >= 7) unlockedSet.add("nutrition_pro");
-  if (bestStreak >= 30)              unlockedSet.add("unstoppable");
-  if (totalTasksDone >= 10)          unlockedSet.add("task_master");
+  if (bestStreak >= 30) unlockedSet.add("unstoppable");
+  if (totalTasksDone >= 10) unlockedSet.add("task_master");
 
   // Hydrated: 7 consecutive days where glasses >= goal
   const sortedWaterDates = [...new Set(waterLogs.filter(w => w.glasses >= dailyGoal.water).map(w => w.date))].sort();
   let waterStreak = 0, maxWaterStreak = 0;
   for (let i = 0; i < sortedWaterDates.length; i++) {
     if (i === 0) { waterStreak = 1; } else {
-      const prev = new Date(sortedWaterDates[i-1] + "T00:00:00");
+      const prev = new Date(sortedWaterDates[i - 1] + "T00:00:00");
       prev.setDate(prev.getDate() + 1);
       waterStreak = sortedWaterDates[i] === isoDate(prev) ? waterStreak + 1 : 1;
     }
@@ -537,23 +549,27 @@ export default function ProfileScreen() {
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handlePickAvatar = async () => {
     if (Platform.OS === "web") {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, allowsEditing: true, aspect: [1,1] });
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, allowsEditing: true, aspect: [1, 1] });
       if (!result.canceled && result.assets[0]) setAvatarUri(result.assets[0].uri);
       return;
     }
     Alert.alert("Change Photo", "Choose a source", [
-      { text: "Camera", onPress: async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== "granted") { Alert.alert("Permission needed", "Allow camera access to take a profile photo."); return; }
-        const r = await ImagePicker.launchCameraAsync({ quality: 0.6, allowsEditing: true, aspect: [1,1] });
-        if (!r.canceled) setAvatarUri(r.assets[0].uri);
-      }},
-      { text: "Photo Library", onPress: async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") { Alert.alert("Permission needed", "Allow photo access to change your profile picture."); return; }
-        const r = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, allowsEditing: true, aspect: [1,1] });
-        if (!r.canceled) setAvatarUri(r.assets[0].uri);
-      }},
+      {
+        text: "Camera", onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") { Alert.alert("Permission needed", "Allow camera access to take a profile photo."); return; }
+          const r = await ImagePicker.launchCameraAsync({ quality: 0.6, allowsEditing: true, aspect: [1, 1] });
+          if (!r.canceled) setAvatarUri(r.assets[0].uri);
+        }
+      },
+      {
+        text: "Photo Library", onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") { Alert.alert("Permission needed", "Allow photo access to change your profile picture."); return; }
+          const r = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, allowsEditing: true, aspect: [1, 1] });
+          if (!r.canceled) setAvatarUri(r.assets[0].uri);
+        }
+      },
       { text: "Cancel", style: "cancel" },
     ]);
   };
@@ -612,16 +628,18 @@ export default function ProfileScreen() {
       } else {
         await Share.share({ message: summary, title: "LyfeOS Data Export" });
       }
-    } catch {}
+    } catch { }
   };
 
   const handleClearToday = () => {
     Alert.alert("Clear Today's Data", "This will remove all food logs and habit completions for today. This cannot be undone.", [
-      { text: "Clear Today", style: "destructive", onPress: () => {
-        clearTodayData(today);
-        clearTodayHabitLogs(today);
-        Alert.alert("Done", "Today's logs cleared successfully.");
-      }},
+      {
+        text: "Clear Today", style: "destructive", onPress: () => {
+          clearTodayData(today);
+          clearTodayHabitLogs(today);
+          Alert.alert("Done", "Today's logs cleared successfully.");
+        }
+      },
       { text: "Cancel", style: "cancel" },
     ]);
   };
@@ -629,15 +647,19 @@ export default function ProfileScreen() {
   const handleResetAll = () => {
     Alert.alert("⚠️ Reset All Data", "This will permanently delete ALL your habits, tasks, nutrition logs, and settings. This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
-      { text: "I understand, delete everything", style: "destructive", onPress: () => {
-        Alert.alert("Last warning", "Are you absolutely sure? All data will be lost forever.", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Delete Everything", style: "destructive", onPress: async () => {
-            await AsyncStorage.clear();
-            Alert.alert("Done", "All data has been cleared. Please restart the app.");
-          }},
-        ]);
-      }},
+      {
+        text: "I understand, delete everything", style: "destructive", onPress: () => {
+          Alert.alert("Last warning", "Are you absolutely sure? All data will be lost forever.", [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete Everything", style: "destructive", onPress: async () => {
+                await AsyncStorage.clear();
+                Alert.alert("Done", "All data has been cleared. Please restart the app.");
+              }
+            },
+          ]);
+        }
+      },
     ]);
   };
 
@@ -687,41 +709,41 @@ export default function ProfileScreen() {
     if (Platform.OS !== "web") Haptics.selectionAsync();
   };
 
-  const hpHeight = hpAnim.interpolate({ inputRange: [0,1], outputRange: [0, 500] });
-  const weekChartHeight = weekAnim.interpolate({ inputRange: [0,1], outputRange: [0, 160] });
+  const hpHeight = hpAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 500] });
+  const weekChartHeight = weekAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 160] });
 
-  const initials = (editMode ? editedName : userName).trim().split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2) || "VF";
+  const initials = (editMode ? editedName : userName).trim().split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "VF";
 
   const todayCalories = foodItems.filter(f => f.date === today).reduce((s, f) => s + f.calories, 0);
   const todayWater = waterLogs.find(w => w.date === today)?.glasses || 0;
   const todayHabitsDone = habitLogs.filter(l => l.date === today && l.completed).length;
 
   const GOAL_ROWS = [
-    { field: "calories" as GoalField, icon: "flame",       iconBg: "#FF6B3530", color: ACCENT, label: "Calorie Goal",  value: dailyGoal.calories, unit: "kcal", progressVal: todayCalories, progressStr: `${todayCalories} / ${dailyGoal.calories} consumed` },
-    { field: "water"    as GoalField, icon: "water",       iconBg: "#3B82F630", color: BLUE, label: "Water Goal",    value: dailyGoal.water,    unit: "glasses", progressVal: todayWater, progressStr: `${todayWater}/${dailyGoal.water} glasses` },
-    { field: "habits"   as GoalField, icon: "checkmark-circle", iconBg: "#22C55E30", color: GREEN, label: "Daily Habits Goal", value: habitGoal, unit: "habits/day", progressVal: todayHabitsDone, progressStr: `${todayHabitsDone}/${habitGoal} completed` },
-    { field: "activity" as GoalField, icon: "timer-outline", iconBg: "#EAB30830", color: YELLOW, label: "Activity Goal",  value: activityGoal || 30, unit: "min/day", progressVal: 0, progressStr: `0/${activityGoal || 30} min` },
+    { field: "calories" as GoalField, icon: "flame", iconBg: "#FF6B3530", color: ACCENT, label: "Calorie Goal", value: dailyGoal.calories, unit: "kcal", progressVal: todayCalories, progressStr: `${todayCalories} / ${dailyGoal.calories} consumed` },
+    { field: "water" as GoalField, icon: "water", iconBg: "#3B82F630", color: BLUE, label: "Water Goal", value: dailyGoal.water, unit: "glasses", progressVal: todayWater, progressStr: `${todayWater}/${dailyGoal.water} glasses` },
+    { field: "habits" as GoalField, icon: "checkmark-circle", iconBg: "#22C55E30", color: GREEN, label: "Daily Habits Goal", value: habitGoal, unit: "habits/day", progressVal: todayHabitsDone, progressStr: `${todayHabitsDone}/${habitGoal} completed` },
+    { field: "activity" as GoalField, icon: "timer-outline", iconBg: "#EAB30830", color: YELLOW, label: "Activity Goal", value: activityGoal || 30, unit: "min/day", progressVal: 0, progressStr: `0/${activityGoal || 30} min` },
   ];
 
   const STAT_CARDS = [
-    { icon: "trophy",     iconColor: YELLOW, label: "Best",       value: bestStreak,       suffix: "days" },
+    { icon: "trophy", iconColor: YELLOW, label: "Best", value: bestStreak, suffix: "days" },
     { icon: "checkmark-done-circle", iconColor: GREEN, label: "Habits", value: totalHabitsDone, suffix: "total" },
-    { icon: "list",       iconColor: BLUE,   label: "Tasks",        value: totalTasksDone,   suffix: "total" },
-    { icon: "restaurant", iconColor: ACCENT, label: "Meals",      value: totalMealsLogged, suffix: "total" },
-    { icon: "time",       iconColor: "#8B5CF6", label: "Days",   value: daysTracked,      suffix: "days" },
-    { icon: "flame",      iconColor: ACCENT, label: "Streak",    value: currentStreak,    suffix: "days" },
+    { icon: "list", iconColor: BLUE, label: "Tasks", value: totalTasksDone, suffix: "total" },
+    { icon: "restaurant", iconColor: ACCENT, label: "Meals", value: totalMealsLogged, suffix: "total" },
+    { icon: "time", iconColor: "#8B5CF6", label: "Days", value: daysTracked, suffix: "days" },
+    { icon: "flame", iconColor: ACCENT, label: "Streak", value: currentStreak, suffix: "days" },
   ];
 
   // active goal field value helper
   const goalFieldValue = () => {
     if (editingGoal === "calories") return String(dailyGoal.calories);
-    if (editingGoal === "water")    return String(dailyGoal.water);
-    if (editingGoal === "habits")   return String(habitGoal);
+    if (editingGoal === "water") return String(dailyGoal.water);
+    if (editingGoal === "habits") return String(habitGoal);
     if (editingGoal === "activity") return String(activityGoal);
     return "";
   };
   const goalFieldLabel = GOAL_ROWS.find(r => r.field === editingGoal)?.label ?? "";
-  const goalFieldUnit  = GOAL_ROWS.find(r => r.field === editingGoal)?.unit ?? "";
+  const goalFieldUnit = GOAL_ROWS.find(r => r.field === editingGoal)?.unit ?? "";
 
   const hpFieldsFilled = [hp.age, hp.sex, hp.height, hp.weight, hp.activityLevel, hp.goal].filter(Boolean).length;
   const healthFilled = hpFieldsFilled >= 4;
@@ -753,8 +775,8 @@ export default function ProfileScreen() {
               {avatarUri
                 ? <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                 : <View style={[styles.avatarPlaceholder, { backgroundColor: ACCENT + "33" }]}>
-                    <Text style={styles.avatarInitials}>{initials}</Text>
-                  </View>
+                  <Text style={styles.avatarInitials}>{initials}</Text>
+                </View>
               }
             </View>
             {editMode && (
@@ -798,7 +820,7 @@ export default function ProfileScreen() {
         {/* ── Daily Goals ──────────────────────────────────────────── */}
         <SectionCard title="Daily Goals" icon="flag">
           {GOAL_ROWS.map((row, i) => (
-            <TouchableOpacity key={row.field} style={[styles.goalRow, i === GOAL_ROWS.length-1 && { borderBottomWidth: 0 }]} onPress={() => setEditingGoal(row.field)}>
+            <TouchableOpacity key={row.field} style={[styles.goalRow, i === GOAL_ROWS.length - 1 && { borderBottomWidth: 0 }]} onPress={() => setEditingGoal(row.field)}>
               <View style={[styles.goalRowIcon, { backgroundColor: row.iconBg }]}>
                 <Ionicons name={row.icon as any} size={16} color={row.color} />
               </View>
@@ -831,12 +853,12 @@ export default function ProfileScreen() {
         {/* ── Weekly Report ─────────────────────────────────────────── */}
         <SectionCard title="This Week's Report" icon="calendar">
           <View style={styles.weekRow}>
-            <WeekItem icon="flame-outline"         color={ACCENT}  label={isOnlyToday ? "Today's Calories" : "Avg Daily Calories"}   value={`${avgWeekCals} kcal`} sub={`Goal: ${dailyGoal.calories}`} />
-            <WeekItem icon="checkmark-circle-outline" color={GREEN} label="Habits Completion"   value={`${weekHabitPct}%`} />
+            <WeekItem icon="flame-outline" color={ACCENT} label={isOnlyToday ? "Today's Calories" : "Avg Daily Calories"} value={`${avgWeekCals} kcal`} sub={`Goal: ${dailyGoal.calories}`} />
+            <WeekItem icon="checkmark-circle-outline" color={GREEN} label="Habits Completion" value={`${weekHabitPct}%`} />
           </View>
           <View style={styles.weekRow}>
-            <WeekItem icon="star-outline"          color={YELLOW} label="Most Consistent"       value={mostConsistentHabit?.name ?? "—"} />
-            <WeekItem icon="sunny-outline"         color={BLUE}   label="Most Active Day"       value={mostActiveDay} />
+            <WeekItem icon="star-outline" color={YELLOW} label="Most Consistent" value={mostConsistentHabit?.name ?? "—"} />
+            <WeekItem icon="sunny-outline" color={BLUE} label="Most Active Day" value={mostActiveDay} />
           </View>
 
           <TouchableOpacity style={styles.weekExpandBtn} onPress={toggleWeek}>
@@ -919,10 +941,10 @@ export default function ProfileScreen() {
             }
           />
           {[
-            { key: "morning" as keyof typeof reminders, icon: "sunny",     iconBg: "#EAB30835", label: "Morning Reminder",   sub: "Daily habit check-in · 8:00 AM" },
-            { key: "meal"    as keyof typeof reminders, icon: "restaurant", iconBg: "#FF6B3535", label: "Meal Reminder",       sub: "Log your meals on time" },
-            { key: "water"   as keyof typeof reminders, icon: "water",      iconBg: "#3B82F635", label: "Water Reminder",      sub: "Stay hydrated every 2 hours" },
-            { key: "evening" as keyof typeof reminders, icon: "moon",       iconBg: "#8B5CF635", label: "Evening Check-in",    sub: "End-of-day summary · 9:00 PM" },
+            { key: "morning" as keyof typeof reminders, icon: "sunny", iconBg: "#EAB30835", label: "Morning Reminder", sub: "Daily habit check-in · 8:00 AM" },
+            { key: "meal" as keyof typeof reminders, icon: "restaurant", iconBg: "#FF6B3535", label: "Meal Reminder", sub: "Log your meals on time" },
+            { key: "water" as keyof typeof reminders, icon: "water", iconBg: "#3B82F635", label: "Water Reminder", sub: "Stay hydrated every 2 hours" },
+            { key: "evening" as keyof typeof reminders, icon: "moon", iconBg: "#8B5CF635", label: "Evening Check-in", sub: "End-of-day summary · 9:00 PM" },
           ].map((row, i, arr) => (
             <SettingRow key={row.key} icon={row.icon} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
               right={
@@ -1000,26 +1022,26 @@ export default function ProfileScreen() {
           <Animated.View style={{ height: hpHeight, overflow: "hidden" }}>
             <View style={{ paddingTop: 8 }}>
               <HpRow label="Age" value={hp.age} onChangeText={v => setHp(p => ({ ...p, age: v }))} keyboardType="number-pad" unit="years" />
-              <HpRow 
-                label="Height" 
-                value={hp.height.replace(/cm/g, "").trim()} 
-                onChangeText={v => setHp(p => ({ ...p, height: (p.height.includes("'") || p.height.includes("ft")) ? v : `${v} cm` }))} 
-                keyboardType={(hp.height.includes("'") || hp.height.includes("ft")) ? "default" : "number-pad"} 
-                unit={(hp.height.includes("'") || hp.height.includes("ft")) ? "ft/in" : "cm"} 
-                onToggleUnit={toggleHeightUnit} 
+              <HpRow
+                label="Height"
+                value={hp.height.replace(/cm/g, "").trim()}
+                onChangeText={v => setHp(p => ({ ...p, height: (p.height.includes("'") || p.height.includes("ft")) ? v : `${v} cm` }))}
+                keyboardType={(hp.height.includes("'") || hp.height.includes("ft")) ? "default" : "number-pad"}
+                unit={(hp.height.includes("'") || hp.height.includes("ft")) ? "ft/in" : "cm"}
+                onToggleUnit={toggleHeightUnit}
               />
-              <HpRow 
-                label="Weight" 
-                value={hp.weight.replace(/lb|kg/g, "").trim()} 
-                onChangeText={v => setHp(p => ({ ...p, weight: p.weight.includes("lb") ? `${v} lb` : `${v} kg` }))} 
-                keyboardType="decimal-pad" 
-                unit={hp.weight.includes("lb") ? "lb" : "kg"} 
-                onToggleUnit={toggleWeightUnit} 
+              <HpRow
+                label="Weight"
+                value={hp.weight.replace(/lb|kg/g, "").trim()}
+                onChangeText={v => setHp(p => ({ ...p, weight: p.weight.includes("lb") ? `${v} lb` : `${v} kg` }))}
+                keyboardType="decimal-pad"
+                unit={hp.weight.includes("lb") ? "lb" : "kg"}
+                onToggleUnit={toggleWeightUnit}
               />
 
               <Text style={styles.hpSelectLabel}>Biological Sex</Text>
               <View style={styles.chipRow}>
-                {(["male","female","other"] as const).map(s => (
+                {(["male", "female", "other"] as const).map(s => (
                   <TouchableOpacity key={s} style={[styles.chip, hp.sex === s && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setHp(p => ({ ...p, sex: s }))}>
                     <Text style={[styles.chipText, hp.sex === s && { color: "#fff" }]}>{s === "other" ? "Prefer not to say" : s.charAt(0).toUpperCase() + s.slice(1)}</Text>
                   </TouchableOpacity>
@@ -1028,7 +1050,7 @@ export default function ProfileScreen() {
 
               <Text style={styles.hpSelectLabel}>Activity Level</Text>
               <View style={styles.chipRow}>
-                {([["sedentary","Sedentary"],["lightly","Lightly Active"],["moderately","Moderately Active"],["very","Very Active"]] as const).map(([k,lbl]) => (
+                {([["sedentary", "Sedentary"], ["lightly", "Lightly Active"], ["moderately", "Moderately Active"], ["very", "Very Active"]] as const).map(([k, lbl]) => (
                   <TouchableOpacity key={k} style={[styles.chip, hp.activityLevel === k && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setHp(p => ({ ...p, activityLevel: k }))}>
                     <Text style={[styles.chipText, hp.activityLevel === k && { color: "#fff" }]}>{lbl}</Text>
                   </TouchableOpacity>
@@ -1037,7 +1059,7 @@ export default function ProfileScreen() {
 
               <Text style={styles.hpSelectLabel}>Goal</Text>
               <View style={styles.chipRow}>
-                {([["lose","Lose Weight"],["maintain","Maintain"],["muscle","Build Muscle"],["fitness","Improve Fitness"]] as const).map(([k,lbl]) => (
+                {([["lose", "Lose Weight"], ["maintain", "Maintain"], ["muscle", "Build Muscle"], ["fitness", "Improve Fitness"]] as const).map(([k, lbl]) => (
                   <TouchableOpacity key={k} style={[styles.chip, hp.goal === k && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setHp(p => ({ ...p, goal: k }))}>
                     <Text style={[styles.chipText, hp.goal === k && { color: "#fff" }]}>{lbl}</Text>
                   </TouchableOpacity>
@@ -1084,12 +1106,12 @@ export default function ProfileScreen() {
 
         {/* ── Data & Privacy ────────────────────────────────────────── */}
         <SectionCard title="Data & Privacy" icon="shield-checkmark">
-          <SettingRow icon="share-outline"    iconBg="#3B82F625" label="Export My Data"     sub="Download a summary of all your data" onPress={handleExportData}
+          <SettingRow icon="share-outline" iconBg="#3B82F625" label="Export My Data" sub="Download a summary of all your data" onPress={handleExportData}
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
-          <SettingRow icon="today-outline"    iconBg="#EAB30825" label="Clear Today's Data"  sub="Remove today's logs only" onPress={handleClearToday}
+          <SettingRow icon="today-outline" iconBg="#EAB30825" label="Clear Today's Data" sub="Remove today's logs only" onPress={handleClearToday}
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
           <Text style={{ fontSize: 12, fontWeight: "600", color: RED, marginTop: 12, marginBottom: 4, marginLeft: 8 }}>⚠️ DANGER ZONE</Text>
-          <SettingRow icon="warning-outline"  iconBg="#EF444425" label="Reset All Data"      sub="Permanently delete everything" onPress={handleResetAll}
+          <SettingRow icon="warning-outline" iconBg="#EF444425" label="Reset All Data" sub="Permanently delete everything" onPress={handleResetAll}
             right={<Ionicons name="chevron-forward" size={16} color="#EF4444" />} last />
         </SectionCard>
 
@@ -1106,6 +1128,46 @@ export default function ProfileScreen() {
         </View>
 
       </ScrollView>
+
+      {/* ── Migration Success Banner ────────────────────────────────── */}
+      {migrationSuccess && (
+        <View
+          style={{
+            position: "absolute",
+            bottom: insets.bottom + 90,
+            left: 16,
+            right: 16,
+            backgroundColor: GREEN,
+            borderRadius: 16,
+            paddingVertical: 14,
+            paddingHorizontal: 18,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.18,
+            shadowRadius: 12,
+            elevation: 8,
+            borderWidth: 1,
+            borderColor: GREEN + "80",
+          }}
+        >
+          <Text style={{ fontSize: 18 }}>✅</Text>
+          <Text
+            style={{
+              flex: 1,
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: "700",
+              fontFamily: "Inter",
+              lineHeight: 20,
+            }}
+          >
+            Your guest data has been saved to your account!
+          </Text>
+        </View>
+      )}
 
       {/* ── Modals ──────────────────────────────────────────────────── */}
       <GoalEditSheet

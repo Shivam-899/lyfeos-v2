@@ -8,6 +8,8 @@ import React, {
 
 import { getStoredJson, getStoredString, removeStoredItems, setStoredJson, setStoredString } from "@/utils/storage";
 import { logEvent, logError } from "@/utils/analytics";
+import { syncHabitsToCloud, fetchHabitsFromCloud } from "@/utils/cloudSync";
+import { useAuth } from "@/context/AuthContext";
 
 export type TrackMethod = "task" | "amount" | "time";
 export type HabitType = "build" | "quit";
@@ -89,6 +91,11 @@ const HABITS_KEY = "@lyfeos_habits_v2";
 const HABIT_LOGS_KEY = "@lyfeos_habit_logs_v2";
 
 export function HabitsProvider({ children }: { children: React.ReactNode }) {
+  const { user, isGuest } = useAuth();
+  // Keep a ref so callbacks always see the latest user/isGuest without re-creating them
+  const authRef = React.useRef({ user, isGuest });
+  React.useEffect(() => { authRef.current = { user, isGuest }; }, [user, isGuest]);
+
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -116,6 +123,15 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
           ]);
           setHabits(storedHabits);
           setHabitLogs(storedLogs);
+
+          // Cloud sync: fetch from Firestore if logged-in non-guest user
+          if (user && !isGuest) {
+            const cloudHabits = await fetchHabitsFromCloud(user.uid);
+            if (cloudHabits && cloudHabits.length > 0) {
+              setHabits(cloudHabits);
+              await setStoredJson(HABITS_KEY, cloudHabits);
+            }
+          }
         }
       } catch {
         setHabits([]);
@@ -124,7 +140,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
         setLoaded(true);
       }
     })();
-  }, []);
+  }, [user, isGuest]);
 
   const persist = useCallback(async (h: Habit[], l: HabitLog[]) => {
     await Promise.all([
@@ -142,18 +158,28 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     // Bug 3 fix: read latest habitLogs from inside setHabitLogs updater to avoid stale closure
     setHabits((prevHabits) => {
       const next = [...prevHabits, newHabit];
-      setHabitLogs((prevLogs) => { persist(next, prevLogs); return prevLogs; });
+      setHabitLogs((prevLogs) => {
+        persist(next, prevLogs);
+        const { user: u, isGuest: g } = authRef.current;
+        if (u && !g) { syncHabitsToCloud(u.uid, next); }
+        return prevLogs;
+      });
       return next;
     });
     // Fire analytics event (non-blocking)
-    logEvent("habit_created", { habitName: habit.name }).catch(() => {});
+    logEvent("habit_created", { habitName: habit.name }).catch(() => { });
   }, [persist]);
 
   const updateHabit = useCallback((habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt">>) => {
     // Bug 3 fix: read latest habitLogs from inside setHabitLogs updater to avoid stale closure
     setHabits((prevHabits) => {
       const next = prevHabits.map((h) => h.id === habitId ? { ...h, ...updates } : h);
-      setHabitLogs((prevLogs) => { persist(next, prevLogs); return prevLogs; });
+      setHabitLogs((prevLogs) => {
+        persist(next, prevLogs);
+        const { user: u, isGuest: g } = authRef.current;
+        if (u && !g) { syncHabitsToCloud(u.uid, next); }
+        return prevLogs;
+      });
       return next;
     });
   }, [persist]);
@@ -164,6 +190,8 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       setHabitLogs((logs) => {
         const nextLogs = logs.filter((l) => l.habitId !== habitId);
         persist(next, nextLogs);
+        const { user: u, isGuest: g } = authRef.current;
+        if (u && !g) { syncHabitsToCloud(u.uid, next); }
         return nextLogs;
       });
       return next;
@@ -188,10 +216,12 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
         next = [...prev, newLog];
       }
       persist(habits, next);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncHabitsToCloud(u.uid, habits); }
       // Fire analytics when habit is completed
       if (data.completed === true) {
         const habit = habits.find((h) => h.id === habitId);
-        logEvent("habit_completed", { habitName: habit?.name ?? habitId }).catch(() => {});
+        logEvent("habit_completed", { habitName: habit?.name ?? habitId }).catch(() => { });
       }
       return next;
     });
