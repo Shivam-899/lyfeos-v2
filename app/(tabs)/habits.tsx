@@ -479,11 +479,13 @@ export default function HabitsScreen() {
       )}
 
       {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      <View style={{ alignItems: "center", marginBottom: insets.bottom > 0 ? 0 : 4 }}>
+      <View style={{ width: "100%", alignItems: "center", marginBottom: insets.bottom > 0 ? 0 : 4 }}>
         <BannerAd
           unitId={AD_UNIT_IDS.banner}
           size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
           requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+          onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Habits Tab)')}
+          onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Habits Tab):', JSON.stringify(error))}
         />
       </View>
 
