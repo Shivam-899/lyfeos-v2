@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
@@ -169,6 +170,7 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function HabitsScreen() {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE, isDark } = theme;
@@ -336,6 +338,7 @@ export default function HabitsScreen() {
       {/* ── Rituals Tab ───────────────────────────────────────────────── */}
       {activeTab === "rituals" && (
         <FlatList
+          style={{ flex: 1 }}
           data={sortedHabits}
           keyExtractor={(h) => `${h.id}-${dateStr}`}
           showsVerticalScrollIndicator={false}
@@ -479,15 +482,17 @@ export default function HabitsScreen() {
       )}
 
       {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      <View style={{ width: "100%", alignItems: "center", marginBottom: insets.bottom > 0 ? 0 : 4 }}>
-        <BannerAd
-          unitId={AD_UNIT_IDS.banner}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Habits Tab)')}
-          onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Habits Tab):', JSON.stringify(error))}
-        />
-      </View>
+      {isFocused && (
+        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
+          <BannerAd
+            unitId={AD_UNIT_IDS.banner}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Habits Tab)')}
+            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Habits Tab):', JSON.stringify(error))}
+          />
+        </View>
+      )}
 
       <AddHabitSheet
         visible={showAddSheet}

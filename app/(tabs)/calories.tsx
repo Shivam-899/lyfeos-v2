@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -1033,6 +1034,7 @@ function ProteinSuggestionsModal({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CaloriesScreen() {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT } = theme;
@@ -1200,6 +1202,7 @@ export default function CaloriesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: BG }]}>
       <ScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100, paddingTop: topPad + 8 }]}
         keyboardShouldPersistTaps="handled"
@@ -1572,15 +1575,17 @@ export default function CaloriesScreen() {
       )}
 
       {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      <View style={{ width: "100%", alignItems: "center", marginBottom: insets.bottom > 0 ? 0 : 4 }}>
-        <BannerAd
-          unitId={AD_UNIT_IDS.banner}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Calories Tab)')}
-          onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Calories Tab):', JSON.stringify(error))}
-        />
-      </View>
+      {isFocused && (
+        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
+          <BannerAd
+            unitId={AD_UNIT_IDS.banner}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Calories Tab)')}
+            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Calories Tab):', JSON.stringify(error))}
+          />
+        </View>
+      )}
 
       {/* ── Modals ────────────────────────────────────────────────── */}
       <FoodResultSheet
