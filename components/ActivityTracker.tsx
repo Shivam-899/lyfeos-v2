@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -23,6 +24,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { useActivity } from "@/context/ActivityContext";
 import { useCalories } from "@/context/CaloriesContext";
 import { useProfile } from "@/context/ProfileContext";
+import { showRewardedAd } from "../utils/ads";
 import {
   ActivityAnalysis,
   analyzeActivity,
@@ -386,6 +388,8 @@ export function ActivityTracker() {
   const [resultSheet, setResultSheet] = useState(false);
   const [analysis, setAnalysis] = useState<ActivityAnalysis | null>(null);
   const [aiError, setAiError] = useState("");
+  const [showResult, setShowResult] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   const [toastMsg, setToastMsg] = useState("");
@@ -466,6 +470,8 @@ export function ActivityTracker() {
       setShowCustomDuration(false);
       setCustomDurationText("");
     }
+    // Reset result when duration changes so old result doesn't persist
+    setShowResult(false);
   };
 
   const handleCustomDurationChange = (text: string) => {
@@ -486,21 +492,58 @@ export function ActivityTracker() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAiError("");
     setAnalysis(null);
+    setShowResult(false);
+    setIsAnalyzing(true);
     setLoadingSheet(true);
     try {
+      // Fake AI processing delay to maintain the illusion of AI analysis
+      await new Promise(resolve => setTimeout(resolve, 1000));
       const result = await analyzeActivity(activeSportName, duration, intensity, weight, age);
       setAnalysis(result);
       setLoadingSheet(false);
       setResultSheet(true);
+      setShowResult(true);
     } catch (e: any) {
       setLoadingSheet(false);
+      setShowResult(false);
       setAiError("Something went wrong. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
   // ── Handle Log This Session ────────────────────────────────────────────────
-  const handleLogSession = () => {
+  const handleLogSession = async () => {
     if (!analysis) return;
+    // Check daily activity log limit (1 free per day, then requires watching a rewarded ad)
+    try {
+      const todayDate = new Date().toDateString();
+      const lastLogDate = await AsyncStorage.getItem('lastActivityLogDate');
+      const countStr = await AsyncStorage.getItem('activityLogCount');
+      let count = lastLogDate === todayDate ? parseInt(countStr || '0') : 0;
+
+      if (count === 0) {
+        // First log of the day — free
+        await AsyncStorage.setItem('lastActivityLogDate', todayDate);
+        await AsyncStorage.setItem('activityLogCount', '1');
+      } else {
+        // Need to watch rewarded ad for subsequent logs
+        const watched = await showRewardedAd();
+        if (!watched) {
+          Alert.alert(
+            "Daily Limit Reached",
+            "Watch an ad to log more activities today, or come back tomorrow!",
+            [{ text: "OK", style: "cancel" }]
+          );
+          return;
+        }
+        await AsyncStorage.setItem('activityLogCount', String(count + 1));
+      }
+    } catch (e) {
+      // Silently fail — never block the user from logging
+      console.log('Activity log limit check failed (non-fatal):', e);
+    }
+
     const log = {
       date: today,
       sport: activeSportName,
@@ -523,6 +566,7 @@ export function ActivityTracker() {
     setPostActivityBanner({ sport: activeSportName, emoji: "🏅", meal: analysis.post_activity_meal, loggedAt: Date.now() });
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setResultSheet(false);
+    setShowResult(false);
     setSelectedSport("");
     showToast(`💧 Added ${analysis.hydration_glasses.toFixed(1)} glasses to your water goal`);
   };
@@ -810,7 +854,7 @@ export function ActivityTracker() {
             <View style={styles.intensityRow}>
               {INTENSITIES.map(it => (
                 <TouchableOpacity key={it.key} style={[styles.intensityCell, intensity === it.key && styles.intensityCellActive]}
-                  onPress={() => setIntensity(it.key)}>
+                  onPress={() => { setIntensity(it.key); setShowResult(false); }}>
                   <Text style={styles.intensityIcon}>{it.icon}</Text>
                   <Text style={[styles.intensityLabel, intensity === it.key && { color: TEXT }]}>{it.label}</Text>
                   <Text style={styles.intensityDesc}>{it.desc}</Text>
@@ -818,8 +862,8 @@ export function ActivityTracker() {
               ))}
             </View>
 
-            {/* Change 9: Live Preview Card */}
-            {previewCalories !== null && (
+            {/* Change 9: Live Preview Card — only shown AFTER "Analyze & Log with AI" is tapped */}
+            {showResult && previewCalories !== null && (
               <View style={[styles.previewCard, { backgroundColor: ACCENT + "0E", borderColor: ACCENT + "30" }]}>
                 <Text style={[styles.previewTitle, { color: ACCENT }]}>Estimated Burn</Text>
                 <View style={styles.previewRow}>
@@ -843,10 +887,16 @@ export function ActivityTracker() {
 
             {aiError ? <Text style={styles.aiError}>{aiError}</Text> : null}
 
-            {/* Change 6E/7: Keep AI button exactly as-is */}
-            <TouchableOpacity style={[styles.analyzeBtn, { backgroundColor: ACCENT }]} onPress={handleAnalyze}>
-              <Ionicons name="sparkles" size={18} color="#fff" />
-              <Text style={styles.analyzeBtnText}>Analyze & Log with AI</Text>
+            {/* Change 6E/7: Keep AI button exactly as-is, with loading state */}
+            <TouchableOpacity
+              style={[styles.analyzeBtn, { backgroundColor: ACCENT, opacity: isAnalyzing ? 0.7 : 1 }]}
+              onPress={handleAnalyze}
+              disabled={isAnalyzing}
+            >
+              {isAnalyzing
+                ? <PulsingDots />
+                : <Ionicons name="sparkles" size={18} color="#fff" />}
+              <Text style={styles.analyzeBtnText}>{isAnalyzing ? "Analyzing..." : "Analyze & Log with AI"}</Text>
             </TouchableOpacity>
           </View>
         )}

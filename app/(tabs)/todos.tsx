@@ -2,6 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
+import { useIsFocused } from "@react-navigation/native";
+import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
+import { AD_UNIT_IDS } from "../../utils/ads";
 import {
   Alert,
   Animated,
@@ -517,6 +520,7 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function TodosScreen() {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, RED, GREEN, TEXT: WHITE } = theme;
@@ -789,7 +793,7 @@ export default function TodosScreen() {
           <Text style={styles.emptyDesc}>Add your first task and start getting things done.</Text>
           <TouchableOpacity style={styles.emptyAddBtn} onPress={() => { setEditTodo(null); setShowAddSheet(true); }}>
             <Ionicons name="add" size={20} color="#fff" />
-            <Text style={styles.emptyAddBtnText}>＋ Add First Task</Text>
+            <Text style={styles.emptyAddBtnText}>Add First Task</Text>
           </TouchableOpacity>
           <Text style={styles.emptySuggestLabel}>Quick suggestions</Text>
           <View style={styles.suggestionChips}>
@@ -836,8 +840,8 @@ export default function TodosScreen() {
       {/* ── Quick Add Bar ─────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={[styles.quickBarContainer, { bottom: Platform.OS === "web" ? 90 : insets.bottom + 54 }]}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+        style={[styles.quickBarContainer, { bottom: Platform.OS === "web" ? 90 : insets.bottom + 60 }]}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <View style={styles.quickBar}>
           <TouchableOpacity onPress={() => { setEditTodo(null); setShowAddSheet(true); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -858,6 +862,19 @@ export default function TodosScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* ── Banner Ad ─────────────────────────────────────────────── */}
+      {isFocused && (
+        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
+          <BannerAd
+            unitId={AD_UNIT_IDS.banner}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Todos Tab)')}
+            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Todos Tab):', JSON.stringify(error))}
+          />
+        </View>
+      )}
 
       <AddTaskSheet
         visible={showAddSheet}

@@ -10,6 +10,8 @@ import { getStoredJson, getStoredString, removeStoredItems, setStoredJson, setSt
 import { logEvent, logError } from "@/utils/analytics";
 import { syncHabitsToCloud, fetchHabitsFromCloud } from "@/utils/cloudSync";
 import { useAuth } from "@/context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { showInterstitialAd } from "../utils/ads";
 
 export type TrackMethod = "task" | "amount" | "time";
 export type HabitType = "build" | "quit";
@@ -149,6 +151,20 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     ]);
   }, []);
 
+  // ── Show interstitial ad every 3rd habit completion ——————————————————
+  const maybeShowCompletionAd = async () => {
+    try {
+      const countStr = await AsyncStorage.getItem('habitCompletionCount');
+      const count = parseInt(countStr || '0') + 1;
+      await AsyncStorage.setItem('habitCompletionCount', String(count));
+      if (count % 3 === 0) {
+        showInterstitialAd().catch(e => console.log('Habit completion ad failed silently:', e));
+      }
+    } catch (e) {
+      console.log('Ad counter error (non-fatal):', e);
+    }
+  };
+
   const addHabit = useCallback((habit: Omit<Habit, "id" | "createdAt">) => {
     const newHabit: Habit = {
       ...habit,
@@ -222,6 +238,8 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       if (data.completed === true) {
         const habit = habits.find((h) => h.id === habitId);
         logEvent("habit_completed", { habitName: habit?.name ?? habitId }).catch(() => { });
+        // Show interstitial ad every 3rd completion (non-blocking, fire-and-forget)
+        maybeShowCompletionAd();
       }
       return next;
     });

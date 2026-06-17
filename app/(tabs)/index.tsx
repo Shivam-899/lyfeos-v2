@@ -918,10 +918,10 @@ export default function HomeScreen() {
         const today = new Date().toDateString();
         if (lastAdDate !== today) {
           await AsyncStorage.setItem("lastInterstitialDate", today);
-          // Wait 3 seconds after app load before showing ad
+          // Wait 2 minutes after app load before showing ad
           setTimeout(() => {
-            showInterstitialAd();
-          }, 3000);
+            showInterstitialAd().catch(e => console.log('Interstitial failed silently:', e));
+          }, 120000);
         }
       } catch (e) {
         // Silently fail — never block the user

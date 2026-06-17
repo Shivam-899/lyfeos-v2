@@ -2,10 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
 import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
-import { AD_UNIT_IDS } from "../../utils/ads";
+import { AD_UNIT_IDS, showRewardedAd } from "../../utils/ads";
 import {
   ActivityIndicator,
   Alert,
@@ -520,6 +521,15 @@ function AllNutrientsSheet({ visible, onClose, stats }: { visible: boolean; onCl
 }
 
 // ── Food Result Sheet ─────────────────────────────────────────────────────────
+// ── Meal time auto-suggestion ────────────────────────────────────────────────
+function getSuggestedMealTime(): MealType {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 16) return 'lunch';
+  if (hour >= 16 && hour < 20) return 'dinner';
+  return 'snacks';
+}
+
 interface FoodResultSheetProps {
   visible: boolean;
   result: FoodAnalysisResult | null;
@@ -534,14 +544,20 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   const { MUTED, GREEN, YELLOW } = theme;
   const s = makeS(theme);
   const [portion, setPortion] = useState(1);
-  const [meal, setMeal] = useState<MealType>(defaultMeal);
+  const [meal, setMeal] = useState<MealType>(getSuggestedMealTime());
   const [editedName, setEditedName] = useState("");
+  const [editingCal, setEditingCal] = useState(false);
+  const [calOverride, setCalOverride] = useState('');
+  const [showAllNutrients, setShowAllNutrients] = useState(false);
 
   React.useEffect(() => {
     if (visible && result) {
       setPortion(1);
-      setMeal(defaultMeal);
+      setMeal(getSuggestedMealTime());
       setEditedName(result.name);
+      setEditingCal(false);
+      setCalOverride('');
+      setShowAllNutrients(false);
     }
   }, [visible, result, defaultMeal]);
 
@@ -549,14 +565,26 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
 
   const p = portion;
   const cal = Math.round(result.calories * p);
+  const effectiveCal = calOverride !== '' ? (parseInt(calOverride) || 0) : cal;
   const carbs = Math.round(result.carbs * p);
   const protein = Math.round(result.protein * p);
   const fat = Math.round(result.fat * p);
   const fiber = result.fiber !== undefined ? Math.round(result.fiber * p) : undefined;
   const sugar = result.sugar !== undefined ? Math.round(result.sugar * p) : undefined;
   const sodium = result.sodium !== undefined ? Math.round(result.sodium * p) : undefined;
+  // Micro-nutrients — only shown if the data source provides them
+  const potassium = result.potassium !== undefined ? Math.round(result.potassium * p) : undefined;
+  const calcium = result.calcium !== undefined ? Math.round(result.calcium * p) : undefined;
+  const iron = result.iron !== undefined ? parseFloat((result.iron * p).toFixed(1)) : undefined;
+  const vitaminC = result.vitaminC !== undefined ? Math.round(result.vitaminC * p) : undefined;
+  const magnesium = result.magnesium !== undefined ? Math.round(result.magnesium * p) : undefined;
+  const zinc = result.zinc !== undefined ? parseFloat((result.zinc * p).toFixed(1)) : undefined;
+  const vitaminA = result.vitaminA !== undefined ? Math.round(result.vitaminA * p) : undefined;
+  const vitaminD = result.vitaminD !== undefined ? parseFloat((result.vitaminD * p).toFixed(1)) : undefined;
+  const vitaminB12 = result.vitaminB12 !== undefined ? parseFloat((result.vitaminB12 * p).toFixed(1)) : undefined;
+  // Serving label for stepper display
+  const baseServingLabel = result.servingDescription || '1 serving';
 
-  const PORTIONS = [0.5, 1, 1.5, 2];
   const showIndianGuidance = isIndianFood(result);
   const isLocalDB = result.source === "local-db";
 
@@ -616,14 +644,24 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
                 </View>
               )}
 
-              {/* Portion selector */}
-              <Text style={s.fieldLabel}>Portion Size</Text>
-              <View style={s.portionRow}>
-                {PORTIONS.map((pt) => (
-                  <TouchableOpacity key={pt} style={[s.portionBtn, portion === pt && { backgroundColor: ACCENT, borderColor: ACCENT }]} onPress={() => setPortion(pt)}>
-                    <Text style={[s.portionBtnText, portion === pt && { color: "#fff" }]}>{pt}x</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* Quantity Stepper */}
+              <Text style={s.fieldLabel}>Quantity</Text>
+              <View style={s.quantityRow}>
+                <TouchableOpacity
+                  onPress={() => { setPortion(Math.max(0.5, portion - 0.5)); setCalOverride(''); }}
+                  style={s.stepperButton}
+                >
+                  <Text style={s.stepperButtonText}>−</Text>
+                </TouchableOpacity>
+                <Text style={s.quantityValue}>
+                  {portion === 1 ? baseServingLabel : `${portion}× ${baseServingLabel}`}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => { setPortion(portion + 0.5); setCalOverride(''); }}
+                  style={s.stepperButton}
+                >
+                  <Text style={s.stepperButtonText}>+</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Indian portion guidance */}
@@ -640,14 +678,65 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
 
               {/* Macros grid — Calories most prominent, then protein > carbs > fat */}
               <View style={s.macroGrid}>
-                <MacroCell label="Calories" value={cal} unit="kcal" color={ACCENT} big />
+                {/* Calories cell with manual override (pencil icon → editable TextInput) */}
+                <View style={[s.macroCell, s.macroCellBig]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {editingCal ? (
+                      <TextInput
+                        style={s.calEditInput}
+                        value={calOverride}
+                        onChangeText={setCalOverride}
+                        keyboardType="numeric"
+                        autoFocus
+                        onBlur={() => setEditingCal(false)}
+                        onSubmitEditing={() => setEditingCal(false)}
+                        maxLength={6}
+                        selectTextOnFocus
+                      />
+                    ) : (
+                      <Text style={[s.macroCellValue, { color: ACCENT, fontSize: 26 }]}>
+                        {effectiveCal}<Text style={[s.macroCellUnit, { color: MUTED }]}> kcal</Text>
+                      </Text>
+                    )}
+                    {!editingCal && (
+                      <TouchableOpacity
+                        onPress={() => { setCalOverride(String(effectiveCal)); setEditingCal(true); }}
+                        style={{ padding: 6 }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="pencil" size={14} color={MUTED} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={s.macroCellLabel}>Calories{calOverride !== '' ? ' (edited)' : ''}</Text>
+                </View>
                 <MacroCell label="Protein" value={protein} unit="g" color={MACRO_PROTEIN} />
                 <MacroCell label="Carbs" value={carbs} unit="g" color={MACRO_CARB} />
                 <MacroCell label="Fat" value={fat} unit="g" color={MACRO_FAT} />
                 <MacroCell label="Fiber" value={fiber} unit="g" color={GREEN} />
                 <MacroCell label="Sugar" value={sugar} unit="g" color="#EC4899" />
                 <MacroCell label="Sodium" value={sodium} unit="mg" color={MUTED} />
+                {calcium !== undefined && <MacroCell label="Calcium" value={calcium} unit="mg" color="#A78BFA" />}
+                {iron !== undefined && <MacroCell label="Iron" value={iron} unit="mg" color="#F87171" />}
+                {potassium !== undefined && <MacroCell label="Potassium" value={potassium} unit="mg" color="#34D399" />}
+                {vitaminC !== undefined && <MacroCell label="Vitamin C" value={vitaminC} unit="mg" color={VIT_ORANGE} />}
               </View>
+
+              {/* View All Nutrients — inline accordion (Task 2B) */}
+              <TouchableOpacity style={s.viewAllNutrientsBtn} onPress={() => setShowAllNutrients(!showAllNutrients)}>
+                <Text style={s.viewAllNutrientsText}>
+                  {showAllNutrients ? 'Show Less ↑' : 'View All Nutrients →'}
+                </Text>
+              </TouchableOpacity>
+              {showAllNutrients && (
+                <View style={s.expandedNutrientGrid}>
+                  {magnesium !== undefined ? <MacroCell label="Magnesium" value={magnesium} unit="mg" color="#A855F7" /> : null}
+                  {zinc !== undefined ? <MacroCell label="Zinc" value={zinc} unit="mg" color="#6366F1" /> : null}
+                  {vitaminA !== undefined ? <MacroCell label="Vitamin A" value={vitaminA} unit="mcg" color={VIT_ORANGE} /> : null}
+                  {vitaminD !== undefined ? <MacroCell label="Vitamin D" value={vitaminD} unit="mcg" color={YELLOW} /> : null}
+                  {vitaminB12 !== undefined ? <MacroCell label="Vitamin B12" value={vitaminB12} unit="mcg" color="#22C55E" /> : null}
+                </View>
+              )}
 
               {/* Meal selector */}
               <Text style={s.fieldLabel}>Add to Meal</Text>
@@ -660,7 +749,24 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
               </ScrollView>
 
               {/* Add button */}
-              <TouchableOpacity style={[s.addLogBtn, { backgroundColor: ACCENT }]} onPress={() => onAdd(meal, { ...result, name: editedName }, portion)}>
+              <TouchableOpacity
+                style={[s.addLogBtn, { backgroundColor: ACCENT }]}
+                onPress={() => {
+                  // Always pass pre-scaled values with portion=1 so handleAddToLog
+                  // simply multiplies by 1 (no-op). This is the cleanest way to
+                  // support both normal flow and the calorie override (1B).
+                  onAdd(meal, {
+                    ...result,
+                    name: editedName,
+                    calories: effectiveCal,
+                    carbs, protein, fat,
+                    fiber, sugar, sodium,
+                    potassium, calcium, iron,
+                    vitaminC, magnesium, zinc,
+                    vitaminA, vitaminD, vitaminB12,
+                  }, 1);
+                }}
+              >
                 <Ionicons name="add-circle-outline" size={20} color="#fff" />
                 <Text style={s.addLogBtnText}>Add to Log</Text>
               </TouchableOpacity>
@@ -1145,6 +1251,42 @@ export default function CaloriesScreen() {
     Alert.alert("Food Scan", "Food Scan is coming soon.");
   };
 
+  // ── Search food limit: 2 free/day, then requires watching a rewarded ad ────────
+  const handleOpenSearch = async (prefillQuery?: string) => {
+    try {
+      const todayStr = new Date().toDateString();
+      const lastSearchDate = await AsyncStorage.getItem('lastFoodSearchDate');
+      const countStr = await AsyncStorage.getItem('foodSearchCount');
+      let count = lastSearchDate === todayStr ? parseInt(countStr || '0') : 0;
+
+      if (count < 2) {
+        // Free search (first 2 per day)
+        await AsyncStorage.setItem('lastFoodSearchDate', todayStr);
+        await AsyncStorage.setItem('foodSearchCount', String(count + 1));
+        if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
+        setShowTextSearch(true);
+      } else {
+        // Limit reached — show rewarded ad to unlock
+        const watched = await showRewardedAd();
+        if (watched) {
+          if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
+          setShowTextSearch(true);
+        } else {
+          Alert.alert(
+            "Daily Search Limit Reached",
+            "Watch an ad to search more foods today, or try again tomorrow!",
+            [{ text: "OK", style: "cancel" }]
+          );
+        }
+      }
+    } catch (e) {
+      // Silently fail — always allow search if AsyncStorage errors
+      console.log('Food search limit check failed (non-fatal):', e);
+      if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
+      setShowTextSearch(true);
+    }
+  };
+
   const handleAddToLog = (meal: MealType, result: FoodAnalysisResult, portion: number) => {
     addFoodItem({
       name: result.name,
@@ -1221,7 +1363,7 @@ export default function CaloriesScreen() {
                 <Text style={styles.activityBannerSub}>Log your recovery meal now 🍽️</Text>
               </View>
               <TouchableOpacity style={styles.activityBannerBtn}
-                onPress={() => { setShowTextSearch(true); setPostActivityBanner(null); }}>
+                onPress={() => { handleOpenSearch(); setPostActivityBanner(null); }}>
                 <Text style={styles.activityBannerBtnText}>Log Meal</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setPostActivityBanner(null)} style={{ paddingLeft: 8 }}>
@@ -1337,7 +1479,7 @@ export default function CaloriesScreen() {
                 <Text style={[styles.emptyStateText, { color: MUTED, marginBottom: 12 }]}>
                   Log your first meal to start tracking:{"\n"}• Fiber  • Iron  • Calcium{"\n"}• Potassium  • Vitamin D  • Vitamin B12
                 </Text>
-                <TouchableOpacity style={[styles.logMealBtn, { backgroundColor: ACCENT }]} onPress={() => setShowTextSearch(true)}>
+                <TouchableOpacity style={[styles.logMealBtn, { backgroundColor: ACCENT }]} onPress={() => handleOpenSearch()}>
                   <Text style={styles.logMealBtnText}>Log Food</Text>
                 </TouchableOpacity>
               </View>
@@ -1473,7 +1615,7 @@ export default function CaloriesScreen() {
                 <Ionicons name="camera-outline" size={18} color="#fff" />
                 <Text style={styles.scanBtnText}>Scan</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.iconBtn, { backgroundColor: ACCENT + "22", borderColor: ACCENT + "44" }]} onPress={() => { setTextSearchQuery(undefined); setShowTextSearch(true); }}>
+              <TouchableOpacity style={[styles.iconBtn, { backgroundColor: ACCENT + "22", borderColor: ACCENT + "44" }]} onPress={() => { setTextSearchQuery(undefined); handleOpenSearch(); }}>
                 <Ionicons name="search-outline" size={16} color={ACCENT} />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.iconBtn, { backgroundColor: MUTED + "22", borderColor: MUTED + "44" }]} onPress={() => setShowManualEntry(true)}>
@@ -1490,7 +1632,7 @@ export default function CaloriesScreen() {
                   <Ionicons name="camera-outline" size={14} color="#fff" />
                   <Text style={styles.emptyActionBtnText}>Scan Photo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.emptyActionBtn, { backgroundColor: ACCENT }]} onPress={() => { setTextSearchQuery(undefined); setShowTextSearch(true); }}>
+                <TouchableOpacity style={[styles.emptyActionBtn, { backgroundColor: ACCENT }]} onPress={() => { setTextSearchQuery(undefined); handleOpenSearch(); }}>
                   <Ionicons name="search-outline" size={14} color="#fff" />
                   <Text style={styles.emptyActionBtnText}>Search Food</Text>
                 </TouchableOpacity>
@@ -1677,10 +1819,19 @@ const makeS = (t: AppTheme) => StyleSheet.create({
   indianTipIcon: { fontSize: 16, marginTop: 1 },
   indianTipText: { fontSize: 11, color: t.TEXT, flex: 1, lineHeight: 16, fontWeight: "500" as const },
 
-  // Portion
-  portionRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
-  portionBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", backgroundColor: t.CARD, borderWidth: 1, borderColor: t.BORDER },
-  portionBtnText: { fontSize: 14, fontWeight: "700" as const, color: t.MUTED },
+  // Quantity stepper (replaces old portionRow/portionBtn buttons)
+  quantityRow: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: 16, paddingVertical: 6 },
+  stepperButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: ACCENT, alignItems: 'center' as const, justifyContent: 'center' as const, shadowColor: ACCENT, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 4, elevation: 3 },
+  stepperButtonText: { fontSize: 22, color: '#fff', fontWeight: '700' as const, lineHeight: 28, includeFontPadding: false },
+  quantityValue: { fontSize: 14, fontWeight: '700' as const, color: t.TEXT, flex: 1, textAlign: 'center' as const },
+
+  // Calorie override edit input (Task 1B)
+  calEditInput: { fontSize: 26, fontWeight: '700' as const, color: ACCENT, borderBottomWidth: 2, borderBottomColor: ACCENT, minWidth: 70, paddingVertical: 2, paddingHorizontal: 2 },
+
+  // View All Nutrients accordion (Task 2B)
+  viewAllNutrientsBtn: { paddingVertical: 10, alignItems: 'center' as const, marginBottom: 4 },
+  viewAllNutrientsText: { fontSize: 13, color: ACCENT, fontWeight: '600' as const, letterSpacing: 0.3 },
+  expandedNutrientGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, marginBottom: 14, paddingTop: 4 },
 
   // Macros
   macroGrid: { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, marginBottom: 20 },

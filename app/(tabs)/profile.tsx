@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
@@ -8,6 +9,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen, logError } from "@/utils/analytics";
 import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/notifications";
 import Svg, { Circle } from "react-native-svg";
+import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
+import { AD_UNIT_IDS } from "../../utils/ads";
 import {
   Alert,
   Animated,
@@ -391,6 +394,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT: WHITE, mode, setMode } = theme;
   const styles = makeStyles(theme);
   const st = makeSt(theme);
@@ -1179,6 +1183,19 @@ export default function ProfileScreen() {
         onClose={() => setEditingGoal(null)}
       />
       <BadgePopup badge={activeBadge} unlocked={activeBadgeUnlocked} onClose={() => setActiveBadge(null)} />
+
+      {/* ── Banner Ad (same pattern as habits.tsx/todos.tsx) ───────────────── */}
+      {isFocused && (
+        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
+          <BannerAd
+            unitId={AD_UNIT_IDS.banner}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Profile Tab)')}
+            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Profile Tab):', JSON.stringify(error))}
+          />
+        </View>
+      )}
     </View>
   );
 }
