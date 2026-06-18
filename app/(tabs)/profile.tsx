@@ -1097,7 +1097,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-          <View>
+            <View>
               <SettingRow icon="mail-outline" iconBg="#3B82F625" label={user.displayName || "User"} sub={user.email || ""} />
               {/* Change Password — only for email/password sign-in, not Google or Guest */}
               {user?.providerData?.[0]?.providerId === 'password' && (
@@ -1164,9 +1164,9 @@ export default function ProfileScreen() {
           <Text style={styles.footerVersion}>Version {Constants.expoConfig?.version || "1.0.0"}</Text>
           <Text style={styles.footerTagline}>Made with ❤️ for your wellbeing</Text>
           <View style={styles.footerLinks}>
-            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://vitaflow.health/privacy")}><Text style={styles.footerLink}>Privacy Policy</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://sites.google.com/view/lyfe-os-privacy-policy/home")}><Text style={styles.footerLink}>Privacy Policy</Text></TouchableOpacity>
             <Text style={styles.footerDot}>·</Text>
-            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://vitaflow.health/terms")}><Text style={styles.footerLink}>Terms of Service</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://sites.google.com/view/lyfeos-terms/home")}><Text style={styles.footerLink}>Terms of Service</Text></TouchableOpacity>
           </View>
         </View>
 
