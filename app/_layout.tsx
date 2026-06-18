@@ -38,22 +38,39 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null);
+  const [legalConsentAccepted, setLegalConsentAccepted] = React.useState<boolean | null>(null);
 
-  // Re-read AsyncStorage whenever the route changes so we see the updated
-  // flag after onboarding writes it and navigates away.
+  // Re-read AsyncStorage whenever the route changes so we pick up writes from
+  // onboarding.tsx and legal-consent.tsx after they navigate away.
   React.useEffect(() => {
-    const loadOnboarding = async () => {
+    const loadStorage = async () => {
       const val = await AsyncStorage.getItem("hasSeenOnboarding");
       setHasSeenOnboarding(val === "true");
+
+      // ── Legal consent gate ────────────────────────────────────────────
+      try {
+        const consentStr = await AsyncStorage.getItem("legalConsent");
+        if (!consentStr) {
+          setLegalConsentAccepted(false);
+        } else {
+          const parsed = JSON.parse(consentStr);
+          // Must be accepted AND match current CONSENT_VERSION ('1.0')
+          // If CONSENT_VERSION bumps in the future, existing users re-see the screen
+          setLegalConsentAccepted(parsed.accepted === true && parsed.version === '1.0');
+        }
+      } catch {
+        setLegalConsentAccepted(false);
+      }
     };
-    loadOnboarding();
-  }, [segments]); // re-read on every segment change so we catch the write from onboarding.tsx
+    loadStorage();
+  }, [segments]); // re-read on every segment change
 
   React.useEffect(() => {
-    // Wait until both auth and onboarding states are resolved
-    if (isInitializing || hasSeenOnboarding === null) return;
+    // Wait until auth, onboarding, AND consent states are all resolved
+    if (isInitializing || hasSeenOnboarding === null || legalConsentAccepted === null) return;
 
     const inTabsGroup = segments[0] === "(tabs)";
+    const inLegalConsent = segments[0] === ("legal-consent" as any);
     const isLoggedIn = user !== null || isGuest;
 
     // Identify user in Analytics + Crashlytics when auth resolves
@@ -63,9 +80,17 @@ function RootLayoutNav() {
     }
 
     if (isLoggedIn) {
-      // Logged-in user: always go to tabs
-      if (!inTabsGroup) {
-        router.replace("/(tabs)");
+      // Logged-in user: check legal consent gate FIRST
+      if (!legalConsentAccepted) {
+        // Show consent screen; do not redirect if already there
+        if (!inLegalConsent) {
+          router.replace("/legal-consent" as any);
+        }
+      } else {
+        // Consent accepted — go to tabs
+        if (!inTabsGroup) {
+          router.replace("/(tabs)");
+        }
       }
     } else {
       // Not logged in: route based on onboarding status
@@ -86,17 +111,16 @@ function RootLayoutNav() {
       SplashScreen.hideAsync().catch(() => { });
     }, 100);
     // NOTE: `segments` is intentionally NOT in the dependency array.
-    // If segments were included, every navigation would re-trigger this
-    // effect and create a redirect loop (the original bug).
-    // We only want to re-route when auth state or onboarding state changes.
+    // We only want to re-route when auth/onboarding/consent state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isInitializing, isGuest, hasSeenOnboarding]);
+  }, [user, isInitializing, isGuest, hasSeenOnboarding, legalConsentAccepted]);
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="legal-consent" />
       <Stack.Screen name="(tabs)" />
     </Stack>
   );

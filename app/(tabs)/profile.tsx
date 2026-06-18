@@ -38,6 +38,7 @@ import { useTodos } from "@/context/TodosContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
 import { getLocalDateString } from "@/utils/date";
 import { ThemeMode } from "@/context/ThemeContext";
+import auth from "@react-native-firebase/auth";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT = "#FF6B35";
@@ -1096,8 +1097,46 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View>
+          <View>
               <SettingRow icon="mail-outline" iconBg="#3B82F625" label={user.displayName || "User"} sub={user.email || ""} />
+              {/* Change Password — only for email/password sign-in, not Google or Guest */}
+              {user?.providerData?.[0]?.providerId === 'password' && (
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Change Password',
+                      `We'll send a password reset link to:\n${user.email}`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Send Link',
+                          onPress: async () => {
+                            try {
+                              if (user.email) {
+                                await auth().sendPasswordResetEmail(user.email);
+                                Alert.alert('Email Sent', 'Check your inbox for a password reset link.');
+                              }
+                            } catch (e: any) {
+                              Alert.alert('Error', 'Failed to send reset email. Please try again.');
+                              logError(e, 'change_password');
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, marginTop: 2 }}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#FF6B3525', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name="key-outline" size={18} color="#FF6B35" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: WHITE, fontSize: 15, fontWeight: '600' }}>Change Password</Text>
+                    <Text style={{ color: MUTED, fontSize: 12, marginTop: 1 }}>Send a reset link to your email</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={MUTED} />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={async () => { await signOut(); router.replace("/login" as any); }} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 12, marginTop: 4 }}>
                 <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: RED + "25", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
                   <Ionicons name="log-out-outline" size={18} color={RED} />

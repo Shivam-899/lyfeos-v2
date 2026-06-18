@@ -840,7 +840,7 @@ export default function TodosScreen() {
       {/* ── Quick Add Bar ─────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={[styles.quickBarContainer, { bottom: Platform.OS === "web" ? 90 : insets.bottom + 60 }]}
+        style={[styles.quickBarContainer, { bottom: Platform.OS === "web" ? 90 : insets.bottom + 60 + 56 }]}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <View style={styles.quickBar}>

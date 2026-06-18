@@ -745,7 +745,7 @@ export function ActivityTracker() {
             )}
           </View>
 
-          {/* Change 8: Category Tabs — All | Cardio | Sports | Wellness | Lifestyle */}
+          {/* Category Tabs — Cardio | Sports | Wellness | Lifestyle */}
           {searchQuery.trim().length === 0 && (
             <ScrollView
               horizontal
@@ -754,7 +754,6 @@ export function ActivityTracker() {
               style={{ marginBottom: 12 }}
             >
               {([
-                { key: "all",       label: "⭐ All" },
                 { key: "cardio",    label: "❤️ Cardio" },
                 { key: "sports",    label: "🏅 Sports" },
                 { key: "wellness",  label: "🧘 Wellness" },
