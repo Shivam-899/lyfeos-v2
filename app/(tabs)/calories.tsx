@@ -1167,8 +1167,26 @@ export default function CaloriesScreen() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showProteinModal, setShowProteinModal] = useState(false);
   const [showAllNutrients, setShowAllNutrients] = useState(false);
+  const [searchesRemaining, setSearchesRemaining] = useState<number | null>(null);
 
   const [textSearchQuery, setTextSearchQuery] = useState<string | undefined>(undefined);
+
+  // ── Search limit display ─────────────────────────────────────────────────────
+  const updateSearchLimitDisplay = React.useCallback(async () => {
+    try {
+      const today = new Date().toDateString();
+      const lastSearchDate = await AsyncStorage.getItem('lastFoodSearchDate');
+      const countStr = await AsyncStorage.getItem('foodSearchCount');
+      const count = lastSearchDate === today ? parseInt(countStr || '0') : 0;
+      setSearchesRemaining(Math.max(0, 2 - count));
+    } catch (e) {
+      console.log('Search limit display error (non-fatal):', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateSearchLimitDisplay();
+  }, [updateSearchLimitDisplay]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -1263,12 +1281,14 @@ export default function CaloriesScreen() {
         // Free search (first 2 per day)
         await AsyncStorage.setItem('lastFoodSearchDate', todayStr);
         await AsyncStorage.setItem('foodSearchCount', String(count + 1));
+        updateSearchLimitDisplay(); // reflect updated count immediately
         if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
         setShowTextSearch(true);
       } else {
         // Limit reached — show rewarded ad to unlock
         const watched = await showRewardedAd();
         if (watched) {
+          updateSearchLimitDisplay(); // ad watched, indicator stays at 0
           if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
           setShowTextSearch(true);
         } else {
@@ -1623,6 +1643,14 @@ export default function CaloriesScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          {/* Search limit indicator */}
+          {searchesRemaining !== null && (
+            <Text style={[styles.limitIndicatorText, searchesRemaining === 0 && { color: ACCENT }]}>
+              {searchesRemaining > 0
+                ? `🔍 ${searchesRemaining} free search${searchesRemaining === 1 ? '' : 'es'} left today`
+                : '📺 Watch an ad to search more today'}
+            </Text>
+          )}
 
           {mealItems.length === 0 ? (
             <View style={styles.mealEmpty}>
@@ -1832,6 +1860,9 @@ const makeS = (t: AppTheme) => StyleSheet.create({
   viewAllNutrientsBtn: { paddingVertical: 10, alignItems: 'center' as const, marginBottom: 4 },
   viewAllNutrientsText: { fontSize: 13, color: ACCENT, fontWeight: '600' as const, letterSpacing: 0.3 },
   expandedNutrientGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, marginBottom: 14, paddingTop: 4 },
+
+  // Limit indicator (search & activity)
+  limitIndicatorText: { fontSize: 12, color: t.MUTED, fontFamily: 'Inter_400Regular', marginTop: 4, marginBottom: 4, marginLeft: 2 },
 
   // Macros
   macroGrid: { flexDirection: "row", flexWrap: "wrap" as const, gap: 8, marginBottom: 20 },

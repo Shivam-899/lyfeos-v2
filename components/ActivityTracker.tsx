@@ -364,6 +364,25 @@ export function ActivityTracker() {
   const [selectedTab, setSelectedTab] = useState<"all" | "cardio" | "sports" | "wellness" | "lifestyle">("all");
   const [searchLayoutY, setSearchLayoutY] = useState(0);
 
+  // ── Activity log limit display ─────────────────────────────────────────────
+  const [activityLogsRemaining, setActivityLogsRemaining] = useState<number | null>(null);
+
+  const updateActivityLimitDisplay = React.useCallback(async () => {
+    try {
+      const today = new Date().toDateString();
+      const lastLogDate = await AsyncStorage.getItem('lastActivityLogDate');
+      const countStr = await AsyncStorage.getItem('activityLogCount');
+      const count = lastLogDate === today ? parseInt(countStr || '0') : 0;
+      setActivityLogsRemaining(Math.max(0, 1 - count));
+    } catch (e) {
+      console.log('Activity limit display error (non-fatal):', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateActivityLimitDisplay();
+  }, [updateActivityLimitDisplay]);
+
   const getFilteredActivities = () => {
     if (searchQuery.trim().length > 0) {
       const query = searchQuery.toLowerCase().trim();
@@ -526,6 +545,7 @@ export function ActivityTracker() {
         // First log of the day — free
         await AsyncStorage.setItem('lastActivityLogDate', todayDate);
         await AsyncStorage.setItem('activityLogCount', '1');
+        updateActivityLimitDisplay(); // reflect updated count immediately
       } else {
         // Need to watch rewarded ad for subsequent logs
         const watched = await showRewardedAd();
@@ -538,6 +558,7 @@ export function ActivityTracker() {
           return;
         }
         await AsyncStorage.setItem('activityLogCount', String(count + 1));
+        updateActivityLimitDisplay(); // reflect updated count immediately
       }
     } catch (e) {
       // Silently fail — never block the user from logging
@@ -1151,6 +1172,14 @@ export function ActivityTracker() {
                   </View>
 
                   {/* Action buttons */}
+                  {/* Activity log limit indicator */}
+                  {activityLogsRemaining !== null && (
+                    <Text style={[styles.limitIndicatorText, activityLogsRemaining === 0 && { color: ACCENT }]}>
+                      {activityLogsRemaining > 0
+                        ? `✨ ${activityLogsRemaining} free activity log left today`
+                        : '📺 Watch an ad to log more activities today'}
+                    </Text>
+                  )}
                   <TouchableOpacity style={[styles.logBtn, { backgroundColor: ACCENT }]} onPress={handleLogSession}>
                     <Ionicons name="checkmark-circle" size={20} color="#fff" />
                     <Text style={styles.logBtnText}>✅ Log This Session</Text>
@@ -1321,6 +1350,9 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   tabBtnActive: { backgroundColor: ACCENT, borderColor: ACCENT },
   tabBtnText: { fontSize: 12, fontWeight: "600" as const, color: t.MUTED },
   tabBtnTextActive: { color: "#fff", fontWeight: "700" as const },
+
+  // Limit indicator (activity log)
+  limitIndicatorText: { fontSize: 12, color: t.MUTED, fontFamily: 'Inter_400Regular', textAlign: 'center' as const, marginBottom: 8, marginTop: 2 },
 
   // ── Search bar
   searchBarContainer: { flexDirection: "row", alignItems: "center", backgroundColor: t.CARD2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, borderWidth: 1, borderColor: t.BORDER },
