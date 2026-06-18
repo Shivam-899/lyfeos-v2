@@ -1,4 +1,4 @@
-# LyfeOS (Vitaflow)
+# Lyfe-OS
 
 ![LyfeOS Banner](https://via.placeholder.com/1200x300?text=LyfeOS+-+Your+Personal+Lifestyle+OS)
 
@@ -213,5 +213,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## ✍️ Author
 
 **Your Name / Organization**
-* GitHub: [@yourusername](https://github.com/yourusername)
+* GitHub: [@yourusername](https://github.com/Shivam-899)
 * Twitter: [@yourhandle](https://twitter.com/yourhandle)
