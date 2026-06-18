@@ -5,14 +5,12 @@ import mobileAds, {
     AdEventType,
     RewardedAd,
     RewardedAdEventType,
-    TestIds,
 } from 'react-native-google-mobile-ads';
 
-// Test IDs — replace with real IDs before production
 export const AD_UNIT_IDS = {
-    banner: TestIds.BANNER,
-    interstitial: TestIds.INTERSTITIAL,
-    rewarded: TestIds.REWARDED,
+    banner: 'ca-app-pub-7658674851177824/9719730461',
+    interstitial: 'ca-app-pub-7658674851177824/3997801355',
+    rewarded: 'ca-app-pub-7658674851177824/4491454519',
 };
 
 // Initialize AdMob
