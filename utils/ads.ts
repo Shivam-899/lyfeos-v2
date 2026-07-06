@@ -22,6 +22,15 @@ export const initializeAds = async () => {
     }
 };
 
+// ── Modal-open guard ─────────────────────────────────────────────────────
+// Screens call setInterstitialBlocked(true) when a form/modal is open so
+// a delayed interstitial (e.g. home-screen 120 s timer or habit-completion
+// counter) cannot interrupt the user mid-flow. Call with false on close.
+let _interstitialBlocked = false;
+export function setInterstitialBlocked(blocked: boolean): void {
+    _interstitialBlocked = blocked;
+}
+
 // Load and show interstitial ad
 export const showInterstitialAd = (): Promise<void> => {
     return new Promise((resolve) => {
@@ -31,6 +40,8 @@ export const showInterstitialAd = (): Promise<void> => {
             });
 
             interstitial.addAdEventListener(AdEventType.LOADED, () => {
+                // Do not show if a modal/form is currently open
+                if (_interstitialBlocked) { resolve(); return; }
                 try {
                     interstitial.show();
                 } catch (e) {

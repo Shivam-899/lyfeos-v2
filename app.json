@@ -2,7 +2,7 @@
   "expo": {
     "name": "LyfeOS",
     "slug": "lyfeos",
-    "version": "2.0.0",
+    "version": "2.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lyfeos",
@@ -17,12 +17,11 @@
       "supportsTablet": false
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 33,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
         "com.google.android.gms.permission.AD_ID"
       ],
       "package": "com.lyfeos.app",
@@ -46,8 +45,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "LyfeOS needs access to your photos to analyze food images.",
-          "cameraPermission": "LyfeOS needs camera access to take food photos for nutrition analysis."
+          "photosPermission": "LyfeOS needs access to your photos to analyze food images."
         }
       ],
       [

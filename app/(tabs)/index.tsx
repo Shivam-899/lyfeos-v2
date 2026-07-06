@@ -930,13 +930,26 @@ export default function HomeScreen() {
     showDailyAd();
   }, []);
 
-  // ── Setup notifications on mount (request + schedule if granted) ──────────
+  // ── Setup notifications on mount ──────────────────────────────────────────
+  // Fix #2: Only touch the OS permission layer if the user has already gone
+  // through the custom priming modal (NOTIF_ASKED_KEY is set). If not set,
+  // we leave it alone so the modal can fire the OS dialog at the right time.
   useEffect(() => {
+    if (Platform.OS === "web") return;
     const setupNotifications = async () => {
       try {
+        const asked = await AsyncStorage.getItem(NOTIF_ASKED_KEY);
+        if (!asked) return; // new user — let the priming modal handle it
+
+        // Existing user: silently refresh schedule if permission is already granted.
+        // Read reminders from AsyncStorage directly to avoid stale context closure.
         const granted = await requestNotificationPermissions();
         if (granted) {
-          await scheduleDailyNotifications();
+          const raw = await AsyncStorage.getItem("@lyfeos_profile_reminders_v1");
+          const reminders = raw
+            ? JSON.parse(raw)
+            : { morning: true, meal: true, water: true, evening: true };
+          await scheduleDailyNotifications(reminders);
         }
       } catch (e) {
         logError(e as Error, "setupNotifications");
@@ -1036,9 +1049,23 @@ export default function HomeScreen() {
       await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true");
       if (Platform.OS === "web") return;
 
+      // Fix #3: For new users, default all four sub-toggles to ON so the
+      // reminders promised by the priming modal are actually scheduled.
+      // Only write the default if the key is absent — never overwrite an
+      // existing user's saved preferences.
+      const KEY_REMIND = "@lyfeos_profile_reminders_v1";
+      const existingReminders = await AsyncStorage.getItem(KEY_REMIND);
+      const newUserReminders = { morning: true, meal: true, water: true, evening: true };
+      if (!existingReminders) {
+        await AsyncStorage.setItem(KEY_REMIND, JSON.stringify(newUserReminders));
+      }
+      const remindersToSchedule = existingReminders
+        ? JSON.parse(existingReminders)
+        : newUserReminders;
+
       const granted = await requestNotificationPermissions();
       if (granted) {
-        await scheduleDailyNotifications();
+        await scheduleDailyNotifications(remindersToSchedule);
 
         // Add in-app notification confirming push is enabled
         const notif: NotifItem = {

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useIsFocused } from "@react-navigation/native";
+
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -43,6 +43,23 @@ const MACRO_PROTEIN = "#FF6B35";   // Orange (ACCENT)
 const MACRO_FAT = "#EAB308";   // Gold
 const VIT_ORANGE = "#F97316";   // Vitamin 20–50%
 const VIT_GREY = "#D1D5DB";   // Vitamin <20%
+
+// ── Nutrient descriptions (shown in "All Nutrients" modal) ────────────────────
+const NUTRIENT_INFO: Record<string, string> = {
+  Fiber:       "Supports digestion and gut health",
+  Sugar:       "Track to avoid excess intake",
+  Sodium:      "Too much can raise blood pressure",
+  Potassium:   "Supports muscle and nerve function",
+  Calcium:     "Builds strong bones and teeth",
+  Iron:        "Helps carry oxygen in blood",
+  Magnesium:   "Supports muscle and energy function",
+  Zinc:        "Supports immunity and healing",
+  "Vitamin A": "Supports vision and immunity",
+  "Vitamin C": "Supports immunity and skin health",
+  "Vitamin D": "Supports bone health and mood",
+  "Vitamin B12":"Supports nerve and energy function",
+};
+
 
 // ── Meals config ──────────────────────────────────────────────────────────────
 const MEALS: { key: MealType; label: string; icon: string; emptyText: string; targetPct: number }[] = [
@@ -1140,7 +1157,7 @@ function ProteinSuggestionsModal({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CaloriesScreen() {
-  const isFocused = useIsFocused();
+  const [adLoaded, setAdLoaded] = useState(false);
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT } = theme;
@@ -1351,7 +1368,7 @@ export default function CaloriesScreen() {
     });
   };
 
-  const totalMealsLogged = MEALS.filter((m) => mealCals(m.key) > 0).length;
+  const totalMealsLogged = stats.items.length;
 
   const waterInsight = (): string => {
     if (water === 0) return "💧 Start drinking — log your first glass";
@@ -1523,7 +1540,7 @@ export default function CaloriesScreen() {
                     ];
 
                     const consumed = allAvailable.filter(n => n.value !== undefined && n.value !== null && n.value > 0);
-                    const topNutrients = consumed.slice(0, 6);
+                    const topNutrients = consumed.slice(0, 4);
 
                     if (topNutrients.length === 0) {
                       return (
@@ -1745,17 +1762,22 @@ export default function CaloriesScreen() {
       )}
 
       {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      {isFocused && (
-        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
-          <BannerAd
-            unitId={AD_UNIT_IDS.banner}
-            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Calories Tab)')}
-            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Calories Tab):', JSON.stringify(error))}
-          />
-        </View>
-      )}
+      {/* BannerAd is always mounted so it persists across tab switches and
+          does not trigger a new ad request on every navigation focus.
+          The container collapses to height 0 until onAdLoaded fires,
+          eliminating the blank placeholder when no ad has filled yet. */}
+      <View style={[
+        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
+        !adLoaded && { height: 0, overflow: "hidden" },
+      ]}>
+        <BannerAd
+          unitId={AD_UNIT_IDS.banner}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Calories Tab)'); }}
+          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Calories Tab):', JSON.stringify(error)); }}
+        />
+      </View>
 
       {/* ── Modals ────────────────────────────────────────────────── */}
       <FoodResultSheet
@@ -1788,6 +1810,113 @@ export default function CaloriesScreen() {
         onSearch={(query) => { setTextSearchQuery(query); setShowTextSearch(true); }}
       />
 
+      {/* ── All Nutrients Modal ──────────────────────────────────── */}
+      {/* Opened by the "View All Nutrients →" button in the Top Nutrients card.
+          Lists every nonzero nutrient for today with a short description.
+          Gracefully renders nothing if fewer nutrients exist (e.g. Indian DB foods). */}
+      <Modal
+        visible={showAllNutrients}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAllNutrients(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setShowAllNutrients(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={{ width: "100%" }}>
+            <View style={[
+              s.sheet,
+              { backgroundColor: CARD, paddingBottom: insets.bottom + 20, paddingTop: 16 },
+            ]}>
+              <View style={s.handle} />
+              {/* Header row */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <Text style={[s.sheetTitle, { marginBottom: 0 }]}>All Nutrients</Text>
+                <TouchableOpacity
+                  onPress={() => setShowAllNutrients(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={22} color={MUTED} />
+                </TouchableOpacity>
+              </View>
+              {/* Nutrient rows */}
+              {(() => {
+                const allAvailableModal = [
+                  { label: "Fiber",       value: stats.fiber,     unit: "g",   goal: 28 },
+                  { label: "Iron",        value: stats.iron,      unit: "mg",  goal: 18 },
+                  { label: "Calcium",     value: stats.calcium,   unit: "mg",  goal: 1000 },
+                  { label: "Potassium",   value: stats.potassium, unit: "mg",  goal: 3500 },
+                  { label: "Vitamin D",   value: stats.vitaminD,  unit: "mcg", goal: 20 },
+                  { label: "Vitamin B12", value: stats.vitaminB12,unit: "mcg", goal: 2.4 },
+                  { label: "Sugar",       value: stats.sugar,     unit: "g",   goal: 50 },
+                  { label: "Sodium",      value: stats.sodium,    unit: "mg",  goal: 2300 },
+                  { label: "Magnesium",   value: stats.magnesium, unit: "mg",  goal: 400 },
+                  { label: "Zinc",        value: stats.zinc,      unit: "mg",  goal: 11 },
+                  { label: "Vitamin A",   value: stats.vitaminA,  unit: "mcg", goal: 900 },
+                  { label: "Vitamin C",   value: stats.vitaminC,  unit: "mg",  goal: 90 },
+                ];
+                const nonZero = allAvailableModal.filter(
+                  n => n.value !== undefined && n.value !== null && n.value > 0
+                );
+                if (nonZero.length === 0) {
+                  return (
+                    <View style={{ alignItems: "center", paddingVertical: 24 }}>
+                      <Text style={{ fontSize: 28, marginBottom: 8 }}>🥗</Text>
+                      <Text style={{ color: MUTED, fontSize: 14, textAlign: "center" }}>
+                        No specific nutrients tracked yet.{"\n"}Log a meal with USDA or Open Food Facts data.
+                      </Text>
+                    </View>
+                  );
+                }
+                return nonZero.map(({ label, value, unit, goal }) => {
+                  const pct = Math.min(value! / goal, 1);
+                  const col = pct >= 0.5 ? GREEN : pct >= 0.2 ? VIT_ORANGE : "#EF4444";
+                  const displayVal = value! % 1 === 0 ? String(value!) : value!.toFixed(1);
+                  return (
+                    <View
+                      key={label}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 11,
+                        borderBottomWidth: 1,
+                        borderBottomColor: BORDER,
+                      }}
+                    >
+                      {/* Color dot */}
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: col, marginRight: 12 }} />
+                      {/* Name + description */}
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: TEXT }}>{label}</Text>
+                        <Text style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>
+                          {NUTRIENT_INFO[label] ?? ""}
+                        </Text>
+                      </View>
+                      {/* Value + mini bar */}
+                      <View style={{ alignItems: "flex-end", minWidth: 64 }}>
+                        <Text style={{ fontSize: 14, fontWeight: "700", color: col }}>
+                          {displayVal}
+                          <Text style={{ fontSize: 11, fontWeight: "400", color: MUTED }}> {unit}</Text>
+                        </Text>
+                        {/* Progress bar */}
+                        <View style={{ width: 56, height: 3, backgroundColor: BORDER, borderRadius: 2, marginTop: 4, overflow: "hidden" }}>
+                          <View style={{ width: `${pct * 100}%`, height: 3, backgroundColor: col, borderRadius: 2 }} />
+                        </View>
+                        <Text style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>
+                          {Math.round(pct * 100)}% of goal
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                });
+              })()}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
     </View>
   );
 }
@@ -1796,14 +1925,24 @@ export default function CaloriesScreen() {
 function HorizMacroBar({ label, value, goal, color }: { label: string; value: number; goal: number; color: string }) {
   const theme = useAppTheme();
   const styles = makeStyles(theme);
-  const pct = Math.min(value / goal, 1);
+  const isOver = value > goal;
+  const pct = isOver ? 1 : value / goal;
+  const barColor = isOver ? "#EF4444" : color;
+  const over = isOver ? value - goal : 0;
   return (
     <View style={styles.horizMacroRow}>
       <Text style={styles.horizMacroLabel}>{label}</Text>
       <View style={styles.horizMacroTrack}>
-        <View style={[styles.horizMacroFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
+        <View style={[styles.horizMacroFill, { width: `${pct * 100}%`, backgroundColor: barColor }]} />
       </View>
-      <Text style={[styles.horizMacroValue, { color }]}>{value}<Text style={styles.horizMacroGoal}>/{goal}g</Text></Text>
+      {isOver ? (
+        <Text style={[styles.horizMacroValue, { color: "#EF4444" }]}>
+          {value}<Text style={styles.horizMacroGoal}>g </Text>
+          <Text style={{ color: "#EF4444", fontWeight: "700" }}>+{over}g over</Text>
+        </Text>
+      ) : (
+        <Text style={[styles.horizMacroValue, { color }]}>{value}<Text style={styles.horizMacroGoal}>/{goal}g</Text></Text>
+      )}
     </View>
   );
 }

@@ -62,17 +62,45 @@ export const cancelAllNotifications = async (): Promise<void> => {
 
 // ── Schedule Daily Notifications ──────────────────────────────────────────────
 
-export const scheduleDailyNotifications = async (): Promise<void> => {
+export interface ReminderToggles {
+  morning: boolean;
+  meal: boolean;
+  water: boolean;
+  evening: boolean;
+}
+
+// Maps each notification to its controlling sub-toggle key.
+// If a toggle is false the notification is skipped; omitting reminders entirely
+// defaults to all-ON so existing callers remain unaffected.
+export const scheduleDailyNotifications = async (
+  reminders?: ReminderToggles,
+): Promise<void> => {
   try {
+    // Default to all-ON when reminders not supplied (backward-compatible)
+    const r: ReminderToggles = reminders ?? {
+      morning: true,
+      meal: true,
+      water: true,
+      evening: true,
+    };
+
     await cancelAllNotifications();
 
-    const notifications = [
+    const notifications: {
+      id: string;
+      title: string;
+      body: string;
+      hour: number;
+      minute: number;
+      toggle: keyof ReminderToggles;
+    }[] = [
       {
         id: "morning",
         title: "🌅 Good Morning!",
         body: "Start your day right — check your habits and set your goals.",
         hour: 8,
         minute: 0,
+        toggle: "morning",
       },
       {
         id: "breakfast",
@@ -80,6 +108,7 @@ export const scheduleDailyNotifications = async (): Promise<void> => {
         body: "Don't forget to log your breakfast in LyfeOS!",
         hour: 8,
         minute: 30,
+        toggle: "meal",
       },
       {
         id: "hydration1",
@@ -87,6 +116,7 @@ export const scheduleDailyNotifications = async (): Promise<void> => {
         body: "Have you had enough water today? Stay hydrated!",
         hour: 11,
         minute: 0,
+        toggle: "water",
       },
       {
         id: "lunch",
@@ -94,6 +124,7 @@ export const scheduleDailyNotifications = async (): Promise<void> => {
         body: "Log your lunch to stay on track with your nutrition goals.",
         hour: 13,
         minute: 0,
+        toggle: "meal",
       },
       {
         id: "hydration2",
@@ -101,6 +132,7 @@ export const scheduleDailyNotifications = async (): Promise<void> => {
         body: "Time for a water break — your body will thank you.",
         hour: 15,
         minute: 0,
+        toggle: "water",
       },
       {
         id: "dinner",
@@ -108,6 +140,7 @@ export const scheduleDailyNotifications = async (): Promise<void> => {
         body: "Log your dinner and complete your daily nutrition tracking.",
         hour: 19,
         minute: 0,
+        toggle: "meal",
       },
       {
         id: "evening",
@@ -115,10 +148,14 @@ export const scheduleDailyNotifications = async (): Promise<void> => {
         body: "How did today go? Complete your habits and review your progress.",
         hour: 21,
         minute: 0,
+        toggle: "evening",
       },
     ];
 
     for (const notif of notifications) {
+      // Skip this notification if its controlling toggle is OFF
+      if (!r[notif.toggle]) continue;
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: notif.title,

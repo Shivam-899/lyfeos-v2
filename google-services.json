@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "66808080139-6i4uhedp6qb3vve31e3dq274lnk7r4fu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lyfeos.app",
+            "certificate_hash": "14a6f067e7444bdb14b18b37f28a22e60272eaaf"
+          }
+        },
+        {
+          "client_id": "66808080139-qvfu5910l93m5md53mfls0it0t3vgpla.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lyfeos.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "66808080139-r6t78lrsqsoabug2jlrltb1bbevt2003.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -94,10 +94,13 @@ interface CaloriesContextType {
 
 const CaloriesContext = createContext<CaloriesContextType | undefined>(undefined);
 
-const FOOD_KEY = "@lyfeos_food_v2";
-const WATER_KEY = "@lyfeos_water_v2";
-const GOAL_KEY = "@lyfeos_goal_v2";
+const FOOD_KEY             = "@lyfeos_food_v2";
+const WATER_KEY            = "@lyfeos_water_v2";
+const GOAL_KEY             = "@lyfeos_goal_v2";
 const GOALS_CONFIGURED_KEY = "@lyfeos_goals_configured_v1";
+// Tracks when food/water data was last mutated locally (Date.now() ms).
+// Kept as a separate key so FoodItem[] shape is never changed.
+const FOOD_META_KEY        = "@lyfeos_food_meta_v1";
 
 const DEFAULT_GOAL: DailyGoal = {
   calories: 2000,
@@ -120,35 +123,96 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [food, water, goal, configured] = await Promise.all([
+      const [food, water, goal, configured, localMeta] = await Promise.all([
         getStoredJson<FoodItem[]>(FOOD_KEY, []),
         getStoredJson<WaterLog[]>(WATER_KEY, []),
         getStoredJson<DailyGoal>(GOAL_KEY, DEFAULT_GOAL),
         getStoredString(GOALS_CONFIGURED_KEY),
+        getStoredJson<{ lastModified: number }>(FOOD_META_KEY, { lastModified: 0 }),
       ]);
       setFoodItems(food);
       setWaterLogs(water);
       setDailyGoalState(goal);
       setGoalsConfiguredState(configured === "true");
 
-      // Cloud sync: fetch from Firestore if logged-in non-guest user
+      // ── Cloud sync: fetch from Firestore if logged-in non-guest user ──────
       if (user && !isGuest) {
-        const cloudCalories = await fetchCaloriesFromCloud(user.uid);
-        if (cloudCalories) {
-          if (cloudCalories.foodItems) setFoodItems(cloudCalories.foodItems);
-          if (cloudCalories.waterLogs) setWaterLogs(cloudCalories.waterLogs);
-          if (cloudCalories.foodItems) await setStoredJson(FOOD_KEY, cloudCalories.foodItems);
-          if (cloudCalories.waterLogs) await setStoredJson(WATER_KEY, cloudCalories.waterLogs);
+        try {
+          const cloudCalories = await fetchCaloriesFromCloud(user.uid);
+
+          if (cloudCalories) {
+            // "Most recent wins" guard.
+            //
+            // Previously the cloud data was blindly accepted and written back to
+            // local disk. This caused data loss when a cloud upload was
+            // interrupted mid-flight (e.g., user force-closed the app): on next
+            // launch the stale cloud record overwrote the correct local data.
+            //
+            // Timestamp semantics:
+            //   localLastModified  — Date.now() ms written to FOOD_META_KEY every
+            //                        time food or water state is mutated locally.
+            //   cloudLastModified  — same value echoed into the cloud payload by
+            //                        buildCaloriesPayload(); absent on pre-fix docs.
+            //
+            // Safe-side defaults (prefer local when uncertain):
+            //   • Cloud doc has no timestamp  → treat as "unknown age" → keep local.
+            //   • Local meta is 0 (never set) AND cloud has a real timestamp
+            //     → this device never wrote data; cloud wins.
+            const localTs: number = localMeta.lastModified ?? 0;
+            const cloudTs: number = (cloudCalories as any).lastModified ?? 0;
+            const cloudIsNewer = cloudTs > localTs;
+
+            if (cloudIsNewer) {
+              // Cloud is definitively newer — safe to overwrite local.
+              if (cloudCalories.foodItems) setFoodItems(cloudCalories.foodItems);
+              if (cloudCalories.waterLogs) setWaterLogs(cloudCalories.waterLogs);
+              if (cloudCalories.foodItems) await setStoredJson(FOOD_KEY, cloudCalories.foodItems);
+              if (cloudCalories.waterLogs) await setStoredJson(WATER_KEY, cloudCalories.waterLogs);
+              // Persist cloud's timestamp locally so future comparisons are accurate.
+              await setStoredJson(FOOD_META_KEY, { lastModified: cloudTs });
+            } else {
+              // Local is newer or age is ambiguous — do NOT overwrite local.
+              // Re-push local data to cloud in the background to repair the
+              // stale cloud record left by the previous interrupted upload.
+              syncCaloriesToCloud(
+                user.uid,
+                buildCaloriesPayload(food, water, localTs || Date.now()),
+              ).catch((e) => logError(e as Error, "reupload_after_stale_cloud"));
+            }
+          }
+        } catch (e) {
+          // Network / Firestore error — silently keep local data, never overwrite.
+          logError(e as Error, "fetchCaloriesFromCloud_onMount");
         }
       }
     })();
   }, [user, isGuest]);
 
-  // Helper to build the calories payload for cloud sync
-  const buildCaloriesPayload = (food: FoodItem[], water: WaterLog[]) => ({
+  // Builds the Firestore payload. lastModified lives in the wrapper object,
+  // NOT inside FoodItem[], so the FoodItem interface stays unchanged.
+  const buildCaloriesPayload = (
+    food: FoodItem[],
+    water: WaterLog[],
+    lastModified: number = Date.now(),
+  ) => ({
     foodItems: food,
     waterLogs: water,
+    lastModified,
   });
+
+  // Stamps local metadata (FOOD_META_KEY) and fires a cloud upload.
+  // Called after every food/water mutation so both storage layers stay in sync.
+  const persistAndSync = (food: FoodItem[], water: WaterLog[]) => {
+    const lastModified = Date.now();
+    void setStoredJson(FOOD_META_KEY, { lastModified });
+    const { user: u, isGuest: g } = authRef.current;
+    if (u && !g) {
+      syncCaloriesToCloud(
+        u.uid,
+        buildCaloriesPayload(food, water, lastModified),
+      ).catch((e) => logError(e as Error, "syncCaloriesToCloud"));
+    }
+  };
 
   const setDailyGoal = useCallback(async (goal: DailyGoal) => {
     setDailyGoalState(goal);
@@ -173,8 +237,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       const next = [...prev, newItem];
       void setStoredJson(FOOD_KEY, next);
       setWaterLogs((currentWater) => {
-        const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncCaloriesToCloud(u.uid, buildCaloriesPayload(next, currentWater)); }
+        persistAndSync(next, currentWater);
         return currentWater;
       });
       return next;
@@ -188,8 +251,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       const next = prev.filter((f) => f.id !== id);
       void setStoredJson(FOOD_KEY, next);
       setWaterLogs((currentWater) => {
-        const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncCaloriesToCloud(u.uid, buildCaloriesPayload(next, currentWater)); }
+        persistAndSync(next, currentWater);
         return currentWater;
       });
       return next;
@@ -208,8 +270,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       }
       void setStoredJson(WATER_KEY, next);
       setFoodItems((currentFood) => {
-        const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncCaloriesToCloud(u.uid, buildCaloriesPayload(currentFood, next)); }
+        persistAndSync(currentFood, next);
         return currentFood;
       });
       return next;
@@ -256,8 +317,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       setWaterLogs((prevWater) => {
         const nextWater = prevWater.filter((w) => w.date !== date);
         void setStoredJson(WATER_KEY, nextWater);
-        const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncCaloriesToCloud(u.uid, buildCaloriesPayload(next, nextWater)); }
+        persistAndSync(next, nextWater);
         return nextWater;
       });
       return next;

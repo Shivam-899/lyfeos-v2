@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useIsFocused } from "@react-navigation/native";
+
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
@@ -32,6 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useCalories } from "@/context/CaloriesContext";
+import { useActivity } from "@/context/ActivityContext";
 import { useHabits } from "@/context/HabitsContext";
 import { HealthProfile, useProfile } from "@/context/ProfileContext";
 import { useTodos } from "@/context/TodosContext";
@@ -395,13 +396,14 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const isFocused = useIsFocused();
+  const [adLoaded, setAdLoaded] = useState(false);
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT: WHITE, mode, setMode } = theme;
   const styles = makeStyles(theme);
   const st = makeSt(theme);
   const { habits, habitLogs, getStreak, getCompletionRate, clearTodayHabitLogs } = useHabits();
   const { todos } = useTodos();
   const { foodItems, waterLogs, dailyGoal, setDailyGoal, clearTodayData } = useCalories();
+  const { getDailyActivityMinutes } = useActivity();
   const { userName, setUserName, joinDate, habitGoal, setHabitGoal, activityGoal, setActivityGoal,
     healthProfile, setHealthProfile, reminders, setReminders, preferences, setPreferences } = useProfile();
 
@@ -461,12 +463,25 @@ export default function ProfileScreen() {
     try {
       await AsyncStorage.setItem(NOTIF_ENABLED_KEY, String(enabled));
       if (enabled) {
-        await scheduleDailyNotifications();
+        // Fix #3: pass current sub-toggle state so only the enabled
+        // notification types are scheduled
+        await scheduleDailyNotifications(reminders);
       } else {
         await cancelAllNotifications();
       }
     } catch (e) {
       logError(e as Error, "handleNotificationsToggle");
+    }
+  };
+
+  // Fix #3: Handler for individual reminder sub-toggles.
+  // Persists the change and immediately re-schedules so it takes effect
+  // without requiring a master-toggle cycle or app restart.
+  const handleReminderToggle = async (key: keyof typeof reminders, value: boolean) => {
+    const updated = { ...reminders, [key]: value };
+    await setReminders(updated);
+    if (notificationsEnabled) {
+      await scheduleDailyNotifications(updated);
     }
   };
 
@@ -727,13 +742,13 @@ export default function ProfileScreen() {
     { field: "calories" as GoalField, icon: "flame", iconBg: "#FF6B3530", color: ACCENT, label: "Calorie Goal", value: dailyGoal.calories, unit: "kcal", progressVal: todayCalories, progressStr: `${todayCalories} / ${dailyGoal.calories} consumed` },
     { field: "water" as GoalField, icon: "water", iconBg: "#3B82F630", color: BLUE, label: "Water Goal", value: dailyGoal.water, unit: "glasses", progressVal: todayWater, progressStr: `${todayWater}/${dailyGoal.water} glasses` },
     { field: "habits" as GoalField, icon: "checkmark-circle", iconBg: "#22C55E30", color: GREEN, label: "Daily Habits Goal", value: habitGoal, unit: "habits/day", progressVal: todayHabitsDone, progressStr: `${todayHabitsDone}/${habitGoal} completed` },
-    { field: "activity" as GoalField, icon: "timer-outline", iconBg: "#EAB30830", color: YELLOW, label: "Activity Goal", value: activityGoal || 30, unit: "min/day", progressVal: 0, progressStr: `0/${activityGoal || 30} min` },
+    { field: "activity" as GoalField, icon: "timer-outline", iconBg: "#EAB30830", color: YELLOW, label: "Activity Goal", value: activityGoal || 30, unit: "min/day", progressVal: getDailyActivityMinutes(today), progressStr: `${getDailyActivityMinutes(today)}/${activityGoal || 30} min` },
   ];
 
   const STAT_CARDS = [
     { icon: "trophy", iconColor: YELLOW, label: "Best", value: bestStreak, suffix: "days" },
-    { icon: "checkmark-done-circle", iconColor: GREEN, label: "Habits", value: totalHabitsDone, suffix: "total" },
-    { icon: "list", iconColor: BLUE, label: "Tasks", value: totalTasksDone, suffix: "total" },
+    { icon: "checkmark-done-circle", iconColor: GREEN, label: "Habits Done", value: totalHabitsDone, suffix: "total" },
+    { icon: "list", iconColor: BLUE, label: "Tasks Done", value: totalTasksDone, suffix: "total" },
     { icon: "restaurant", iconColor: ACCENT, label: "Meals", value: totalMealsLogged, suffix: "total" },
     { icon: "time", iconColor: "#8B5CF6", label: "Days", value: daysTracked, suffix: "days" },
     { icon: "flame", iconColor: ACCENT, label: "Streak", value: currentStreak, suffix: "days" },
@@ -955,7 +970,7 @@ export default function ProfileScreen() {
               right={
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ fontSize: 12, fontWeight: "600", color: reminders[row.key] ? GREEN : MUTED }}>{reminders[row.key] ? "ON" : "OFF"}</Text>
-                  <Switch value={reminders[row.key]} onValueChange={v => setReminders({ ...reminders, [row.key]: v })}
+                  <Switch value={reminders[row.key]} onValueChange={v => handleReminderToggle(row.key, v)}
                     trackColor={{ false: BORDER, true: ACCENT }} thumbColor="#ffffff" />
                 </View>
               }
@@ -1224,17 +1239,22 @@ export default function ProfileScreen() {
       <BadgePopup badge={activeBadge} unlocked={activeBadgeUnlocked} onClose={() => setActiveBadge(null)} />
 
       {/* ── Banner Ad (same pattern as habits.tsx/todos.tsx) ───────────────── */}
-      {isFocused && (
-        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
-          <BannerAd
-            unitId={AD_UNIT_IDS.banner}
-            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Profile Tab)')}
-            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Profile Tab):', JSON.stringify(error))}
-          />
-        </View>
-      )}
+      {/* BannerAd is always mounted so it persists across tab switches and
+          does not trigger a new ad request on every navigation focus.
+          The container collapses to height 0 until onAdLoaded fires,
+          eliminating the blank placeholder when no ad has filled yet. */}
+      <View style={[
+        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
+        !adLoaded && { height: 0, overflow: "hidden" },
+      ]}>
+        <BannerAd
+          unitId={AD_UNIT_IDS.banner}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Profile Tab)'); }}
+          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Profile Tab):', JSON.stringify(error)); }}
+        />
+      </View>
     </View>
   );
 }

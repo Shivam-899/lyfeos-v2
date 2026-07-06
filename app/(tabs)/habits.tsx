@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useIsFocused } from "@react-navigation/native";
+
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
 import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
-import { AD_UNIT_IDS } from "../../utils/ads";
+import { AD_UNIT_IDS, setInterstitialBlocked } from "../../utils/ads";
 import { StatusBar } from "expo-status-bar";
 import {
   Animated,
@@ -170,7 +170,7 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function HabitsScreen() {
-  const isFocused = useIsFocused();
+  const [adLoaded, setAdLoaded] = useState(false);
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE, isDark } = theme;
@@ -221,6 +221,14 @@ export default function HabitsScreen() {
     const s = getStreak(h.id).current;
     return s > max ? s : max;
   }, 0);
+
+  // Fix #6: block interstitial ads while the Add Habit form is open so a
+  // delayed ad (home-screen 120 s timer or habit-completion counter) cannot
+  // interrupt the user mid-flow. Clear the flag on close and on unmount.
+  useEffect(() => {
+    setInterstitialBlocked(showAddSheet);
+    return () => { if (showAddSheet) setInterstitialBlocked(false); };
+  }, [showAddSheet]);
 
   // Watch for "all done" on today
   const prevAllDone = useRef(false);
@@ -482,17 +490,22 @@ export default function HabitsScreen() {
       )}
 
       {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      {isFocused && (
-        <View style={{ width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) }}>
-          <BannerAd
-            unitId={AD_UNIT_IDS.banner}
-            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-            onAdLoaded={() => console.log('✅ Banner Ad Loaded Successfully (Habits Tab)')}
-            onAdFailedToLoad={(error) => console.log('❌ Banner Ad Failed (Habits Tab):', JSON.stringify(error))}
-          />
-        </View>
-      )}
+      {/* BannerAd is always mounted so it persists across tab switches and
+          does not trigger a new ad request on every navigation focus.
+          The container collapses to height 0 until onAdLoaded fires,
+          eliminating the blank placeholder when no ad has filled yet. */}
+      <View style={[
+        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
+        !adLoaded && { height: 0, overflow: "hidden" },
+      ]}>
+        <BannerAd
+          unitId={AD_UNIT_IDS.banner}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Habits Tab)'); }}
+          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Habits Tab):', JSON.stringify(error)); }}
+        />
+      </View>
 
       <AddHabitSheet
         visible={showAddSheet}
