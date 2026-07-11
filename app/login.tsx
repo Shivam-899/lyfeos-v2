@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import auth from "@react-native-firebase/auth";
+import { statusCodes } from "@react-native-google-signin/google-signin";
 
 const THEME = {
   BG: "#0F0F0F",
@@ -87,7 +88,21 @@ export default function LoginScreen() {
       await signInWithGoogle();
       // Router handles redirection in _layout.tsx based on Auth state
     } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google.");
+      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+        setLoading(null);
+        return;
+      }
+      
+      if (__DEV__) console.warn("[GoogleSignIn] Error:", err);
+
+      if (err.code === statusCodes.IN_PROGRESS) {
+        setError("Sign-in already in progress. Please wait.");
+      } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("Google Play Services isn't available on this device.");
+      } else {
+        setError("We're having trouble connecting to Google right now. Please try again, or sign in with email instead.");
+      }
+      
       setLoading(null);
     }
   };

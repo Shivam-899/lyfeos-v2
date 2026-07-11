@@ -64,6 +64,12 @@
         "projectId": "54f639f6-a140-4168-afdc-eb3bca56979e"
       }
     },
-    "owner": "shivam.2k"
+    "owner": "shivam.2k",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/54f639f6-a140-4168-afdc-eb3bca56979e"
+    }
   }
 }
