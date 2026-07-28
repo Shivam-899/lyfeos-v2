@@ -1,0 +1,957 @@
+--------- beginning of main
+07-11 19:35:25.076 28236 28236 E SetupWizard: [DeviceOriginProvider] Cannot query unsupported key=restore_attempts_count
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: Could not get APN after (but including) LollipopMr1: 
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: java.lang.SecurityException: No permission to access APN settings
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2440)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.os.Parcel.createException(Parcel.java:2424)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.os.Parcel.readException(Parcel.java:2407)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:190)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:142)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.content.ContentProviderProxy.query(ContentProviderNative.java:481)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.content.ContentResolver.query(ContentResolver.java:1256)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.content.ContentResolver.query(ContentResolver.java:1184)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at android.content.ContentResolver.query(ContentResolver.java:1140)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bnjv.b(PG:113)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bnjv.a(PG:146)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bnfr.a(PG:86)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bnfq.s(PG:52)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bnfq.n(PG:329)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at rhx.call(PG:435)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bprd.a(PG:3)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bpqi.run(PG:19)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at bpre.run(PG:5)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at wja.run(PG:666)
+07-11 19:35:30.817 26736 26765 E RequestContextBuilder: 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:34.651 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1305566, DequeueBufferDuration=7641459, forgiveAmount=1305566, totalDuration=20364701
+07-11 19:35:34.707 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=487611, DequeueBufferDuration=6595104, forgiveAmount=487611, totalDuration=12857123
+07-11 19:35:34.810 26736 26736 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:35.190 26736 26765 E Finsky  : [281] Encountered an error while prewarming, error: EngageDataError(type=NO_DATA_IN_DATABASE, message=No data in database for given package names), aborting...
+07-11 19:35:35.448 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1623627, DequeueBufferDuration=2287657, forgiveAmount=1623627, totalDuration=6337850
+07-11 19:35:35.456 26736 26770 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:35.498 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1702157, DequeueBufferDuration=782448, forgiveAmount=782448, totalDuration=6088623
+07-11 19:35:35.565 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2326758, DequeueBufferDuration=1059584, forgiveAmount=1059584, totalDuration=7099231
+07-11 19:35:35.581 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1715021, DequeueBufferDuration=1033230, forgiveAmount=1033230, totalDuration=5779822
+07-11 19:35:35.599 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1594458, DequeueBufferDuration=877448, forgiveAmount=877448, totalDuration=5166166
+07-11 19:35:35.631 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1568809, DequeueBufferDuration=1367865, forgiveAmount=1367865, totalDuration=6970044
+07-11 19:35:35.652 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2029618, DequeueBufferDuration=716823, forgiveAmount=716823, totalDuration=5852935
+07-11 19:35:35.665 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1866041, DequeueBufferDuration=634896, forgiveAmount=634896, totalDuration=5541927
+07-11 19:35:35.716 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2355330, DequeueBufferDuration=1179479, forgiveAmount=1179479, totalDuration=4738212
+07-11 19:35:35.733 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2115045, DequeueBufferDuration=2852292, forgiveAmount=2115045, totalDuration=7629077
+07-11 19:35:35.781 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=916599, DequeueBufferDuration=516666, forgiveAmount=516666, totalDuration=6003662
+07-11 19:35:35.815 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2383250, DequeueBufferDuration=1179584, forgiveAmount=1179584, totalDuration=4122686
+07-11 19:35:35.832 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2172634, DequeueBufferDuration=975417, forgiveAmount=975417, totalDuration=4406688
+07-11 19:35:35.848 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2503610, DequeueBufferDuration=1252500, forgiveAmount=1252500, totalDuration=4320921
+07-11 19:35:35.868 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2009417, DequeueBufferDuration=1338542, forgiveAmount=1338542, totalDuration=4842145
+07-11 19:35:35.882 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2063962, DequeueBufferDuration=1045209, forgiveAmount=1045209, totalDuration=4399267
+07-11 19:35:35.898 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1752088, DequeueBufferDuration=565000, forgiveAmount=565000, totalDuration=5073954
+07-11 19:35:35.914 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2036246, DequeueBufferDuration=1382031, forgiveAmount=1382031, totalDuration=4580889
+07-11 19:35:35.932 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2241240, DequeueBufferDuration=1365937, forgiveAmount=1365937, totalDuration=4327094
+07-11 19:35:35.949 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2251069, DequeueBufferDuration=1014844, forgiveAmount=1014844, totalDuration=4702629
+07-11 19:35:35.957 26736 26765 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:35.965 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1942168, DequeueBufferDuration=1671042, forgiveAmount=1671042, totalDuration=4906947
+07-11 19:35:35.994 26736 26772 E Finsky  : [285] [Counters] attempted to use a non-positive increment for: 5114
+07-11 19:35:35.994 26736 26772 E Finsky  : [285] [Counters] attempted to use a non-positive increment for: 5129
+07-11 19:35:35.995 26736 26772 E Finsky  : [285] [Counters] attempted to use a non-positive increment for: 5119
+07-11 19:35:35.999 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1927015, DequeueBufferDuration=515729, forgiveAmount=515729, totalDuration=4575537
+07-11 19:35:36.015 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1711087, DequeueBufferDuration=1361406, forgiveAmount=1361406, totalDuration=5197247
+07-11 19:35:36.032 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1970708, DequeueBufferDuration=1201197, forgiveAmount=1201197, totalDuration=4586741
+07-11 19:35:36.082 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2284872, DequeueBufferDuration=2656250, forgiveAmount=2284872, totalDuration=5225413
+07-11 19:35:36.100 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2366518, DequeueBufferDuration=1413646, forgiveAmount=1413646, totalDuration=4469210
+07-11 19:35:36.116 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2316069, DequeueBufferDuration=1552656, forgiveAmount=1552656, totalDuration=4797734
+07-11 19:35:36.131 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2238916, DequeueBufferDuration=2656875, forgiveAmount=2238916, totalDuration=5991908
+07-11 19:35:36.149 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1802013, DequeueBufferDuration=1692552, forgiveAmount=1692552, totalDuration=6552518
+07-11 19:35:36.165 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2586749, DequeueBufferDuration=1308594, forgiveAmount=1308594, totalDuration=4277730
+07-11 19:35:36.182 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1625998, DequeueBufferDuration=1395886, forgiveAmount=1395886, totalDuration=6928481
+07-11 19:35:36.199 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2267053, DequeueBufferDuration=939375, forgiveAmount=939375, totalDuration=4919613
+07-11 19:35:36.218 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2361793, DequeueBufferDuration=1484479, forgiveAmount=1484479, totalDuration=4123676
+07-11 19:35:36.231 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1528619, DequeueBufferDuration=1838906, forgiveAmount=1528619, totalDuration=6429846
+07-11 19:35:36.248 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1707110, DequeueBufferDuration=1901094, forgiveAmount=1707110, totalDuration=7250103
+07-11 19:35:36.265 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2269365, DequeueBufferDuration=1180000, forgiveAmount=1180000, totalDuration=5203082
+07-11 19:35:36.283 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2589592, DequeueBufferDuration=1184583, forgiveAmount=1184583, totalDuration=3938117
+07-11 19:35:36.299 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2735621, DequeueBufferDuration=1718438, forgiveAmount=1718438, totalDuration=3722973
+07-11 19:35:36.316 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2045686, DequeueBufferDuration=2389166, forgiveAmount=2045686, totalDuration=4934045
+07-11 19:35:36.317 26736 26770 E Finsky  : [284] ItemStore: getItems RPC failed for item android
+07-11 19:35:36.317 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.android.BBKClock
+07-11 19:35:36.318 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.android.camera
+07-11 19:35:36.319 26736 26765 E Finsky  : [281] ItemStore: getItems RPC failed for item com.android.dialer
+07-11 19:35:36.319 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.android.incallui
+07-11 19:35:36.319 26736 26765 E Finsky  : [281] ItemStore: getItems RPC failed for item com.android.settings
+07-11 19:35:36.319 26736 26770 E Finsky  : [284] ItemStore: getItems RPC failed for item com.android.vending
+07-11 19:35:36.319 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.bbk.calendar
+07-11 19:35:36.319 26736 26752 E Finsky  : [268] Failed getting android
+07-11 19:35:36.319 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item android
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.319 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.319 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item android
+07-11 19:35:36.319 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.320 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.bbk.launcher2
+07-11 19:35:36.320 26736 26770 E Finsky  : [284] ItemStore: getItems RPC failed for item com.google.android.packageinstaller
+07-11 19:35:36.320 26736 26752 E Finsky  : [268] Failed getting com.android.BBKClock
+07-11 19:35:36.320 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.BBKClock
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.320 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.320 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.BBKClock
+07-11 19:35:36.320 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.320 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.google.android.permissioncontroller
+07-11 19:35:36.320 26736 26765 E Finsky  : [281] ItemStore: getItems RPC failed for item com.vivo.assistant
+07-11 19:35:36.321 26736 26770 E Finsky  : [284] ItemStore: getItems RPC failed for item com.vivo.hiboard
+07-11 19:35:36.321 26736 26766 E Finsky  : [282] ItemStore: getItems RPC failed for item com.vivo.floatingball
+07-11 19:35:36.323 26736 26772 E Finsky  : [285] ItemStore: getItems RPC failed for item com.android.BBKPhoneInstructions
+07-11 19:35:36.324 26736 26752 E Finsky  : [268] Failed getting com.android.BBKPhoneInstructions
+07-11 19:35:36.324 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.BBKPhoneInstructions
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.324 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.324 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.BBKPhoneInstructions
+07-11 19:35:36.324 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.325 26736 26752 E Finsky  : [268] Failed getting com.android.camera
+07-11 19:35:36.325 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.camera
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.325 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.325 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.camera
+07-11 19:35:36.325 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.326 26736 26752 E Finsky  : [268] Failed getting com.android.dialer
+07-11 19:35:36.326 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.dialer
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.326 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.dialer
+07-11 19:35:36.326 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.326 26736 26752 E Finsky  : [268] Failed getting com.android.incallui
+07-11 19:35:36.326 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.incallui
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.326 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.incallui
+07-11 19:35:36.326 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.326 26736 26752 E Finsky  : [268] Failed getting com.android.settings
+07-11 19:35:36.326 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.settings
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.326 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.326 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.settings
+07-11 19:35:36.326 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.327 26736 26752 E Finsky  : [268] Failed getting com.android.vending
+07-11 19:35:36.327 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.vending
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.327 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.android.vending
+07-11 19:35:36.327 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.327 26736 26752 E Finsky  : [268] Failed getting com.bbk.calendar
+07-11 19:35:36.327 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.bbk.calendar
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.327 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.bbk.calendar
+07-11 19:35:36.327 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.327 26736 26752 E Finsky  : [268] Failed getting com.bbk.launcher2
+07-11 19:35:36.327 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.bbk.launcher2
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.327 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.327 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.bbk.launcher2
+07-11 19:35:36.327 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.328 26736 26752 E Finsky  : [268] Failed getting com.google.android.packageinstaller
+07-11 19:35:36.328 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.google.android.packageinstaller
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.328 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.google.android.packageinstaller
+07-11 19:35:36.328 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.328 26736 26752 E Finsky  : [268] Failed getting com.google.android.permissioncontroller
+07-11 19:35:36.328 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.google.android.permissioncontroller
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.328 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.google.android.permissioncontroller
+07-11 19:35:36.328 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.328 26736 26752 E Finsky  : [268] Failed getting com.vivo.assistant
+07-11 19:35:36.328 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.vivo.assistant
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.328 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.vivo.assistant
+07-11 19:35:36.328 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.328 26736 26752 E Finsky  : [268] Failed getting com.vivo.floatingball
+07-11 19:35:36.328 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.vivo.floatingball
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.328 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.328 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.vivo.floatingball
+07-11 19:35:36.328 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.329 26736 26752 E Finsky  : [268] Failed getting com.vivo.hiboard
+07-11 19:35:36.329 26736 26752 E Finsky  : network time: 0, HTTP status code: na, exception com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.vivo.hiboard
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at afdx.a(PG:107)
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at bpoh.d(PG:3)
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at bpoj.run(PG:47)
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at wja.run(PG:666)
+07-11 19:35:36.329 26736 26752 E Finsky  : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:35:36.329 26736 26752 E Finsky  : Caused by: com.google.android.finsky.networkrequests.NetworkRequestException: ItemStore: getItems RPC failed for item com.vivo.hiboard
+07-11 19:35:36.329 26736 26752 E Finsky  : 	... 7 more
+07-11 19:35:36.332 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2432805, DequeueBufferDuration=1938802, forgiveAmount=1938802, totalDuration=5151049
+07-11 19:35:36.349 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2429999, DequeueBufferDuration=2149063, forgiveAmount=2149063, totalDuration=4400469
+07-11 19:35:36.367 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2433123, DequeueBufferDuration=1683333, forgiveAmount=1683333, totalDuration=4348909
+07-11 19:35:37.016 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1009325, DequeueBufferDuration=530834, forgiveAmount=530834, totalDuration=7525101
+07-11 19:35:37.065 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1952887, DequeueBufferDuration=1239896, forgiveAmount=1239896, totalDuration=6501956
+07-11 19:35:37.084 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1253766, DequeueBufferDuration=565417, forgiveAmount=565417, totalDuration=6087744
+07-11 19:35:37.132 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1281045, DequeueBufferDuration=849791, forgiveAmount=849791, totalDuration=7489529
+07-11 19:35:37.149 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1419093, DequeueBufferDuration=1545000, forgiveAmount=1419093, totalDuration=7335199
+07-11 19:35:37.249 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1521595, DequeueBufferDuration=699792, forgiveAmount=699792, totalDuration=7438456
+07-11 19:35:37.265 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1617399, DequeueBufferDuration=621771, forgiveAmount=621771, totalDuration=7341768
+07-11 19:35:37.282 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=935878, DequeueBufferDuration=884063, forgiveAmount=884063, totalDuration=7480737
+07-11 19:35:37.299 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1719817, DequeueBufferDuration=1093489, forgiveAmount=1093489, totalDuration=6916381
+07-11 19:35:37.315 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1128256, DequeueBufferDuration=952552, forgiveAmount=952552, totalDuration=6724036
+07-11 19:35:37.350 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1774367, DequeueBufferDuration=532709, forgiveAmount=532709, totalDuration=8883132
+07-11 19:35:37.383 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=332104, DequeueBufferDuration=1364011, forgiveAmount=332104, totalDuration=9425688
+07-11 19:35:37.401 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=784309, DequeueBufferDuration=530833, forgiveAmount=530833, totalDuration=8625379
+07-11 19:35:37.432 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1270522, DequeueBufferDuration=2704115, forgiveAmount=1270522, totalDuration=9600935
+07-11 19:35:37.483 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=705691, DequeueBufferDuration=1647239, forgiveAmount=705691, totalDuration=11916482
+07-11 19:35:37.499 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1050301, DequeueBufferDuration=1132500, forgiveAmount=1050301, totalDuration=8860491
+07-11 19:35:37.550 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2043918, DequeueBufferDuration=953386, forgiveAmount=953386, totalDuration=8019571
+07-11 19:35:37.566 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2035647, DequeueBufferDuration=2105782, forgiveAmount=2035647, totalDuration=6122508
+07-11 19:35:37.584 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1815355, DequeueBufferDuration=2589479, forgiveAmount=1815355, totalDuration=6201945
+07-11 19:35:37.601 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2300455, DequeueBufferDuration=2629114, forgiveAmount=2300455, totalDuration=5247110
+07-11 19:35:37.619 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1570466, DequeueBufferDuration=2459948, forgiveAmount=1570466, totalDuration=7001569
+07-11 19:35:37.635 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1704019, DequeueBufferDuration=2948282, forgiveAmount=1704019, totalDuration=7380399
+07-11 19:35:37.652 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1075542, DequeueBufferDuration=4228021, forgiveAmount=1075542, totalDuration=10268916
+07-11 19:35:37.669 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1136109, DequeueBufferDuration=2702239, forgiveAmount=1136109, totalDuration=8481219
+07-11 19:35:37.687 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1094848, DequeueBufferDuration=3233750, forgiveAmount=1094848, totalDuration=9048377
+07-11 19:35:37.750 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1422441, DequeueBufferDuration=2453333, forgiveAmount=1422441, totalDuration=6767359
+07-11 19:35:37.767 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2190642, DequeueBufferDuration=2119531, forgiveAmount=2119531, totalDuration=5584619
+07-11 19:35:37.784 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1183175, DequeueBufferDuration=2441927, forgiveAmount=1183175, totalDuration=7647870
+07-11 19:35:37.801 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2200149, DequeueBufferDuration=2779375, forgiveAmount=2200149, totalDuration=5760640
+07-11 19:35:37.818 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1656767, DequeueBufferDuration=3215938, forgiveAmount=1656767, totalDuration=7705477
+07-11 19:35:37.834 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1524913, DequeueBufferDuration=2965833, forgiveAmount=1524913, totalDuration=7471736
+07-11 19:35:37.850 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2145549, DequeueBufferDuration=3766093, forgiveAmount=2145549, totalDuration=7135464
+07-11 19:35:37.869 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1874833, DequeueBufferDuration=2709427, forgiveAmount=1874833, totalDuration=6738563
+07-11 19:35:37.884 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1985598, DequeueBufferDuration=2633177, forgiveAmount=1985598, totalDuration=6043908
+07-11 19:35:38.257 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=18100, CVE is already removed from parent
+07-11 19:35:38.434 26736 26766 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:38.435 26736 26766 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:38.486 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1396283, DequeueBufferDuration=7215729, forgiveAmount=1396283, totalDuration=15370038
+07-11 19:35:38.501 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=651704, DequeueBufferDuration=3215625, forgiveAmount=651704, totalDuration=13603102
+07-11 19:35:38.517 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=110977, DequeueBufferDuration=3770938, forgiveAmount=110977, totalDuration=15463983
+07-11 19:35:38.533 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=511350, DequeueBufferDuration=1961094, forgiveAmount=511350, totalDuration=12760843
+07-11 19:35:38.702 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1063064, DequeueBufferDuration=1625573, forgiveAmount=1063064, totalDuration=8132727
+07-11 19:35:38.720 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=535528, DequeueBufferDuration=2280260, forgiveAmount=535528, totalDuration=11884047
+07-11 19:35:38.769 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=839515, DequeueBufferDuration=2309271, forgiveAmount=839515, totalDuration=11441283
+07-11 19:35:38.786 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=59917, DequeueBufferDuration=3290886, forgiveAmount=59917, totalDuration=13423448
+07-11 19:35:38.801 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=763602, DequeueBufferDuration=2639636, forgiveAmount=763602, totalDuration=11264046
+07-11 19:35:38.837 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=266220, DequeueBufferDuration=2811042, forgiveAmount=266220, totalDuration=12391986
+07-11 19:35:38.838 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1068626, DequeueBufferDuration=2229791, forgiveAmount=1068626, totalDuration=10839727
+07-11 19:35:38.969 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=865316, DequeueBufferDuration=3752813, forgiveAmount=865316, totalDuration=13183431
+07-11 19:35:38.972 26736 26765 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:38.986 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=936633, DequeueBufferDuration=3793646, forgiveAmount=936633, totalDuration=13748088
+07-11 19:35:39.819 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=79, CVE is already removed from parent
+07-11 19:35:40.285 19288 23607 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=636713, DequeueBufferDuration=8007083, forgiveAmount=636713, totalDuration=13369855
+07-11 19:35:40.302 19288 23607 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1117715, DequeueBufferDuration=4904167, forgiveAmount=1117715, totalDuration=11732486
+07-11 19:35:40.318 26736 26766 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:35:40.351 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1787293, DequeueBufferDuration=3790104, forgiveAmount=1787293, totalDuration=7516299
+07-11 19:35:40.370 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=918239, DequeueBufferDuration=4619323, forgiveAmount=918239, totalDuration=9975084
+07-11 19:35:40.384 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2127265, DequeueBufferDuration=3422240, forgiveAmount=2127265, totalDuration=6574376
+07-11 19:35:40.421 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=725544, DequeueBufferDuration=2482031, forgiveAmount=725544, totalDuration=8081100
+07-11 19:35:43.303 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=40, CVE is already removed from parent
+07-11 19:35:43.376 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=24480, DequeueBufferDuration=5360885, forgiveAmount=24480, totalDuration=12262968
+07-11 19:35:43.385 26736 28261 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2395945, DequeueBufferDuration=7618021, forgiveAmount=2395945, totalDuration=9448319
+07-11 19:35:45.589 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=1914, CVE is already linked to the same parent
+07-11 19:35:45.590 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=1914, CVE is already linked to the same parent
+07-11 19:35:45.732 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=3, CVE is already removed from parent
+07-11 19:35:48.280 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=1914, CVE is already removed from parent
+07-11 19:35:48.281 26736 26736 E Finsky  : [2] ComposeVisualElement Error: veType=1914, CVE is already removed from parent
+07-11 19:35:48.341 26736 26746 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=707543, DequeueBufferDuration=12830000, forgiveAmount=707543, totalDuration=23874914
+07-11 19:35:48.449 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=468656, DequeueBufferDuration=5497291, forgiveAmount=468656, totalDuration=14450396
+07-11 19:35:48.933 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1140640, DequeueBufferDuration=1220157, forgiveAmount=1140640, totalDuration=9403251
+07-11 19:35:48.950 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=578019, DequeueBufferDuration=1841354, forgiveAmount=578019, totalDuration=10516149
+07-11 19:35:48.966 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1223579, DequeueBufferDuration=1322969, forgiveAmount=1223579, totalDuration=8878936
+07-11 19:35:48.982 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1005265, DequeueBufferDuration=1109740, forgiveAmount=1005265, totalDuration=9240460
+07-11 19:35:48.999 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1048113, DequeueBufferDuration=723854, forgiveAmount=723854, totalDuration=8715638
+07-11 19:35:49.051 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=153972, DequeueBufferDuration=966198, forgiveAmount=153972, totalDuration=11306640
+07-11 19:35:49.066 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=550508, DequeueBufferDuration=940729, forgiveAmount=550508, totalDuration=10235130
+07-11 19:35:49.100 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=462959, DequeueBufferDuration=1072760, forgiveAmount=462959, totalDuration=9429447
+07-11 19:35:49.117 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=794046, DequeueBufferDuration=867500, forgiveAmount=794046, totalDuration=8685658
+07-11 19:35:49.133 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=974624, DequeueBufferDuration=1306302, forgiveAmount=974624, totalDuration=10150231
+07-11 19:35:49.149 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=908515, DequeueBufferDuration=2139532, forgiveAmount=908515, totalDuration=11583543
+07-11 19:35:49.166 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=325568, DequeueBufferDuration=693959, forgiveAmount=325568, totalDuration=23046729
+07-11 19:35:49.200 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=990385, DequeueBufferDuration=866667, forgiveAmount=866667, totalDuration=8786073
+07-11 19:35:49.216 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=875655, DequeueBufferDuration=1051667, forgiveAmount=875655, totalDuration=9610565
+07-11 19:35:49.235 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=931434, DequeueBufferDuration=1182188, forgiveAmount=931434, totalDuration=9041872
+07-11 19:35:49.252 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=438284, DequeueBufferDuration=817292, forgiveAmount=438284, totalDuration=10573276
+07-11 19:35:49.286 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=386264, DequeueBufferDuration=2585209, forgiveAmount=386264, totalDuration=12293566
+07-11 19:35:49.302 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=645787, DequeueBufferDuration=781146, forgiveAmount=645787, totalDuration=9576707
+07-11 19:35:49.453 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=54237, DequeueBufferDuration=2937604, forgiveAmount=54237, totalDuration=13149963
+07-11 19:35:49.534 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=278475, DequeueBufferDuration=3444792, forgiveAmount=278475, totalDuration=18715081
+07-11 19:35:49.653 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=17747, DequeueBufferDuration=3645312, forgiveAmount=17747, totalDuration=15155965
+07-11 19:35:49.669 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=94829, DequeueBufferDuration=2594323, forgiveAmount=94829, totalDuration=13950811
+07-11 19:35:49.703 26736 27898 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=16760, DequeueBufferDuration=2724010, forgiveAmount=16760, totalDuration=14014604
+07-11 19:35:49.869 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=715649, DequeueBufferDuration=1834740, forgiveAmount=715649, totalDuration=10745367
+07-11 19:35:49.884 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=814180, DequeueBufferDuration=1112553, forgiveAmount=814180, totalDuration=9655337
+07-11 19:35:49.900 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=72061, DequeueBufferDuration=2571198, forgiveAmount=72061, totalDuration=14251920
+07-11 19:35:49.933 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=964331, DequeueBufferDuration=1134948, forgiveAmount=964331, totalDuration=9582745
+07-11 19:35:49.950 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=59465, DequeueBufferDuration=2347969, forgiveAmount=59465, totalDuration=13765080
+07-11 19:35:50.083 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1259646, DequeueBufferDuration=1524166, forgiveAmount=1259646, totalDuration=9020865
+07-11 19:35:50.100 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1315832, DequeueBufferDuration=1369375, forgiveAmount=1315832, totalDuration=8407711
+07-11 19:35:50.115 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=568211, DequeueBufferDuration=569323, forgiveAmount=568211, totalDuration=9834256
+07-11 19:35:50.133 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=205490, DequeueBufferDuration=651042, forgiveAmount=205490, totalDuration=10382926
+07-11 19:35:50.150 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1460716, DequeueBufferDuration=589115, forgiveAmount=589115, totalDuration=11569387
+07-11 19:35:50.185 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=907785, DequeueBufferDuration=1989271, forgiveAmount=907785, totalDuration=8734847
+07-11 19:35:50.199 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=974745, DequeueBufferDuration=1085000, forgiveAmount=974745, totalDuration=8070874
+07-11 19:35:50.233 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=693751, DequeueBufferDuration=1281823, forgiveAmount=693751, totalDuration=9245051
+07-11 19:35:50.250 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1239950, DequeueBufferDuration=2205573, forgiveAmount=1239950, totalDuration=9033276
+07-11 19:35:50.267 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1194878, DequeueBufferDuration=1172239, forgiveAmount=1172239, totalDuration=8298299
+07-11 19:35:50.283 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1051109, DequeueBufferDuration=1253385, forgiveAmount=1051109, totalDuration=8162156
+07-11 19:35:50.300 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=691022, DequeueBufferDuration=1102500, forgiveAmount=691022, totalDuration=9976601
+07-11 19:35:50.316 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=906461, DequeueBufferDuration=830990, forgiveAmount=830990, totalDuration=8674944
+07-11 19:35:50.333 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=946873, DequeueBufferDuration=1290990, forgiveAmount=946873, totalDuration=8744275
+07-11 19:35:50.350 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1019729, DequeueBufferDuration=853177, forgiveAmount=853177, totalDuration=9150948
+07-11 19:35:50.366 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=136481, DequeueBufferDuration=787760, forgiveAmount=136481, totalDuration=10136153
+07-11 19:35:50.382 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1508387, DequeueBufferDuration=1736979, forgiveAmount=1508387, totalDuration=7681143
+07-11 19:35:50.400 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1023229, DequeueBufferDuration=1113073, forgiveAmount=1023229, totalDuration=9043803
+07-11 19:35:50.416 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=888692, DequeueBufferDuration=961459, forgiveAmount=888692, totalDuration=8482355
+07-11 19:35:50.432 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1011496, DequeueBufferDuration=1430573, forgiveAmount=1011496, totalDuration=9429976
+07-11 19:35:50.456 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1275890, DequeueBufferDuration=1710105, forgiveAmount=1275890, totalDuration=9725199
+07-11 19:35:50.472 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1723392, DequeueBufferDuration=937604, forgiveAmount=937604, totalDuration=7132858
+07-11 19:35:50.484 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1078808, DequeueBufferDuration=7797240, forgiveAmount=1078808, totalDuration=15079831
+07-11 19:35:50.499 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1249589, DequeueBufferDuration=7573333, forgiveAmount=1249589, totalDuration=14869572
+07-11 19:35:50.516 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1080783, DequeueBufferDuration=2353802, forgiveAmount=1080783, totalDuration=9395882
+07-11 19:35:50.534 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1045938, DequeueBufferDuration=997968, forgiveAmount=997968, totalDuration=9073542
+07-11 19:35:50.549 26736 28261 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=849501, DequeueBufferDuration=1080885, forgiveAmount=849501, totalDuration=15557509
+07-11 19:35:50.599 26736 28261 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1150277, DequeueBufferDuration=884532, forgiveAmount=884532, totalDuration=7678890
+07-11 19:35:50.615 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1685205, DequeueBufferDuration=885000, forgiveAmount=885000, totalDuration=8426254
+07-11 19:35:50.665 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1884462, DequeueBufferDuration=1076250, forgiveAmount=1076250, totalDuration=6520121
+07-11 19:35:50.682 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1789808, DequeueBufferDuration=892657, forgiveAmount=892657, totalDuration=6214670
+07-11 19:35:50.700 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1232143, DequeueBufferDuration=671198, forgiveAmount=671198, totalDuration=7266451
+07-11 19:35:50.716 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2007173, DequeueBufferDuration=1169219, forgiveAmount=1169219, totalDuration=6331837
+07-11 19:35:50.733 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=784305, DequeueBufferDuration=1082448, forgiveAmount=784305, totalDuration=9114671
+07-11 19:35:50.749 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1170095, DequeueBufferDuration=1126354, forgiveAmount=1126354, totalDuration=7593134
+07-11 19:35:50.766 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=853810, DequeueBufferDuration=1526823, forgiveAmount=853810, totalDuration=9079046
+07-11 19:35:50.782 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1288693, DequeueBufferDuration=1111302, forgiveAmount=1111302, totalDuration=9432505
+07-11 19:35:50.800 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=675067, DequeueBufferDuration=986406, forgiveAmount=675067, totalDuration=9399033
+07-11 19:35:50.816 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1214630, DequeueBufferDuration=1278177, forgiveAmount=1214630, totalDuration=9072616
+07-11 19:35:50.834 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=688783, DequeueBufferDuration=632813, forgiveAmount=632813, totalDuration=8452727
+07-11 19:35:50.851 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=730534, DequeueBufferDuration=1254115, forgiveAmount=730534, totalDuration=14051379
+07-11 19:35:50.934 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1463581, DequeueBufferDuration=1128125, forgiveAmount=1128125, totalDuration=7581575
+07-11 19:35:50.950 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1691544, DequeueBufferDuration=2076875, forgiveAmount=1691544, totalDuration=8743267
+07-11 19:35:50.983 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=882925, DequeueBufferDuration=1022448, forgiveAmount=882925, totalDuration=9060348
+07-11 19:35:51.004 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=532779, DequeueBufferDuration=1013541, forgiveAmount=532779, totalDuration=10376942
+07-11 19:35:51.025 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=624391, DequeueBufferDuration=1518489, forgiveAmount=624391, totalDuration=9976530
+07-11 19:35:51.118 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1347234, DequeueBufferDuration=6434167, forgiveAmount=1347234, totalDuration=14178188
+07-11 19:35:51.133 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=580340, DequeueBufferDuration=3434166, forgiveAmount=580340, totalDuration=13285102
+07-11 19:35:51.150 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=735342, DequeueBufferDuration=2105261, forgiveAmount=735342, totalDuration=10940462
+07-11 19:35:51.167 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=691181, DequeueBufferDuration=995833, forgiveAmount=691181, totalDuration=9195606
+07-11 19:35:51.183 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=144320, DequeueBufferDuration=874218, forgiveAmount=144320, totalDuration=11235682
+07-11 19:35:51.199 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=424200, DequeueBufferDuration=1395573, forgiveAmount=424200, totalDuration=11121756
+07-11 19:35:51.216 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1314235, DequeueBufferDuration=1432239, forgiveAmount=1314235, totalDuration=7203613
+07-11 19:35:51.233 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1320103, DequeueBufferDuration=928646, forgiveAmount=928646, totalDuration=7214064
+07-11 19:35:51.271 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=570509, DequeueBufferDuration=3012083, forgiveAmount=570509, totalDuration=12108096
+07-11 19:35:56.399 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=309492, DequeueBufferDuration=3924062, forgiveAmount=309492, totalDuration=12471953
+07-11 19:35:56.415 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1051920, DequeueBufferDuration=530469, forgiveAmount=530469, totalDuration=7666154
+07-11 19:35:56.467 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=723959, DequeueBufferDuration=5667552, forgiveAmount=723959, totalDuration=14263905
+07-11 19:35:56.481 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=342640, DequeueBufferDuration=5345625, forgiveAmount=342640, totalDuration=15988262
+07-11 19:35:56.532 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=280226, DequeueBufferDuration=1390989, forgiveAmount=280226, totalDuration=10126840
+07-11 19:35:56.548 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=787191, DequeueBufferDuration=3556979, forgiveAmount=787191, totalDuration=12254576
+07-11 19:35:56.599 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1032736, DequeueBufferDuration=629480, forgiveAmount=629480, totalDuration=8935076
+07-11 19:35:56.666 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=314446, DequeueBufferDuration=3788594, forgiveAmount=314446, totalDuration=14881056
+07-11 19:35:56.699 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=906695, DequeueBufferDuration=568437, forgiveAmount=568437, totalDuration=8420754
+07-11 19:35:56.749 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=407937, DequeueBufferDuration=864271, forgiveAmount=407937, totalDuration=9855793
+07-11 19:35:56.983 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=528496, DequeueBufferDuration=692187, forgiveAmount=528496, totalDuration=9952747
+07-11 19:35:57.051 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=428406, DequeueBufferDuration=3257187, forgiveAmount=428406, totalDuration=13078240
+07-11 19:35:57.065 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=84907, DequeueBufferDuration=5360521, forgiveAmount=84907, totalDuration=15323259
+07-11 19:35:57.083 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=725621, DequeueBufferDuration=1840520, forgiveAmount=725621, totalDuration=10388862
+07-11 19:35:57.267 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=192550, DequeueBufferDuration=3076354, forgiveAmount=192550, totalDuration=12398389
+07-11 19:35:57.282 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=449331, DequeueBufferDuration=5794948, forgiveAmount=449331, totalDuration=15130140
+07-11 19:35:57.300 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=282841, DequeueBufferDuration=1467344, forgiveAmount=282841, totalDuration=10746609
+07-11 19:35:57.350 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1204480, DequeueBufferDuration=1172917, forgiveAmount=1172917, totalDuration=8368958
+07-11 19:35:57.366 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=788025, DequeueBufferDuration=501667, forgiveAmount=501667, totalDuration=9423382
+07-11 19:35:57.483 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1405946, DequeueBufferDuration=4347031, forgiveAmount=1405946, totalDuration=12055348
+07-11 19:35:57.499 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=305043, DequeueBufferDuration=1571563, forgiveAmount=305043, totalDuration=10448507
+07-11 19:35:57.517 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=566872, DequeueBufferDuration=558802, forgiveAmount=558802, totalDuration=9410993
+07-11 19:35:57.550 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=212628, DequeueBufferDuration=1050990, forgiveAmount=212628, totalDuration=11406358
+07-11 19:35:57.654 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=877443, DequeueBufferDuration=801198, forgiveAmount=801198, totalDuration=9498442
+07-11 19:35:57.667 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=826641, DequeueBufferDuration=3805781, forgiveAmount=826641, totalDuration=11992083
+07-11 19:35:57.682 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=482102, DequeueBufferDuration=5735312, forgiveAmount=482102, totalDuration=14301838
+07-11 19:35:57.699 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=914500, DequeueBufferDuration=1848646, forgiveAmount=914500, totalDuration=9918552
+07-11 19:35:57.716 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1307791, DequeueBufferDuration=1219062, forgiveAmount=1219062, totalDuration=8728199
+07-11 19:35:57.732 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=715398, DequeueBufferDuration=756614, forgiveAmount=715398, totalDuration=8621756
+07-11 19:35:57.749 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=461651, DequeueBufferDuration=651875, forgiveAmount=461651, totalDuration=10011907
+07-11 19:35:57.767 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=989178, DequeueBufferDuration=610573, forgiveAmount=610573, totalDuration=8457489
+07-11 19:35:57.787 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=978820, DequeueBufferDuration=875313, forgiveAmount=875313, totalDuration=9291023
+07-11 19:35:57.799 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=217126, DequeueBufferDuration=863906, forgiveAmount=217126, totalDuration=10630175
+07-11 19:35:57.817 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1373734, DequeueBufferDuration=1300833, forgiveAmount=1300833, totalDuration=8425068
+07-11 19:35:57.833 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=989378, DequeueBufferDuration=704740, forgiveAmount=704740, totalDuration=8964371
+07-11 19:35:57.852 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=180840, DequeueBufferDuration=739010, forgiveAmount=180840, totalDuration=10168737
+07-11 19:35:57.871 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=908158, DequeueBufferDuration=853333, forgiveAmount=853333, totalDuration=9174863
+07-11 19:35:57.884 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=594253, DequeueBufferDuration=3817344, forgiveAmount=594253, totalDuration=12485974
+07-11 19:35:57.899 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1021118, DequeueBufferDuration=5076458, forgiveAmount=1021118, totalDuration=12467921
+07-11 19:35:57.916 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=744202, DequeueBufferDuration=1470208, forgiveAmount=744202, totalDuration=10114356
+07-11 19:35:57.932 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=581385, DequeueBufferDuration=581875, forgiveAmount=581385, totalDuration=9264626
+07-11 19:35:57.949 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=606803, DequeueBufferDuration=630730, forgiveAmount=606803, totalDuration=9399832
+07-11 19:35:58.033 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=889953, DequeueBufferDuration=800052, forgiveAmount=800052, totalDuration=8988172
+07-11 19:35:58.070 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=108772, DequeueBufferDuration=603437, forgiveAmount=108772, totalDuration=9487768
+07-11 19:35:58.082 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=941399, DequeueBufferDuration=4021979, forgiveAmount=941399, totalDuration=11626629
+07-11 19:35:58.100 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=616463, DequeueBufferDuration=5297657, forgiveAmount=616463, totalDuration=14112022
+07-11 19:35:58.116 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1464429, DequeueBufferDuration=1334166, forgiveAmount=1334166, totalDuration=7114687
+07-11 19:35:58.133 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=890084, DequeueBufferDuration=1456042, forgiveAmount=890084, totalDuration=9742385
+07-11 19:35:58.149 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=944143, DequeueBufferDuration=1223021, forgiveAmount=944143, totalDuration=9909213
+07-11 19:35:58.165 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=606526, DequeueBufferDuration=897709, forgiveAmount=606526, totalDuration=9431323
+07-11 19:35:58.252 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1497968, DequeueBufferDuration=949167, forgiveAmount=949167, totalDuration=7704688
+07-11 19:35:58.269 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=136155, DequeueBufferDuration=740105, forgiveAmount=136155, totalDuration=10664201
+07-11 19:35:58.283 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1140108, DequeueBufferDuration=3352917, forgiveAmount=1140108, totalDuration=9576243
+07-11 19:35:58.298 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=742972, DequeueBufferDuration=4016459, forgiveAmount=742972, totalDuration=12763900
+07-11 19:35:58.314 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1198270, DequeueBufferDuration=1414688, forgiveAmount=1198270, totalDuration=8403669
+07-11 19:35:58.432 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1099253, DequeueBufferDuration=710104, forgiveAmount=710104, totalDuration=8090018
+07-11 19:35:58.484 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=564157, DequeueBufferDuration=3358125, forgiveAmount=564157, totalDuration=12057884
+07-11 19:35:58.549 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=865857, DequeueBufferDuration=1735053, forgiveAmount=865857, totalDuration=10265265
+07-11 19:35:58.566 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=788910, DequeueBufferDuration=2837969, forgiveAmount=788910, totalDuration=11488221
+07-11 19:35:58.582 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1085916, DequeueBufferDuration=763906, forgiveAmount=763906, totalDuration=8251323
+07-11 19:35:58.649 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=270685, DequeueBufferDuration=3615365, forgiveAmount=270685, totalDuration=13964620
+07-11 19:35:58.682 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1231623, DequeueBufferDuration=970989, forgiveAmount=970989, totalDuration=8166086
+07-11 19:35:58.850 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1393852, DequeueBufferDuration=3050677, forgiveAmount=1393852, totalDuration=10538286
+07-11 19:35:58.900 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=346392, DequeueBufferDuration=754948, forgiveAmount=346392, totalDuration=9409196
+07-11 19:35:58.916 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=876987, DequeueBufferDuration=626302, forgiveAmount=626302, totalDuration=9497961
+07-11 19:35:58.932 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=351392, DequeueBufferDuration=646406, forgiveAmount=351392, totalDuration=9889299
+07-11 19:35:59.019 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=569623, DequeueBufferDuration=554375, forgiveAmount=554375, totalDuration=10181991
+07-11 19:35:59.038 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=153592, DequeueBufferDuration=543438, forgiveAmount=153592, totalDuration=10906149
+07-11 19:35:59.051 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=279815, DequeueBufferDuration=3007917, forgiveAmount=279815, totalDuration=13182558
+07-11 19:35:59.082 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=42356, DequeueBufferDuration=1568958, forgiveAmount=42356, totalDuration=11548153
+07-11 19:35:59.166 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=259721, DequeueBufferDuration=753646, forgiveAmount=259721, totalDuration=9699725
+07-11 19:35:59.183 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=533774, DequeueBufferDuration=673906, forgiveAmount=533774, totalDuration=9297348
+07-11 19:35:59.218 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=264329, DequeueBufferDuration=976875, forgiveAmount=264329, totalDuration=9968583
+07-11 19:35:59.237 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=274263, DequeueBufferDuration=810052, forgiveAmount=274263, totalDuration=10116057
+07-11 19:35:59.250 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1360935, DequeueBufferDuration=3453542, forgiveAmount=1360935, totalDuration=11031568
+07-11 19:35:59.283 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=302158, DequeueBufferDuration=1135260, forgiveAmount=302158, totalDuration=9872195
+07-11 19:35:59.435 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=929848, DequeueBufferDuration=650833, forgiveAmount=650833, totalDuration=8035413
+07-11 19:35:59.532 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=120646, DequeueBufferDuration=505573, forgiveAmount=120646, totalDuration=11090062
+07-11 19:35:59.669 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=15128, DequeueBufferDuration=2776615, forgiveAmount=15128, totalDuration=13506880
+07-11 19:35:59.682 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1087298, DequeueBufferDuration=2405729, forgiveAmount=1087298, totalDuration=11032279
+07-11 19:35:59.699 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=696691, DequeueBufferDuration=3333438, forgiveAmount=696691, totalDuration=12153232
+07-11 19:35:59.766 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=732587, DequeueBufferDuration=606406, forgiveAmount=606406, totalDuration=8645799
+07-11 19:35:59.783 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1489357, DequeueBufferDuration=688437, forgiveAmount=688437, totalDuration=8190695
+07-11 19:35:59.884 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1084503, DequeueBufferDuration=4045573, forgiveAmount=1084503, totalDuration=11637921
+07-11 19:35:59.900 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=38071, DequeueBufferDuration=4550833, forgiveAmount=38071, totalDuration=14371514
+07-11 19:35:59.916 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=851369, DequeueBufferDuration=2084479, forgiveAmount=851369, totalDuration=10543668
+07-11 19:35:59.933 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=519942, DequeueBufferDuration=795573, forgiveAmount=519942, totalDuration=10229388
+07-11 19:35:59.949 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1216929, DequeueBufferDuration=693489, forgiveAmount=693489, totalDuration=8643331
+07-11 19:36:00.000 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=908649, DequeueBufferDuration=690677, forgiveAmount=690677, totalDuration=9335206
+07-11 19:36:00.035 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=299519, DequeueBufferDuration=1218854, forgiveAmount=299519, totalDuration=12459763
+07-11 19:36:00.083 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=876820, DequeueBufferDuration=996979, forgiveAmount=876820, totalDuration=9362349
+07-11 19:36:00.100 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=619346, DequeueBufferDuration=4434479, forgiveAmount=619346, totalDuration=13041516
+07-11 19:36:00.132 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=427811, DequeueBufferDuration=770781, forgiveAmount=427811, totalDuration=10908961
+07-11 19:36:00.150 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1273993, DequeueBufferDuration=554531, forgiveAmount=554531, totalDuration=8246476
+07-11 19:36:00.217 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=761866, DequeueBufferDuration=937916, forgiveAmount=761866, totalDuration=9281737
+07-11 19:36:00.268 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1275724, DequeueBufferDuration=2559688, forgiveAmount=1275724, totalDuration=15907353
+07-11 19:36:00.468 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1380835, DequeueBufferDuration=615990, forgiveAmount=615990, totalDuration=7409790
+07-11 19:36:00.482 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1287887, DequeueBufferDuration=1885781, forgiveAmount=1287887, totalDuration=7781101
+07-11 19:36:00.501 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=806074, DequeueBufferDuration=3209583, forgiveAmount=806074, totalDuration=10232384
+07-11 19:36:00.532 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1197717, DequeueBufferDuration=2019895, forgiveAmount=1197717, totalDuration=8489930
+07-11 19:36:00.548 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=895796, DequeueBufferDuration=2974011, forgiveAmount=895796, totalDuration=10266585
+07-11 19:36:00.565 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1487643, DequeueBufferDuration=1567865, forgiveAmount=1487643, totalDuration=7990651
+07-11 19:36:00.581 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1695173, DequeueBufferDuration=508281, forgiveAmount=508281, totalDuration=7392223
+07-11 19:36:00.667 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1320068, DequeueBufferDuration=759063, forgiveAmount=759063, totalDuration=8411963
+07-11 19:36:00.683 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=950204, DequeueBufferDuration=799427, forgiveAmount=799427, totalDuration=9428702
+07-11 19:36:00.721 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=650801, DequeueBufferDuration=920469, forgiveAmount=650801, totalDuration=10203919
+07-11 19:36:00.734 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=983258, DequeueBufferDuration=4060885, forgiveAmount=983258, totalDuration=11324577
+07-11 19:36:00.748 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=882929, DequeueBufferDuration=5877448, forgiveAmount=882929, totalDuration=14778830
+07-11 19:36:00.765 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=453395, DequeueBufferDuration=1226719, forgiveAmount=453395, totalDuration=9897481
+07-11 19:36:00.783 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1644345, DequeueBufferDuration=730937, forgiveAmount=730937, totalDuration=7175291
+07-11 19:36:00.817 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=701983, DequeueBufferDuration=515677, forgiveAmount=515677, totalDuration=8885882
+07-11 19:36:00.833 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1206852, DequeueBufferDuration=904948, forgiveAmount=904948, totalDuration=8244137
+07-11 19:36:00.849 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=397772, DequeueBufferDuration=528906, forgiveAmount=397772, totalDuration=9230811
+07-11 19:36:00.866 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=998374, DequeueBufferDuration=995885, forgiveAmount=995885, totalDuration=8774282
+07-11 19:36:00.883 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=852380, DequeueBufferDuration=782969, forgiveAmount=782969, totalDuration=8641787
+07-11 19:36:00.903 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=898455, DequeueBufferDuration=840468, forgiveAmount=840468, totalDuration=8688264
+07-11 19:36:00.921 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=648143, DequeueBufferDuration=822656, forgiveAmount=648143, totalDuration=9325850
+07-11 19:36:00.933 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=841058, DequeueBufferDuration=3953594, forgiveAmount=841058, totalDuration=10963561
+07-11 19:36:00.949 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=149744, DequeueBufferDuration=5464219, forgiveAmount=149744, totalDuration=14641711
+07-11 19:36:00.966 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1031858, DequeueBufferDuration=1381615, forgiveAmount=1031858, totalDuration=8848836
+07-11 19:36:00.983 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=966882, DequeueBufferDuration=677240, forgiveAmount=677240, totalDuration=9028065
+07-11 19:36:01.000 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=895546, DequeueBufferDuration=982396, forgiveAmount=895546, totalDuration=8883334
+07-11 19:36:01.017 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1152491, DequeueBufferDuration=1053438, forgiveAmount=1053438, totalDuration=8494383
+07-11 19:36:01.033 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=871388, DequeueBufferDuration=898229, forgiveAmount=871388, totalDuration=8468734
+07-11 19:36:01.066 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=875432, DequeueBufferDuration=764531, forgiveAmount=764531, totalDuration=8359151
+07-11 19:36:01.102 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=692364, DequeueBufferDuration=809844, forgiveAmount=692364, totalDuration=8953345
+07-11 19:36:01.120 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1108892, DequeueBufferDuration=944219, forgiveAmount=944219, totalDuration=8252305
+07-11 19:36:01.135 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=755489, DequeueBufferDuration=3835521, forgiveAmount=755489, totalDuration=11986105
+07-11 19:36:01.149 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=899285, DequeueBufferDuration=5411719, forgiveAmount=899285, totalDuration=13538878
+07-11 19:36:01.165 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=556919, DequeueBufferDuration=2252292, forgiveAmount=556919, totalDuration=11199756
+07-11 19:36:01.183 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=698737, DequeueBufferDuration=520625, forgiveAmount=520625, totalDuration=9505169
+07-11 19:36:01.199 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1625540, DequeueBufferDuration=653229, forgiveAmount=653229, totalDuration=7395918
+07-11 19:36:01.216 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=649225, DequeueBufferDuration=802083, forgiveAmount=649225, totalDuration=8526030
+07-11 19:36:01.232 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=931973, DequeueBufferDuration=888854, forgiveAmount=888854, totalDuration=8573235
+07-11 19:36:01.249 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=699933, DequeueBufferDuration=944792, forgiveAmount=699933, totalDuration=9196904
+07-11 19:36:01.266 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1263506, DequeueBufferDuration=971510, forgiveAmount=971510, totalDuration=9219202
+07-11 19:36:01.283 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1249339, DequeueBufferDuration=662292, forgiveAmount=662292, totalDuration=8397119
+07-11 19:36:01.348 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=811958, DequeueBufferDuration=5487552, forgiveAmount=811958, totalDuration=12494677
+07-11 19:36:01.365 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1786942, DequeueBufferDuration=1003802, forgiveAmount=1003802, totalDuration=7332484
+07-11 19:36:01.399 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1339038, DequeueBufferDuration=862500, forgiveAmount=862500, totalDuration=7449869
+07-11 19:36:01.416 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1711923, DequeueBufferDuration=695417, forgiveAmount=695417, totalDuration=6768442
+07-11 19:36:01.433 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=714151, DequeueBufferDuration=526823, forgiveAmount=526823, totalDuration=8336214
+07-11 19:36:01.450 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=726526, DequeueBufferDuration=872865, forgiveAmount=726526, totalDuration=8223770
+07-11 19:36:01.467 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1376273, DequeueBufferDuration=1268281, forgiveAmount=1268281, totalDuration=9084821
+07-11 19:36:01.502 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=414105, DequeueBufferDuration=852396, forgiveAmount=414105, totalDuration=9823040
+07-11 19:36:01.520 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=554169, DequeueBufferDuration=681354, forgiveAmount=554169, totalDuration=9466453
+07-11 19:36:01.534 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=911186, DequeueBufferDuration=3267500, forgiveAmount=911186, totalDuration=11347784
+07-11 19:36:01.550 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=614805, DequeueBufferDuration=4379584, forgiveAmount=614805, totalDuration=12264713
+07-11 19:36:01.584 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=704451, DequeueBufferDuration=887448, forgiveAmount=704451, totalDuration=10904431
+07-11 19:36:01.633 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=459755, DequeueBufferDuration=998906, forgiveAmount=459755, totalDuration=10401219
+07-11 19:36:01.649 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=527211, DequeueBufferDuration=537031, forgiveAmount=527211, totalDuration=9019119
+07-11 19:36:01.682 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1495446, DequeueBufferDuration=570572, forgiveAmount=570572, totalDuration=7881586
+07-11 19:36:01.720 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1239904, DequeueBufferDuration=705886, forgiveAmount=705886, totalDuration=8426814
+07-11 19:36:01.748 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=880542, DequeueBufferDuration=4897135, forgiveAmount=880542, totalDuration=11111363
+07-11 19:36:01.766 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=590021, DequeueBufferDuration=527448, forgiveAmount=527448, totalDuration=8005656
+07-11 19:36:01.831 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=376478, DequeueBufferDuration=2518177, forgiveAmount=376478, totalDuration=11055117
+07-11 19:36:01.949 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1215798, DequeueBufferDuration=2302916, forgiveAmount=1215798, totalDuration=9491737
+07-11 19:36:01.967 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1154927, DequeueBufferDuration=4775677, forgiveAmount=1154927, totalDuration=11492698
+07-11 19:36:01.988 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=737158, DequeueBufferDuration=614323, forgiveAmount=614323, totalDuration=8569301
+07-11 19:36:01.999 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1079658, DequeueBufferDuration=1968125, forgiveAmount=1079658, totalDuration=8133131
+07-11 19:36:02.016 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1146371, DequeueBufferDuration=5904063, forgiveAmount=1146371, totalDuration=14337206
+07-11 19:36:02.033 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1222456, DequeueBufferDuration=1037604, forgiveAmount=1037604, totalDuration=6978169
+07-11 19:36:02.051 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=720127, DequeueBufferDuration=747552, forgiveAmount=720127, totalDuration=9474434
+07-11 19:36:02.083 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=548182, DequeueBufferDuration=2611459, forgiveAmount=548182, totalDuration=11071240
+07-11 19:36:02.099 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=208202, DequeueBufferDuration=5256667, forgiveAmount=208202, totalDuration=15239795
+07-11 19:36:02.133 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1338459, DequeueBufferDuration=553177, forgiveAmount=553177, totalDuration=8653365
+07-11 19:36:02.149 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=697836, DequeueBufferDuration=507031, forgiveAmount=507031, totalDuration=8237893
+07-11 19:36:02.166 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=852233, DequeueBufferDuration=626198, forgiveAmount=626198, totalDuration=7968548
+07-11 19:36:02.284 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1351988, DequeueBufferDuration=2075937, forgiveAmount=1351988, totalDuration=7495400
+07-11 19:36:02.300 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=609257, DequeueBufferDuration=5123177, forgiveAmount=609257, totalDuration=13018987
+07-11 19:36:02.316 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=606159, DequeueBufferDuration=1430937, forgiveAmount=606159, totalDuration=8730026
+07-11 19:36:02.349 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=161016, DequeueBufferDuration=685052, forgiveAmount=161016, totalDuration=10212968
+07-11 19:36:02.484 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=793316, DequeueBufferDuration=3314635, forgiveAmount=793316, totalDuration=10516545
+07-11 19:36:02.684 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=967113, DequeueBufferDuration=1980833, forgiveAmount=967113, totalDuration=8651764
+07-11 19:36:02.700 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=182441, DequeueBufferDuration=4444531, forgiveAmount=182441, totalDuration=12880796
+07-11 19:36:02.716 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=423763, DequeueBufferDuration=1071614, forgiveAmount=423763, totalDuration=8943464
+07-11 19:36:02.834 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=196708, DequeueBufferDuration=746407, forgiveAmount=196708, totalDuration=8913095
+07-11 19:36:02.852 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=867832, DequeueBufferDuration=549948, forgiveAmount=549948, totalDuration=7794563
+07-11 19:36:02.871 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=488911, DequeueBufferDuration=653646, forgiveAmount=488911, totalDuration=8614209
+07-11 19:36:02.883 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=760489, DequeueBufferDuration=3518281, forgiveAmount=760489, totalDuration=10702147
+07-11 19:36:02.899 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=807897, DequeueBufferDuration=5059010, forgiveAmount=807897, totalDuration=12088789
+07-11 19:36:02.916 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=768276, DequeueBufferDuration=1004948, forgiveAmount=768276, totalDuration=8184385
+07-11 19:36:05.001 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1043516, DequeueBufferDuration=10153281, forgiveAmount=1043516, totalDuration=18022239
+07-11 19:36:05.022 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1067838, DequeueBufferDuration=2653021, forgiveAmount=1067838, totalDuration=9878856
+07-11 19:36:05.035 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=897785, DequeueBufferDuration=2476458, forgiveAmount=897785, totalDuration=10233909
+07-11 19:36:05.051 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1578409, DequeueBufferDuration=2970625, forgiveAmount=1578409, totalDuration=11025317
+07-11 19:36:05.069 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=807545, DequeueBufferDuration=2022864, forgiveAmount=807545, totalDuration=11623921
+07-11 19:36:05.085 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=548662, DequeueBufferDuration=2128386, forgiveAmount=548662, totalDuration=15020332
+07-11 19:36:05.118 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=583029, DequeueBufferDuration=2499844, forgiveAmount=583029, totalDuration=12191234
+07-11 19:36:05.137 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=500186, DequeueBufferDuration=1828020, forgiveAmount=500186, totalDuration=11963898
+07-11 19:36:06.234 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=797935, DequeueBufferDuration=1227813, forgiveAmount=797935, totalDuration=9677203
+07-11 19:36:06.333 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1155896, DequeueBufferDuration=3286458, forgiveAmount=1155896, totalDuration=12748625
+07-11 19:36:06.467 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=36851, DequeueBufferDuration=564114, forgiveAmount=36851, totalDuration=13258903
+07-11 19:36:06.501 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=495459, DequeueBufferDuration=1447344, forgiveAmount=495459, totalDuration=11531999
+07-11 19:36:06.517 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=815329, DequeueBufferDuration=2042916, forgiveAmount=815329, totalDuration=11792154
+07-11 19:36:06.533 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=22537, DequeueBufferDuration=1655989, forgiveAmount=22537, totalDuration=13034457
+07-11 19:36:06.566 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=818974, DequeueBufferDuration=760572, forgiveAmount=760572, totalDuration=9523579
+07-11 19:36:06.583 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1275264, DequeueBufferDuration=1440938, forgiveAmount=1275264, totalDuration=9269524
+07-11 19:36:06.600 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1116923, DequeueBufferDuration=1149531, forgiveAmount=1116923, totalDuration=9302768
+07-11 19:36:06.633 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=116421, DequeueBufferDuration=698959, forgiveAmount=116421, totalDuration=14761428
+07-11 19:36:06.652 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=507405, DequeueBufferDuration=812709, forgiveAmount=507405, totalDuration=10330450
+07-11 19:36:06.667 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=506960, DequeueBufferDuration=950781, forgiveAmount=506960, totalDuration=10666080
+07-11 19:36:06.702 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=513839, DequeueBufferDuration=1755520, forgiveAmount=513839, totalDuration=11703781
+07-11 19:36:06.717 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=388305, DequeueBufferDuration=2510364, forgiveAmount=388305, totalDuration=12754848
+07-11 19:36:06.734 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=397220, DequeueBufferDuration=2833698, forgiveAmount=397220, totalDuration=15658372
+07-11 19:36:07.133 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=63910, DequeueBufferDuration=1374636, forgiveAmount=63910, totalDuration=12094732
+07-11 19:36:07.150 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=206890, DequeueBufferDuration=587031, forgiveAmount=206890, totalDuration=13978200
+07-11 19:36:07.166 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=629180, DequeueBufferDuration=1827292, forgiveAmount=629180, totalDuration=12236849
+07-11 19:36:07.183 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=577162, DequeueBufferDuration=1273177, forgiveAmount=577162, totalDuration=10551145
+07-11 19:36:07.200 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=257523, DequeueBufferDuration=785521, forgiveAmount=257523, totalDuration=11180578
+07-11 19:36:07.217 26736 26745 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1073206, DequeueBufferDuration=1365833, forgiveAmount=1073206, totalDuration=9469630
+07-11 19:36:07.400 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1239434, DequeueBufferDuration=876719, forgiveAmount=876719, totalDuration=8481399
+07-11 19:36:07.417 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=453628, DequeueBufferDuration=1459323, forgiveAmount=453628, totalDuration=10235921
+07-11 19:36:07.434 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1364315, DequeueBufferDuration=1574635, forgiveAmount=1364315, totalDuration=8874860
+07-11 19:36:07.451 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=469558, DequeueBufferDuration=792448, forgiveAmount=469558, totalDuration=9662968
+07-11 19:36:07.467 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=300406, DequeueBufferDuration=1443698, forgiveAmount=300406, totalDuration=10954501
+07-11 19:36:07.484 26736 28584 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1212121, DequeueBufferDuration=2022917, forgiveAmount=1212121, totalDuration=9483988
+07-11 19:36:07.846 26736 26765 E Finsky  : [281] [Counters] attempted to use a non-positive increment for: 4753
+07-11 19:36:07.887 26736 26772 E Finsky  : [285] [Counters] attempted to use a non-positive increment for: 4753
+07-11 19:36:08.138 26736 26770 E Finsky  : [284] [Counters] attempted to use a non-positive increment for: 4751
+07-11 19:36:08.164 26736 26770 E Finsky  : [284] [Counters] attempted to use a non-positive increment for: 4751
+07-11 19:36:08.191 26736 26736 E AbstractLogEventBuilder: The provided ProductIdOrigin 3 is not one of the process-level expected values: 1 or 2
+07-11 19:36:08.717 11784 28716 E Dck     : Could not get ProviderInfo when resolving the content provider authority. [CONTEXT service_id=289 ]
+07-11 19:36:11.671 26736 26736 E Finsky  : [2] Failed to load an Item com.android.chrome, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.671 26736 26736 E Finsky  : [2] Failed to load an Item com.android.vending, no data available.
+07-11 19:36:11.671 26736 26736 E Finsky  : [2] Failed to load an Item com.bbk.theme, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.671 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.maps, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.photos, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.tachyon, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.youtube.music, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.gm, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.youtube, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.docs, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.googleassistant, no data available.
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.nbu.files, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.googlequicksearchbox, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.672 26736 26736 E Finsky  : [2] Failed to load an Item com.google.ar.lens, no data available.
+07-11 19:36:11.673 26736 26736 E Finsky  : [2] Failed to load an Item com.vivo.easyshare, no data available.
+07-11 19:36:11.673 26736 26736 E Finsky  : [2] Failed to load an Item com.google.android.apps.nbu.paisa.user, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.673 26736 26736 E Finsky  : [2] Failed to load an Item com.lyfeos.app, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.673 26736 26736 E Finsky  : [2] Failed to load an Item com.whatsapp, missing shared fields: [], missing type-specific fields: [0, 0, 0, 0, 0, 0, 0, 0, 64]
+07-11 19:36:11.682 26736 26736 E Finsky  : [2] Required items [com.android.chrome, com.android.vending, com.bbk.theme, com.google.android.apps.maps, com.google.android.apps.photos, com.google.android.apps.tachyon, com.google.android.apps.youtube.music, com.google.android.gm, com.google.android.youtube, com.google.android.apps.docs, com.google.android.apps.googleassistant, com.google.android.apps.nbu.files, com.google.android.googlequicksearchbox, com.google.ar.lens, com.vivo.easyshare, com.google.android.apps.nbu.paisa.user, com.lyfeos.app, com.whatsapp]
+07-11 19:36:11.682 26736 26736 E Finsky  : [2] Requested items [[com.whatsapp, com.google.android.apps.maps, com.google.android.apps.tachyon, com.google.android.apps.youtube.music, com.vivo.easyshare, com.android.vending, com.google.android.apps.nbu.files, com.bbk.theme, com.android.chrome, com.google.android.apps.photos, com.google.android.googlequicksearchbox, com.google.ar.lens, com.google.android.apps.nbu.paisa.user, com.google.android.gm, com.lyfeos.app, com.google.android.apps.docs, com.google.android.youtube, com.google.android.apps.googleassistant]]
+07-11 19:36:11.682 26736 26736 E Finsky  : [2] Retrieved items [com.whatsapp, com.google.android.apps.maps, com.google.android.apps.tachyon, com.google.android.apps.youtube.music, com.vivo.easyshare, com.google.android.apps.nbu.files, com.bbk.theme, com.android.chrome, com.google.android.apps.photos, com.google.android.googlequicksearchbox, com.google.ar.lens, com.google.android.apps.nbu.paisa.user, com.google.android.gm, com.lyfeos.app, com.google.android.apps.docs, com.google.android.youtube, com.google.android.apps.googleassistant]
+07-11 19:36:11.707 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@3b267062
+07-11 19:36:11.720 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@c8e40d4b
+07-11 19:36:11.736 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@b6387cec
+07-11 19:36:11.753 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@499417f0
+07-11 19:36:11.769 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@b0512557
+07-11 19:36:11.791 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@9763aaa0
+07-11 19:36:11.809 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@49535ed4
+07-11 19:36:11.826 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@f2ebd0bd
+07-11 19:36:11.842 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@74f2ced
+07-11 19:36:11.856 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@ed35762d
+07-11 19:36:11.869 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@80862fe6
+07-11 19:36:11.881 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@f1ae5600
+07-11 19:36:11.894 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@e1a46f18
+07-11 19:36:11.908 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@5b10f9ff
+07-11 19:36:11.922 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@f17a7a9f
+07-11 19:36:11.934 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@a4c41fdb
+07-11 19:36:11.949 26736 26736 E Finsky  : [2] Found item in cache and manually updating: # bvzf@adf75fdf
+07-11 19:36:50.757 26736 26772 E Finsky  : [285] [Counters] attempted to use a non-positive increment for: 4752
+07-11 19:36:50.757 26736 26772 E Finsky  : [285] [Counters] attempted to use a non-positive increment for: 4753
+07-11 19:36:51.763 28973 29032 E AVManager: Cannot install JSI bindings for AV module because JS context is not available
+07-11 19:36:53.139 23338 23338 E NetworkErrorMessage: (REDACTED) Invalid connectivity state: %s
+07-11 19:39:23.525 29633 29674 E AVManager: Cannot install JSI bindings for AV module because JS context is not available
+07-11 19:39:24.489 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2234132, DequeueBufferDuration=4781823, forgiveAmount=2234132, totalDuration=6318141
+07-11 19:39:24.501 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2644347, DequeueBufferDuration=3157395, forgiveAmount=2644347, totalDuration=4098129
+07-11 19:39:24.517 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2304740, DequeueBufferDuration=8474583, forgiveAmount=2304740, totalDuration=11581302
+07-11 19:39:24.533 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1200531, DequeueBufferDuration=2459948, forgiveAmount=1200531, totalDuration=6039407
+07-11 19:39:24.550 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2147325, DequeueBufferDuration=3245885, forgiveAmount=2147325, totalDuration=5542902
+07-11 19:39:24.567 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2329632, DequeueBufferDuration=2715000, forgiveAmount=2329632, totalDuration=4132768
+07-11 19:39:24.584 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2456151, DequeueBufferDuration=2854844, forgiveAmount=2456151, totalDuration=4800772
+07-11 19:39:24.601 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1710187, DequeueBufferDuration=2820990, forgiveAmount=1710187, totalDuration=8257647
+07-11 19:39:24.618 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=328021, DequeueBufferDuration=1819635, forgiveAmount=328021, totalDuration=9978645
+07-11 19:39:24.636 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=557969, DequeueBufferDuration=2252448, forgiveAmount=557969, totalDuration=10633489
+07-11 19:39:24.685 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=237548, DequeueBufferDuration=2099947, forgiveAmount=237548, totalDuration=11506986
+07-11 19:39:24.702 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1255478, DequeueBufferDuration=677604, forgiveAmount=677604, totalDuration=6632855
+07-11 19:39:24.719 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=284142, DequeueBufferDuration=2084375, forgiveAmount=284142, totalDuration=9675415
+07-11 19:39:24.769 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=112237, DequeueBufferDuration=2028698, forgiveAmount=112237, totalDuration=11715265
+07-11 19:39:24.819 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=293222, DequeueBufferDuration=2399427, forgiveAmount=293222, totalDuration=10343922
+07-11 19:39:27.921 29677 29714 E Finsky  : [290] ItemStore: getItems RPC failed for item com.android.vending
+07-11 19:39:29.783 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1379349, DequeueBufferDuration=911093, forgiveAmount=911093, totalDuration=5618048
+07-11 19:39:31.265 29633 29642 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=1528677, DequeueBufferDuration=820208, forgiveAmount=820208, totalDuration=4840750
+07-11 19:39:44.737 29633 30074 E FilePhenotypeFlags: Config package com.google.android.gms.clearcut_client#com.lyfeos.app cannot use FILE backing without declarative registration. See go/phenotype-android-integration#phenotype for more information. This will lead to stale flags.
+07-11 19:39:44.773 29633 30074 E FilePhenotypeFlags: Config package com.google.android.gms.clearcut_client#com.lyfeos.app cannot use FILE backing without declarative registration. See go/phenotype-android-integration#phenotype for more information. This will lead to stale flags.
+07-11 19:39:44.773 29633 30074 E FilePhenotypeFlags: Config package com.google.android.gms.clearcut_client#com.lyfeos.app cannot use FILE backing without declarative registration. See go/phenotype-android-integration#phenotype for more information. This will lead to stale flags.
+07-11 19:40:03.682 29633 29648 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=344270, DequeueBufferDuration=806615, forgiveAmount=344270, totalDuration=8109377
+07-11 19:40:22.601 30131 30169 E Adreno-AppProfiles: Could not find QSPM HAL service
+07-11 19:40:23.343 30131 30131 E .android.gms.u: Invalid ID 0x00000000.
+07-11 19:40:23.930 30131 30143 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2409691, DequeueBufferDuration=5222656, forgiveAmount=2409691, totalDuration=10726139
+07-11 19:40:23.947 30131 30143 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=2095928, DequeueBufferDuration=21291407, forgiveAmount=2095928, totalDuration=25736528
+07-11 19:40:26.262 30131 30139 E OpenGLRenderer: JankTracker::calculateLegacyJank expectedDequeueDuration > 0 expectedDequeueDuration=23264, DequeueBufferDuration=13530209, forgiveAmount=23264, totalDuration=68202429
+07-11 19:40:34.377 30593 30680 E libprocessgroup: set_timerslack_ns write failed: Operation not permitted
+07-11 19:40:35.182 30593 30715 E bhvk    : Sync subscriptions not available
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: Failed to get service from broker. 
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2440)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Parcel.createException(Parcel.java:2424)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2407)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2349)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at bjsr.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):36)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at bjqn.y(:com.google.android.gms@262532029@26.25.32 (190400-944114241):143)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at biwn.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):42)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Handler.handleCallback(Handler.java:938)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at dazu.mY(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at dazu.dispatchMessage(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Looper.loopOnce(Looper.java:233)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.Looper.loop(Looper.java:334)
+07-11 19:40:35.432 30593 30751 E GoogleApiManager: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+07-11 19:40:35.770 30753 30778 E apters.calenda: hiddenapi: Accessing hidden field Ljava/util/Collections$SynchronizedCollection;->mutex:Ljava/lang/Object; (runtime_flags=0, domain=core-platform, api=max-target-o) from Lj$/util/DesugarCollections; (domain=app, TargetSdkVersion=30) using reflection: denied
+07-11 19:40:35.774 30753 30778 E apters.calenda: hiddenapi: Accessing hidden method Ljava/util/Collections$SynchronizedSet;-><init>(Ljava/util/Set;Ljava/lang/Object;)V (runtime_flags=0, domain=core-platform, api=max-target-o) from Lj$/util/DesugarCollections; (domain=app, TargetSdkVersion=30) using reflection: denied
+07-11 19:40:35.774 30753 30778 E apters.calenda: hiddenapi: Accessing hidden method Ljava/util/Collections$SynchronizedCollection;-><init>(Ljava/util/Collection;Ljava/lang/Object;)V (runtime_flags=0, domain=core-platform, api=max-target-o) from Lj$/util/DesugarCollections; (domain=app, TargetSdkVersion=30) using reflection: denied
+07-11 19:40:37.913 30791 30791 E YT.mlplayer: setDefaultLoudnessTargetPreferenceState
+07-11 19:40:38.018 30791 30791 E YT.mlplayer: setAudioDrc(enabled=1)
+07-11 19:40:38.075 30898 30956 E DocsApplication: from onCreate Completable for sending summary about blocked SyncRequests
+07-11 19:40:38.075 30898 30956 E DocsApplication: java.lang.IllegalStateException
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at kbj.h(PG:64)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at muj.a(PG:261)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at jjm.lambda$onCreate$2(PG:9)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at jjm.$r8$lambda$M-tqsz8QJK2QrqieVTlg-c3Lhbo(PG:1)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at jjh.run(PG:264)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at ajca.c(PG:13)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at aiyx.d(PG:3)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at ajcn.run(PG:3)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at aizh.run(PG:10)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at ajhw.run(PG:14)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at ajhw.call(PG:1)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at java.util.concurrent.FutureTask.run(FutureTask.java:328)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:323)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:40:38.075 30898 30956 E DocsApplication: 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: Failed to get service from broker. 
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2440)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Parcel.createException(Parcel.java:2424)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2407)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2349)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at bjsr.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):36)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at bjqn.y(:com.google.android.gms@262532029@26.25.32 (190400-944114241):143)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at biwn.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):42)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Handler.handleCallback(Handler.java:938)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at dazu.mY(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at dazu.dispatchMessage(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Looper.loopOnce(Looper.java:233)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.Looper.loop(Looper.java:334)
+07-11 19:40:38.616 30898 31012 E GoogleApiManager: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+07-11 19:40:38.907 30791 30843 E android.youtub: Attempt to load writable dex file: /data/user/0/com.google.android.youtube/app_pccache2/5/7637A808903E06DBB1373A174A3C4F96BA1CCBEF/pcam.jar
+07-11 19:40:39.316 11886 29739 E kami    : *~*~*~ Previous channel {0} was garbage collected without being shut down! ~*~*~*
+07-11 19:40:39.316 11886 29739 E kami    :     Make sure to call shutdown()/shutdownNow()
+07-11 19:40:39.316 11886 29739 E kami    : java.lang.RuntimeException: ManagedChannel allocation site
+07-11 19:40:39.316 11886 29739 E kami    : 	at kamh.<init>(:com.google.android.gms@262532029@26.25.32 (190400-944114241):21)
+07-11 19:40:39.316 11886 29739 E kami    : 	at kami.<init>(:com.google.android.gms@262532029@26.25.32 (190400-944114241):10)
+07-11 19:40:39.316 11886 29739 E kami    : 	at kamg.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):300)
+07-11 19:40:39.316 11886 29739 E kami    : 	at jzty.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.316 11886 29739 E kami    : 	at dcfl.h(:com.google.android.gms@262532029@26.25.32 (190400-944114241):154)
+07-11 19:40:39.316 11886 29739 E kami    : 	at hrtf.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):142)
+07-11 19:40:39.316 11886 29739 E kami    : 	at hfce.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):17)
+07-11 19:40:39.316 11886 29739 E kami    : 	at hoeu.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.316 11886 29739 E kami    : 	at hodv.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):19)
+07-11 19:40:39.316 11886 29739 E kami    : 	at hoew.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.316 11886 29739 E kami    : 	at bkmu.c(:com.google.android.gms@262532029@26.25.32 (190400-944114241):50)
+07-11 19:40:39.316 11886 29739 E kami    : 	at bkmu.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):66)
+07-11 19:40:39.316 11886 29739 E kami    : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:40:39.316 11886 29739 E kami    : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:40:39.316 11886 29739 E kami    : 	at bksm.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):8)
+07-11 19:40:39.316 11886 29739 E kami    : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:40:39.787 11784 28522 E kami    : *~*~*~ Previous channel {0} was garbage collected without being shut down! ~*~*~*
+07-11 19:40:39.787 11784 28522 E kami    :     Make sure to call shutdown()/shutdownNow()
+07-11 19:40:39.787 11784 28522 E kami    : java.lang.RuntimeException: ManagedChannel allocation site
+07-11 19:40:39.787 11784 28522 E kami    : 	at kamh.<init>(:com.google.android.gms@262532029@26.25.32 (190400-944114241):21)
+07-11 19:40:39.787 11784 28522 E kami    : 	at kami.<init>(:com.google.android.gms@262532029@26.25.32 (190400-944114241):10)
+07-11 19:40:39.787 11784 28522 E kami    : 	at kamg.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):300)
+07-11 19:40:39.787 11784 28522 E kami    : 	at jzty.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.787 11784 28522 E kami    : 	at bkgt.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):85)
+07-11 19:40:39.787 11784 28522 E kami    : 	at bkgk.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):107)
+07-11 19:40:39.787 11784 28522 E kami    : 	at bkgk.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.787 11784 28522 E kami    : 	at fght.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):994)
+07-11 19:40:39.787 11784 28522 E kami    : 	at gjng.d(:com.google.android.gms@262532029@26.25.32 (190400-944114241):142)
+07-11 19:40:39.787 11784 28522 E kami    : 	at gjnd.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):17)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hfcf.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):17)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoar.d(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):47)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoas.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hnzy.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):129)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoas.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoas.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):28)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hodf.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):28)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hodf.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocg.c(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoch.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):6)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hodv.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):73)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoch.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoci.g(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoaw.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoav.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoag.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):28)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoar.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.787 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.787 11784 28522 E kami    : 	at bkmu.c(:com.google.android.gms@262532029@26.25.32 (190400-944114241):50)
+07-11 19:40:39.787 11784 28522 E kami    : 	at bkmu.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):66)
+07-11 19:40:39.787 11784 28522 E kami    : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:40:39.787 11784 28522 E kami    : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:40:39.787 11784 28522 E kami    : 	at bksm.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):8)
+07-11 19:40:39.787 11784 28522 E kami    : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:40:39.789 11784 28522 E kami    : *~*~*~ Previous channel {0} was garbage collected without being shut down! ~*~*~*
+07-11 19:40:39.789 11784 28522 E kami    :     Make sure to call shutdown()/shutdownNow()
+07-11 19:40:39.789 11784 28522 E kami    : java.lang.RuntimeException: ManagedChannel allocation site
+07-11 19:40:39.789 11784 28522 E kami    : 	at kamh.<init>(:com.google.android.gms@262532029@26.25.32 (190400-944114241):21)
+07-11 19:40:39.789 11784 28522 E kami    : 	at kami.<init>(:com.google.android.gms@262532029@26.25.32 (190400-944114241):10)
+07-11 19:40:39.789 11784 28522 E kami    : 	at kamg.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):300)
+07-11 19:40:39.789 11784 28522 E kami    : 	at jzty.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.789 11784 28522 E kami    : 	at bkgt.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):85)
+07-11 19:40:39.789 11784 28522 E kami    : 	at bkgk.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):107)
+07-11 19:40:39.789 11784 28522 E kami    : 	at bkgk.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.789 11784 28522 E kami    : 	at fght.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):994)
+07-11 19:40:39.789 11784 28522 E kami    : 	at gjng.d(:com.google.android.gms@262532029@26.25.32 (190400-944114241):142)
+07-11 19:40:39.789 11784 28522 E kami    : 	at gjnd.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):17)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hfcf.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):17)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoar.d(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):47)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoas.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hnzy.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):129)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoas.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoas.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):28)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hodf.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):28)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hodf.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.p(:com.google.android.gms@262532029@26.25.32 (190400-944114241):15)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocg.c(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoch.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):6)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hodv.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):73)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoch.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoci.g(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoaw.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoav.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hocj.execute(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.f(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.m(:com.google.android.gms@262532029@26.25.32 (190400-944114241):101)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoag.s(:com.google.android.gms@262532029@26.25.32 (190400-944114241):28)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoar.e(:com.google.android.gms@262532029@26.25.32 (190400-944114241):3)
+07-11 19:40:39.789 11784 28522 E kami    : 	at hoat.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):53)
+07-11 19:40:39.789 11784 28522 E kami    : 	at bkmu.c(:com.google.android.gms@262532029@26.25.32 (190400-944114241):50)
+07-11 19:40:39.789 11784 28522 E kami    : 	at bkmu.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):66)
+07-11 19:40:39.789 11784 28522 E kami    : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-11 19:40:39.789 11784 28522 E kami    : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-11 19:40:39.789 11784 28522 E kami    : 	at bksm.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):8)
+07-11 19:40:39.789 11784 28522 E kami    : 	at java.lang.Thread.run(Thread.java:1572)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: Failed to get service from broker. 
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2440)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Parcel.createException(Parcel.java:2424)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2407)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2349)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at bjsr.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):36)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at bjqn.y(:com.google.android.gms@262532029@26.25.32 (190400-944114241):143)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at biwn.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):42)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Handler.handleCallback(Handler.java:938)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at dazu.mY(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at dazu.dispatchMessage(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Looper.loopOnce(Looper.java:233)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.Looper.loop(Looper.java:334)
+07-11 19:40:45.435 30593 30751 E GoogleApiManager: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: Failed to get service from broker. 
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2440)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Parcel.createException(Parcel.java:2424)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2407)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Parcel.readException(Parcel.java:2349)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at bjsr.a(:com.google.android.gms@262532029@26.25.32 (190400-944114241):36)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at bjqn.y(:com.google.android.gms@262532029@26.25.32 (190400-944114241):143)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at biwn.run(:com.google.android.gms@262532029@26.25.32 (190400-944114241):42)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Handler.handleCallback(Handler.java:938)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at dazu.mY(:com.google.android.gms@262532029@26.25.32 (190400-944114241):1)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at dazu.dispatchMessage(:com.google.android.gms@262532029@26.25.32 (190400-944114241):5)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Looper.loopOnce(Looper.java:233)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.Looper.loop(Looper.java:334)
+07-11 19:40:48.524 30898 31012 E GoogleApiManager: 	at android.os.HandlerThread.run(HandlerThread.java:67)

@@ -39,3 +39,9 @@ yarn-error.*
 .vercel
 
 .env
+
+# Generated Android build artifacts
+worklets-build/
+.cxx/
+android/build/
+android/app/build/

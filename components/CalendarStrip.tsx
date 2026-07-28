@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -270,6 +270,15 @@ export function CalendarStrip({ selectedDate, onSelectDate, earliestCreatedAt }:
     }
   }, [dates, selectedDate]);
 
+  // Auto-scroll the strip to bring the selected date into view every time
+  // selectedDate (or the derived dates array) changes. requestAnimationFrame
+  // defers the scroll until after the FlatList has committed its new data —
+  // critical for cross-month selections where `dates` itself changes.
+  useEffect(() => {
+    const frame = requestAnimationFrame(scrollToSelected);
+    return () => cancelAnimationFrame(frame);
+  }, [scrollToSelected]);
+
   const goToToday = () => {
     onSelectDate(new Date());
     const todayIdx = dates.findIndex((d) => isToday(d));
@@ -306,7 +315,7 @@ export function CalendarStrip({ selectedDate, onSelectDate, earliestCreatedAt }:
         contentContainerStyle={styles.listContent}
         initialScrollIndex={Math.max(0, selectedDate.getDate() - 3)}
         getItemLayout={(_, index) => ({ length: 56, offset: 56 * index, index })}
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={() => { setTimeout(scrollToSelected, 50); }}
         renderItem={({ item: d }) => {
           const selected = isSelected(d);
           const todayDate = isToday(d);
