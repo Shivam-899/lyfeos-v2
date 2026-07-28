@@ -40,23 +40,23 @@ type Step = "type" | "details";
 const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
   {
     label: "Fitness",
-    emojis: ["🏃", "💪", "🏋️", "🚴", "🏊", "🤸", "⚽", "🎾", "🏸", "🥊", "🧗", "🏅"],
+    emojis: ["🏃", "💪", "🏋️", "🚴", "🏊", "🤸", "⚽", "🎾", "🏸", "🥊", "🧗", "🏅", "🤾", "🚣", "⛹️", "🥋", "🛼", "🏄"],
   },
   {
     label: "Health",
-    emojis: ["💊", "💧", "🍎", "🥗", "🥦", "😴", "🩺", "🌡️", "🫀", "🧬", "🍵", "🫁"],
+    emojis: ["💊", "💧", "🍎", "🥗", "🥦", "😴", "🩺", "🌡️", "🫀", "🧬", "🍵", "🫁", "🩹", "🦷", "👁️", "🧘", "🥛", "🍏"],
   },
   {
     label: "Mind",
-    emojis: ["📚", "🧠", "🎯", "🎨", "🎵", "🌿", "📝", "💡", "🧩", "🎭", "🎲", "🔬"],
+    emojis: ["📚", "🧠", "🎯", "🎨", "🎵", "🌿", "📝", "💡", "🧩", "🎭", "🎲", "🔬", "🗣️", "♟️", "🖊️", "📖", "🧮", "🪄"],
   },
   {
     label: "Productivity",
-    emojis: ["⏰", "✅", "📋", "🗓️", "💼", "📊", "🚀", "💻", "✍️", "🔑", "📱", "🎙️"],
+    emojis: ["⏰", "✅", "📋", "🗓️", "💼", "📊", "🚀", "💻", "✍️", "🔑", "📱", "🎙️", "📈", "🗂️", "⌨️", "📞", "🖥️", "🗒️"],
   },
   {
     label: "Lifestyle",
-    emojis: ["☕", "🌙", "🌅", "🏠", "🌱", "🎁", "🛁", "🐕", "🌸", "❤️", "🍳", "🧹"],
+    emojis: ["☕", "🌙", "🌅", "🏠", "🌱", "🎁", "🛁", "🐕", "🌸", "❤️", "🍳", "🧹", "🧺", "🛒", "🚿", "🪴", "🎧", "🧑‍🍳"],
   },
 ];
 
@@ -85,6 +85,8 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
   const [targetHr, setTargetHr] = useState(String(Math.floor((editHabit?.targetTimeSeconds ?? 0) / 3600)));
   const [targetMin, setTargetMin] = useState(String(Math.floor(((editHabit?.targetTimeSeconds ?? 0) % 3600) / 60)));
   const [selectedDays, setSelectedDays] = useState<number[]>(editHabit?.weekDays ?? [0, 1, 2, 3, 4, 5, 6]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeEmojiCategory, setActiveEmojiCategory] = useState(EMOJI_CATEGORIES[0].label);
 
   useEffect(() => {
     if (visible) {
@@ -361,16 +363,84 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
                         ))}
                       </ScrollView>
 
-                      {/* Emoji picker — categorized sections */}
+                      {/* Emoji picker — collapsed preview / expanded inline picker */}
                       <Text style={[styles.label, { color: colors.foreground }]}>Emoji</Text>
-                      {EMOJI_CATEGORIES.map((cat) => (
-                        <View key={cat.label} style={styles.emojiCat}>
-                          <Text style={[styles.emojiCatLabel, { color: colors.mutedForeground }]}>{cat.label}</Text>
+
+                      {!showEmojiPicker ? (
+                        // ── Collapsed: compact preview row ──────────────────────
+                        <TouchableOpacity
+                          style={[styles.emojiPreviewRow, { borderColor: colors.border, backgroundColor: colors.background }]}
+                          onPress={() => {
+                            if (Platform.OS !== "web") Haptics.selectionAsync();
+                            setShowEmojiPicker(true);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.emojiPreviewCircle, { backgroundColor: selectedColor.bg }]}>
+                            <Text style={styles.emojiPreviewText}>{emoji}</Text>
+                          </View>
+                          <Text style={[styles.emojiPreviewLabel, { color: colors.mutedForeground }]}>Tap to change emoji</Text>
+                          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      ) : (
+                        // ── Expanded: category tabs + emoji grid ─────────────────
+                        <View style={[styles.emojiPickerExpanded, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                          {/* Header row: title + close button */}
+                          <View style={styles.emojiPickerHeader}>
+                            <Text style={[styles.emojiPickerTitle, { color: colors.foreground }]}>Pick an emoji</Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                if (Platform.OS !== "web") Haptics.selectionAsync();
+                                setShowEmojiPicker(false);
+                              }}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="close-circle" size={22} color={colors.mutedForeground} />
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Category tabs — horizontal scroll */}
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.emojiCategoryTabRow}
+                            contentContainerStyle={{ gap: 6 }}
+                          >
+                            {EMOJI_CATEGORIES.map((cat) => {
+                              const isActive = activeEmojiCategory === cat.label;
+                              return (
+                                <TouchableOpacity
+                                  key={cat.label}
+                                  style={[
+                                    styles.emojiCategoryTab,
+                                    {
+                                      backgroundColor: isActive ? colors.primary : colors.muted,
+                                      borderColor: isActive ? colors.primary : "transparent",
+                                    },
+                                  ]}
+                                  onPress={() => {
+                                    if (Platform.OS !== "web") Haptics.selectionAsync();
+                                    setActiveEmojiCategory(cat.label);
+                                  }}
+                                >
+                                  <Text style={[styles.emojiCategoryTabText, { color: isActive ? "#fff" : colors.mutedForeground }]}>
+                                    {cat.label}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </ScrollView>
+
+                          {/* Emoji grid for active category only */}
                           <View style={styles.emojiGrid}>
-                            {cat.emojis.map((e) => (
+                            {(EMOJI_CATEGORIES.find((c) => c.label === activeEmojiCategory)?.emojis ?? []).map((e) => (
                               <TouchableOpacity
                                 key={e}
-                                onPress={() => setEmoji(e)}
+                                onPress={() => {
+                                  if (Platform.OS !== "web") Haptics.selectionAsync();
+                                  setEmoji(e);
+                                  setShowEmojiPicker(false);
+                                }}
                                 style={[
                                   styles.emojiBtn,
                                   emoji === e && { backgroundColor: selectedColor.bg },
@@ -381,7 +451,7 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
                             ))}
                           </View>
                         </View>
-                      ))}
+                      )}
 
                       {/* Frequency presets */}
                       <Text style={[styles.label, { color: colors.foreground }]}>Repeat</Text>
@@ -616,17 +686,66 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  // Categorized emoji picker
-  emojiCat: {
+  // Emoji picker — collapsed preview row
+  emojiPreviewRow: {
+    flexDirection: "row" as const,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 20,
+    gap: 12,
+  },
+  emojiPreviewCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emojiPreviewText: {
+    fontSize: 28,
+  },
+  emojiPreviewLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500" as const,
+  },
+  // Emoji picker — expanded inline view
+  emojiPickerExpanded: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 20,
+  },
+  emojiPickerHeader: {
+    flexDirection: "row" as const,
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
-  emojiCatLabel: {
-    fontSize: 11,
+  emojiPickerTitle: {
+    fontSize: 13,
     fontWeight: "700" as const,
     textTransform: "uppercase" as const,
     letterSpacing: 0.5,
-    marginBottom: 8,
   },
+  // Category tabs
+  emojiCategoryTabRow: {
+    marginBottom: 12,
+  },
+  emojiCategoryTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  emojiCategoryTabText: {
+    fontSize: 13,
+    fontWeight: "600" as const,
+  },
+  // Shared emoji grid + button
   emojiGrid: {
     flexDirection: "row",
     flexWrap: "wrap" as const,

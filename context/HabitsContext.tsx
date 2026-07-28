@@ -33,19 +33,24 @@ export const HABIT_COLORS: HabitColor[] = [
   { id: "red", bg: "#FEE2E2", icon: "#EF4444" },
 ];
 
-// Expanded emoji library (~60 emojis) — grouped by category in AddHabitSheet UI.
+// Expanded emoji library (~90 emojis) — grouped by category in AddHabitSheet UI.
 // Stored as a flat array for backwards compatibility with existing habits.
 export const HABIT_EMOJIS = [
   // Fitness
   "🏃", "💪", "🏋️", "🚴", "🏊", "🤸", "⚽", "🎾", "🏸", "🥊", "🧗", "🏅",
+  "🤾", "🚣", "⛹️", "🥋", "🛼", "🏄",
   // Health
   "💊", "💧", "🍎", "🥗", "🥦", "😴", "🩺", "🌡️", "🫀", "🧬", "🍵", "🫁",
+  "🩹", "🦷", "👁️", "🧘", "🥛", "🍏",
   // Mind
   "📚", "🧠", "🎯", "🎨", "🎵", "🌿", "📝", "💡", "🧩", "🎭", "🎲", "🔬",
+  "🗣️", "♟️", "🖊️", "📖", "🧮", "🪄",
   // Productivity
   "⏰", "✅", "📋", "🗓️", "💼", "📊", "🚀", "💻", "✍️", "🔑", "📱", "🎙️",
+  "📈", "🗂️", "⌨️", "📞", "🖥️", "🗒️",
   // Lifestyle
   "☕", "🌙", "🌅", "🏠", "🌱", "🎁", "🛁", "🐕", "🌸", "❤️", "🍳", "🧹",
+  "🧺", "🛒", "🚿", "🪴", "🎧", "🧑‍🍳",
 ];
 
 export interface Habit {
