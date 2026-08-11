@@ -175,13 +175,19 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     return Array.from(map.values()).sort((a, b) => b.sessions - a.sessions);
   }, [activityLogs]);
 
+  // ── FIX: include step-derived calories in addition to workout calories ──────
   const getDailyActivityCalories = useCallback((date: string) => {
-    return activityLogs.filter(l => l.date === date).reduce((s, l) => s + l.caloriesBurned, 0);
-  }, [activityLogs]);
+    const workoutCals = activityLogs.filter(l => l.date === date).reduce((s, l) => s + l.caloriesBurned, 0);
+    const stepEntry   = stepsLogs.find(s => s.date === date);
+    return workoutCals + (stepEntry?.caloriesBurned ?? 0);
+  }, [activityLogs, stepsLogs]);
 
+  // ── FIX: include step-derived active minutes in addition to workout minutes ─
   const getDailyActivityMinutes = useCallback((date: string) => {
-    return activityLogs.filter(l => l.date === date).reduce((s, l) => s + l.duration, 0);
-  }, [activityLogs]);
+    const workoutMins = activityLogs.filter(l => l.date === date).reduce((s, l) => s + l.duration, 0);
+    const stepEntry   = stepsLogs.find(s => s.date === date);
+    return workoutMins + (stepEntry?.activeMinutes ?? 0);
+  }, [activityLogs, stepsLogs]);
 
   const getBestStreak = useCallback(() => {
     if (activityLogs.length === 0) return 0;
