@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  ActivityIndicator,
   Easing,
   KeyboardAvoidingView,
   Modal,
@@ -413,6 +414,7 @@ export function ActivityTracker() {
   // ── Toast ──────────────────────────────────────────────────────────────────
   const [toastMsg, setToastMsg] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
+  const [isLoadingAd, setIsLoadingAd] = useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Pulse anim for loading screen ─────────────────────────────────────────
@@ -534,6 +536,9 @@ export function ActivityTracker() {
   // ── Handle Log This Session ────────────────────────────────────────────────
   const handleLogSession = async () => {
     if (!analysis) return;
+
+    let canLog = false;
+
     // Check daily activity log limit (1 free per day, then requires watching a rewarded ad)
     try {
       const todayDate = new Date().toDateString();
@@ -546,9 +551,17 @@ export function ActivityTracker() {
         await AsyncStorage.setItem('lastActivityLogDate', todayDate);
         await AsyncStorage.setItem('activityLogCount', '1');
         updateActivityLimitDisplay(); // reflect updated count immediately
+        canLog = true;
       } else {
         // Need to watch rewarded ad for subsequent logs
-        const watched = await showRewardedAd();
+        let watched = false;
+        try {
+          watched = await showRewardedAd((loading) => setIsLoadingAd(loading));
+        } catch (adErr) {
+          console.log('Rewarded ad error:', adErr);
+          watched = false;
+        }
+
         if (!watched) {
           Alert.alert(
             "Daily Limit Reached",
@@ -559,11 +572,19 @@ export function ActivityTracker() {
         }
         await AsyncStorage.setItem('activityLogCount', String(count + 1));
         updateActivityLimitDisplay(); // reflect updated count immediately
+        canLog = true;
       }
     } catch (e) {
-      // Silently fail — never block the user from logging
-      console.log('Activity log limit check failed (non-fatal):', e);
+      console.log('Activity log limit check failed:', e);
+      Alert.alert(
+        "Error",
+        "Unable to verify activity log limit. Please try again.",
+        [{ text: "OK", style: "cancel" }]
+      );
+      return;
     }
+
+    if (!canLog) return;
 
     const log = {
       date: today,
@@ -1180,9 +1201,19 @@ export function ActivityTracker() {
                         : '📺 Watch an ad to log more activities today'}
                     </Text>
                   )}
-                  <TouchableOpacity style={[styles.logBtn, { backgroundColor: ACCENT }]} onPress={handleLogSession}>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                    <Text style={styles.logBtnText}>✅ Log This Session</Text>
+                  <TouchableOpacity
+                    style={[styles.logBtn, { backgroundColor: ACCENT }, isLoadingAd && { opacity: 0.6 }]}
+                    disabled={isLoadingAd}
+                    onPress={handleLogSession}
+                  >
+                    {isLoadingAd ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                        <Text style={styles.logBtnText}>✅ Log This Session</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.editLink} onPress={() => setResultSheet(false)}>
                     <Text style={styles.editLinkText}>✏️ Edit Details</Text>

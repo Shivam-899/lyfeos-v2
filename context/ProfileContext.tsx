@@ -34,6 +34,7 @@ interface ProfileContextType {
   userName: string;
   setUserName: (name: string) => void;
   joinDate: string;
+  isProfileLoaded: boolean;
   habitGoal: number;
   setHabitGoal: (v: number) => void;
   activityGoal: number;
@@ -64,6 +65,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserNameState] = useState("LyfeOS User");
   // Bug 15 fix: default to empty string, set from storage or generate+save in effect
   const [joinDate, setJoinDate] = useState("");
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const [habitGoal, setHabitGoalState] = useState(5);
   const [activityGoal, setActivityGoalState] = useState(30);
   const [healthProfile, setHealthProfileState] = useState<HealthProfile>(DEFAULT_HEALTH);
@@ -96,6 +98,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setRemindersState(remind);
       // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
       setPreferencesState({ ...DEFAULT_PREFS, ...prefs });
+      setIsProfileLoaded(true);
     })();
   }, []);
 
@@ -131,7 +134,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ProfileContext.Provider value={{
-      userName, setUserName, joinDate,
+      userName, setUserName, joinDate, isProfileLoaded,
       habitGoal, setHabitGoal,
       activityGoal, setActivityGoal,
       healthProfile, setHealthProfile,

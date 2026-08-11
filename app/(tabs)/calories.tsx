@@ -1185,6 +1185,7 @@ export default function CaloriesScreen() {
   const [showProteinModal, setShowProteinModal] = useState(false);
   const [showAllNutrients, setShowAllNutrients] = useState(false);
   const [searchesRemaining, setSearchesRemaining] = useState<number | null>(null);
+  const [isLoadingAd, setIsLoadingAd] = useState(false);
 
   const [textSearchQuery, setTextSearchQuery] = useState<string | undefined>(undefined);
 
@@ -1303,7 +1304,7 @@ export default function CaloriesScreen() {
         setShowTextSearch(true);
       } else {
         // Limit reached — show rewarded ad to unlock
-        const watched = await showRewardedAd();
+        const watched = await showRewardedAd((loading) => setIsLoadingAd(loading));
         if (watched) {
           updateSearchLimitDisplay(); // ad watched, indicator stays at 0
           if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
@@ -1399,9 +1400,12 @@ export default function CaloriesScreen() {
                 </Text>
                 <Text style={styles.activityBannerSub}>Log your recovery meal now 🍽️</Text>
               </View>
-              <TouchableOpacity style={styles.activityBannerBtn}
+              <TouchableOpacity style={[styles.activityBannerBtn, isLoadingAd && { opacity: 0.6 }]}
+                disabled={isLoadingAd}
                 onPress={() => { handleOpenSearch(); setPostActivityBanner(null); }}>
-                <Text style={styles.activityBannerBtnText}>Log Meal</Text>
+                {isLoadingAd
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={styles.activityBannerBtnText}>Log Meal</Text>}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setPostActivityBanner(null)} style={{ paddingLeft: 8 }}>
                 <Ionicons name="close" size={16} color="#6B7280" />
@@ -1516,8 +1520,14 @@ export default function CaloriesScreen() {
                 <Text style={[styles.emptyStateText, { color: MUTED, marginBottom: 12 }]}>
                   Log your first meal to start tracking:{"\n"}• Fiber  • Iron  • Calcium{"\n"}• Potassium  • Vitamin D  • Vitamin B12
                 </Text>
-                <TouchableOpacity style={[styles.logMealBtn, { backgroundColor: ACCENT }]} onPress={() => handleOpenSearch()}>
-                  <Text style={styles.logMealBtnText}>Log Food</Text>
+                <TouchableOpacity
+                  style={[styles.logMealBtn, { backgroundColor: ACCENT }, isLoadingAd && { opacity: 0.6 }]}
+                  disabled={isLoadingAd}
+                  onPress={() => handleOpenSearch()}
+                >
+                  {isLoadingAd
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={styles.logMealBtnText}>Log Food</Text>}
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1652,8 +1662,14 @@ export default function CaloriesScreen() {
                 <Ionicons name="camera-outline" size={18} color="#fff" />
                 <Text style={styles.scanBtnText}>Scan</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.iconBtn, { backgroundColor: ACCENT + "22", borderColor: ACCENT + "44" }]} onPress={() => { setTextSearchQuery(undefined); handleOpenSearch(); }}>
-                <Ionicons name="search-outline" size={16} color={ACCENT} />
+              <TouchableOpacity
+                style={[styles.iconBtn, { backgroundColor: ACCENT + "22", borderColor: ACCENT + "44" }, isLoadingAd && { opacity: 0.6 }]}
+                disabled={isLoadingAd}
+                onPress={() => { setTextSearchQuery(undefined); handleOpenSearch(); }}
+              >
+                {isLoadingAd
+                  ? <ActivityIndicator size="small" color={ACCENT} />
+                  : <Ionicons name="search-outline" size={16} color={ACCENT} />}
               </TouchableOpacity>
               <TouchableOpacity style={[styles.iconBtn, { backgroundColor: MUTED + "22", borderColor: MUTED + "44" }]} onPress={() => setShowManualEntry(true)}>
                 <Ionicons name="create-outline" size={16} color={MUTED} />
@@ -1677,9 +1693,15 @@ export default function CaloriesScreen() {
                   <Ionicons name="camera-outline" size={14} color="#fff" />
                   <Text style={styles.emptyActionBtnText}>Scan Photo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.emptyActionBtn, { backgroundColor: ACCENT }]} onPress={() => { setTextSearchQuery(undefined); handleOpenSearch(); }}>
-                  <Ionicons name="search-outline" size={14} color="#fff" />
-                  <Text style={styles.emptyActionBtnText}>Search Food</Text>
+                <TouchableOpacity
+                  style={[styles.emptyActionBtn, { backgroundColor: ACCENT }, isLoadingAd && { opacity: 0.6 }]}
+                  disabled={isLoadingAd}
+                  onPress={() => { setTextSearchQuery(undefined); handleOpenSearch(); }}
+                >
+                  {isLoadingAd
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="search-outline" size={14} color="#fff" />}
+                  {!isLoadingAd && <Text style={styles.emptyActionBtnText}>Search Food</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.emptyActionBtn, { backgroundColor: MUTED + "55" }]} onPress={() => setShowManualEntry(true)}>
                   <Ionicons name="create-outline" size={14} color="#fff" />

@@ -387,19 +387,25 @@ function ScrollableWeekStrip({
   habits,
   getHabitLog,
   joinDate,
+  isProfileLoaded = true,
 }: {
   habits: any[];
   getHabitLog: (id: string, date: string) => any;
   joinDate: string;
+  isProfileLoaded?: boolean;
 }) {
   const theme = useAppTheme();
   const flatRef = useRef<FlatList>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [monthLabel, setMonthLabel] = useState("");
   const todayStr = getLocalDateString();
+  const hasScrolledOnMountRef = useRef(false);
+  const selectScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Build day array: from max(joinDate, 90 days ago) to today + 6 days
+  // Gated on isProfileLoaded to prevent double-computation / flash during AsyncStorage load
   const days = useMemo(() => {
+    if (!isProfileLoaded) return [];
     const result: { date: string; d: Date }[] = [];
     const ninetyAgo = new Date();
     ninetyAgo.setDate(ninetyAgo.getDate() - 89);
@@ -418,27 +424,44 @@ function ScrollableWeekStrip({
       cur.setDate(cur.getDate() + 1);
     }
     return result;
-  }, [joinDate]);
+  }, [joinDate, isProfileLoaded]);
 
   const todayIndex = useMemo(
     () => days.findIndex((d) => d.date === todayStr),
     [days, todayStr],
   );
 
+  const performMountScroll = useCallback(() => {
+    if (todayIndex < 0 || hasScrolledOnMountRef.current) return;
+    const screenW = Dimensions.get("window").width;
+    const offset = Math.max(
+      0,
+      todayIndex * ITEM_WIDTH - screenW + ITEM_WIDTH * 3 + 32,
+    );
+    try {
+      flatRef.current?.scrollToOffset({ offset, animated: false });
+      hasScrolledOnMountRef.current = true;
+    } catch (e) { }
+  }, [todayIndex]);
+
   // Scroll so today is visible near right edge on mount
   useEffect(() => {
+    hasScrolledOnMountRef.current = false;
     if (todayIndex >= 0) {
       const timer = setTimeout(() => {
-        const screenW = Dimensions.get("window").width;
-        const offset = Math.max(
-          0,
-          todayIndex * ITEM_WIDTH - screenW + ITEM_WIDTH * 3 + 32,
-        );
-        flatRef.current?.scrollToOffset({ offset, animated: false });
-      }, 180);
+        performMountScroll();
+        if (!hasScrolledOnMountRef.current) {
+          setTimeout(performMountScroll, 120);
+        }
+      }, 120);
       return () => clearTimeout(timer);
     }
-  }, [todayIndex]);
+  }, [todayIndex, performMountScroll]);
+
+  // Cancel any pending onSelectDate scroll if the component unmounts
+  useEffect(() => () => {
+    if (selectScrollTimerRef.current !== null) clearTimeout(selectScrollTimerRef.current);
+  }, []);
 
   const checkCompleted = useCallback(
     (dateStr: string) => {
@@ -494,6 +517,18 @@ function ScrollableWeekStrip({
           offset: ITEM_WIDTH * index,
           index,
         })}
+        onContentSizeChange={(w) => {
+          if (!hasScrolledOnMountRef.current && todayIndex >= 0) {
+            const screenW = Dimensions.get("window").width;
+            const targetOffset = Math.max(
+              0,
+              todayIndex * ITEM_WIDTH - screenW + ITEM_WIDTH * 3 + 32,
+            );
+            if (w >= targetOffset) {
+              performMountScroll();
+            }
+          }
+        }}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig.current}
         onScrollToIndexFailed={() => { }}
@@ -541,7 +576,7 @@ function ScrollableWeekStrip({
                       : isToday
                         ? "#FF6B35"
                         : isFuture
-                          ? theme.BORDER
+                          ? theme.SUBTEXT
                           : theme.TEXT,
                   }}
                 >
@@ -567,15 +602,23 @@ function ScrollableWeekStrip({
         habits={habits}
         getHabitLog={getHabitLog}
         onSelectDate={(date) => {
-          setCalOpen(false);
+          // Capture idx immediately so it isn't stale inside the deferred callback
           const idx = days.findIndex((d) => d.date === date);
-          if (idx >= 0 && flatRef.current) {
-            const screenW = Dimensions.get("window").width;
-            flatRef.current.scrollToOffset({
-              offset: Math.max(0, idx * ITEM_WIDTH - screenW / 2),
-              animated: true,
-            });
-          }
+          setCalOpen(false);
+          // Defer the scroll until after the Modal slide-down animation finishes;
+          // firing scrollToOffset synchronously while the Modal is unmounting causes
+          // the native scroll command to be silently dropped by the UI thread.
+          if (selectScrollTimerRef.current !== null) clearTimeout(selectScrollTimerRef.current);
+          selectScrollTimerRef.current = setTimeout(() => {
+            selectScrollTimerRef.current = null;
+            if (idx >= 0 && flatRef.current) {
+              const screenW = Dimensions.get("window").width;
+              flatRef.current.scrollToOffset({
+                offset: Math.max(0, idx * ITEM_WIDTH - screenW / 2),
+                animated: true,
+              });
+            }
+          }, 200);
         }}
       />
     </View>
@@ -837,7 +880,7 @@ export default function HomeScreen() {
   const { getDayStats, getWaterForDate, dailyGoal } = useCalories();
   const { getDailyActivityCalories, getDailyActivityMinutes } = useActivity();
   // Change 1 & 4: pull userName, reminders, joinDate from profile
-  const { userName, reminders, joinDate } = useProfile();
+  const { userName, reminders, joinDate, isProfileLoaded } = useProfile();
 
   // State
   const [fabOpen, setFabOpen] = useState(false);
@@ -1166,6 +1209,7 @@ export default function HomeScreen() {
             habits={habits}
             getHabitLog={getHabitLog}
             joinDate={joinDate}
+            isProfileLoaded={isProfileLoaded}
           />
         </View>
 

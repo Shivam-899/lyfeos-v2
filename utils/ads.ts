@@ -64,9 +64,34 @@ export const showInterstitialAd = (): Promise<void> => {
     });
 };
 
-// Load and show rewarded ad
-export const showRewardedAd = (): Promise<boolean> => {
+// ── Rewarded-ad single-flight guard ──────────────────────────────────────────
+// Prevents multiple concurrent ad instances being created (e.g. from rapid taps).
+// Any call to showRewardedAd() while a load/show is already in flight is a no-op.
+let _isRewardedAdInFlight = false;
+
+// Load and show rewarded ad.
+// onLoadingChange?: called with true when load starts, false on every terminal path.
+export const showRewardedAd = (
+    onLoadingChange?: (isLoading: boolean) => void,
+): Promise<boolean> => {
+    // Single-flight guard: silently ignore if already in progress
+    if (_isRewardedAdInFlight) return Promise.resolve(false);
+
+    _isRewardedAdInFlight = true;
+    onLoadingChange?.(true);
+
     return new Promise((resolve) => {
+        let earnedReward = false;
+        let settled = false;
+
+        const finish = (result: boolean) => {
+            if (settled) return;
+            settled = true;
+            _isRewardedAdInFlight = false;
+            onLoadingChange?.(false);
+            resolve(result);
+        };
+
         try {
             const rewarded = RewardedAd.createForAdRequest(AD_UNIT_IDS.rewarded, {
                 requestNonPersonalizedAdsOnly: false,
@@ -76,25 +101,26 @@ export const showRewardedAd = (): Promise<boolean> => {
                 try {
                     rewarded.show();
                 } catch (e) {
-                    resolve(false);
+                    finish(false);
                 }
             });
 
             rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
-                resolve(true);
+                earnedReward = true;
+                finish(true);
             });
 
             rewarded.addAdEventListener(AdEventType.CLOSED, () => {
-                resolve(false);
+                finish(earnedReward);
             });
 
             rewarded.addAdEventListener(AdEventType.ERROR, () => {
-                resolve(false);
+                finish(false);
             });
 
             rewarded.load();
         } catch (e) {
-            resolve(false);
+            finish(false);
         }
     });
 };
