@@ -23,6 +23,7 @@ import { ActivityTracker } from "@/components/ActivityTracker";
 import { CalendarStrip } from "@/components/CalendarStrip";
 import { HabitTile } from "@/components/HabitTile";
 import { Habit, useHabits } from "@/context/HabitsContext";
+import { useActivity } from "@/context/ActivityContext";
 import { AppTheme, useAppTheme } from "@/hooks/useAppTheme";
 import { useLocalSearchParams } from "expo-router";
 import { getLocalDateString } from "@/utils/date";
@@ -272,6 +273,9 @@ export default function HabitsScreen() {
     setShowAddSheet(true);
   };
 
+  const { activityLogs, getStepsForDate } = useActivity();
+  const hasActivityToday = activityLogs.some((log) => log.date === todayStr) || getStepsForDate(todayStr) !== null;
+
   return (
     <View style={[styles.container, { backgroundColor: BG }]}>
       <StatusBar style={isDark ? "light" : "dark"} backgroundColor={BG} />
@@ -326,9 +330,11 @@ export default function HabitsScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.motivationalSubtitle}>
-          {getMotivationalSubtitle()}
-        </Text>
+        {!hasActivityToday && (
+          <Text style={styles.motivationalSubtitle}>
+            {getMotivationalSubtitle()}
+          </Text>
+        )}
 
         {/* ── Calendar strip (only for rituals tab) ──────────────────── */}
         {activeTab === "rituals" && (
