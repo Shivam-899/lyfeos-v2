@@ -17,7 +17,6 @@
       "supportsTablet": false
     },
     "android": {
-      "versionCode": 33,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -54,6 +53,12 @@
         {
           "androidAppId": "ca-app-pub-7658674851177824~1838662014",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
+        "./plugins/withKotlinVersion",
+        {
+          "kotlinVersion": "2.0.21"
         }
       ]
     ],
