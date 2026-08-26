@@ -1,6 +1,6 @@
 const { withProjectBuildGradle, withGradleProperties } = require("expo/config-plugins");
 
-const withKotlinVersion = (config, { kotlinVersion = "2.0.21" } = {}) => {
+const withKotlinVersion = (config, { kotlinVersion = "2.1.20" } = {}) => {
   config = withGradleProperties(config, (config) => {
     config.modResults = config.modResults.filter(
       (item) => item.type !== "property" || item.key !== "android.kotlinVersion"
@@ -22,6 +22,11 @@ const withKotlinVersion = (config, { kotlinVersion = "2.0.21" } = {}) => {
         contents = contents.replace(
           /buildscript\s*\{/,
           `buildscript {\n    ext.kotlinVersion = '${kotlinVersion}'`
+        );
+      } else {
+        contents = contents.replace(
+          /ext\.kotlinVersion\s*=\s*['"].*['"]/,
+          `ext.kotlinVersion = '${kotlinVersion}'`
         );
       }
 

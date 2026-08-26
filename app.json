@@ -2,7 +2,7 @@
   "expo": {
     "name": "LyfeOS",
     "slug": "lyfeos",
-    "version": "2.1",
+    "version": "2.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lyfeos",
@@ -58,7 +58,7 @@
       [
         "./plugins/withKotlinVersion",
         {
-          "kotlinVersion": "2.0.21"
+          "kotlinVersion": "2.1.20"
         }
       ]
     ],
