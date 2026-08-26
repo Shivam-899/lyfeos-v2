@@ -7,11 +7,15 @@ ios/
 dist/
 build/
 *.log
+*.txt
 .DS_Store
 server/node_modules/
 *.apk
 *.aab
 *.ipa
+*.jks
+.cxx/
+worklets-build/
 .cache/
 **/.cache/
 .expo-shared/

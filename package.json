@@ -71,5 +71,11 @@
     "expo-updates": "~29.0.18",
     "react-native-google-mobile-ads": "^16.3.3",
     "react-native-keyboard-aware-scroll-view": "^0.9.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "protobufjs"
+    ]
   }
 }
