@@ -9,8 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen, logError } from "@/utils/analytics";
 import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/notifications";
 import Svg, { Circle } from "react-native-svg";
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
-import { AD_UNIT_IDS } from "../../utils/ads";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize } from "@/utils/ads";
 import {
   Alert,
   Animated,
@@ -174,8 +173,8 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
   goalRowUnit: { fontSize: 10, fontWeight: "400" as const, color: t.MUTED },
 
   // Stats grid
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  statCell: { borderRadius: 14, padding: 12, alignItems: "center", gap: 4, width: "31%", flex: 1 },
+  statsGrid: { flexDirection: "row", gap: 8 },
+  statCell: { borderRadius: 14, paddingVertical: 12, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", gap: 4, width: 96 },
   statValue: { fontSize: 22, fontWeight: "800" as const, letterSpacing: -0.5 },
   statLabel: { fontSize: 10, color: t.MUTED, textAlign: "center", fontWeight: "600" as const },
 
@@ -859,7 +858,7 @@ export default function ProfileScreen() {
 
         {/* ── Your Journey ─────────────────────────────────────────── */}
         <SectionCard title="Your Journey" icon="stats-chart">
-          <View style={styles.statsGrid}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsGrid}>
             {STAT_CARDS.map(card => (
               <View key={card.label} style={[styles.statCell, { backgroundColor: CARD2 }]}>
                 <Ionicons name={card.icon as any} size={18} color={card.iconColor} />
@@ -867,7 +866,7 @@ export default function ProfileScreen() {
                 <Text style={styles.statLabel}>{card.label}</Text>
               </View>
             ))}
-          </View>
+          </ScrollView>
         </SectionCard>
 
         {/* ── Weekly Report ─────────────────────────────────────────── */}

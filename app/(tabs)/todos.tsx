@@ -3,8 +3,7 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
 
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
-import { AD_UNIT_IDS } from "../../utils/ads";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize } from "@/utils/ads";
 import {
   Alert,
   Animated,

@@ -5,8 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
-import { AD_UNIT_IDS, showRewardedAd } from "../../utils/ads";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize, showRewardedAd } from "@/utils/ads";
 import {
   ActivityIndicator,
   Alert,

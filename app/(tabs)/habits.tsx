@@ -3,8 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
-import { AD_UNIT_IDS, setInterstitialBlocked } from "../../utils/ads";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize, setInterstitialBlocked } from "@/utils/ads";
 import { StatusBar } from "expo-status-bar";
 import {
   Animated,
