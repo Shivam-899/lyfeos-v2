@@ -42,6 +42,7 @@ import auth from "@react-native-firebase/auth";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ACCENT = "#FF6B35";
+const PURPLE = "#8B5CF6";
 
 // ── Day labels ────────────────────────────────────────────────────────────────
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -295,17 +296,19 @@ function SectionCard({ title, icon, children }: { title: string; icon?: string; 
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTING ROW
 // ─────────────────────────────────────────────────────────────────────────────
-function SettingRow({ icon, iconBg, label, sub, right, onPress, last }: {
-  icon: string; iconBg: string; label: string; sub?: string;
+function SettingRow({ icon, iconColor, iconBg, label, sub, right, onPress, last }: {
+  icon: string; iconColor?: string; iconBg?: string; label: string; sub?: string;
   right?: React.ReactNode; onPress?: () => void; last?: boolean;
 }) {
   const theme = useAppTheme();
   const st = makeSt(theme);
   const Wrap = onPress ? TouchableOpacity : View;
+  const resolvedColor = iconColor || theme.ACCENT;
+  const resolvedBg = iconBg || (resolvedColor + "25");
   return (
     <Wrap style={[st.settingRow, last && { borderBottomWidth: 0 }]} onPress={onPress} activeOpacity={0.7}>
-      <View style={[st.settingIcon, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon as any} size={16} color="#fff" />
+      <View style={[st.settingIcon, { backgroundColor: resolvedBg }]}>
+        <Ionicons name={icon as any} size={16} color={resolvedColor} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={st.settingLabel}>{label}</Text>
@@ -944,7 +947,7 @@ export default function ProfileScreen() {
         {/* ── Reminders ─────────────────────────────────────────────── */}
         <SectionCard title="Reminders" icon="notifications">
           {/* Master Daily Reminders toggle */}
-          <SettingRow icon="notifications" iconBg="#FF6B3535" label="Daily Reminders"
+          <SettingRow icon="notifications" iconColor={ACCENT} iconBg={ACCENT + "25"} label="Daily Reminders"
             sub={notificationsEnabled ? "Reminders are active" : "All reminders paused"}
             right={
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -961,12 +964,12 @@ export default function ProfileScreen() {
             }
           />
           {[
-            { key: "morning" as keyof typeof reminders, icon: "sunny", iconBg: "#EAB30835", label: "Morning Reminder", sub: "Daily habit check-in · 8:00 AM" },
-            { key: "meal" as keyof typeof reminders, icon: "restaurant", iconBg: "#FF6B3535", label: "Meal Reminder", sub: "Log your meals on time" },
-            { key: "water" as keyof typeof reminders, icon: "water", iconBg: "#3B82F635", label: "Water Reminder", sub: "Stay hydrated every 2 hours" },
-            { key: "evening" as keyof typeof reminders, icon: "moon", iconBg: "#8B5CF635", label: "Evening Check-in", sub: "End-of-day summary · 9:00 PM" },
+            { key: "morning" as keyof typeof reminders, icon: "sunny", iconColor: YELLOW, iconBg: YELLOW + "25", label: "Morning Reminder", sub: "Daily habit check-in · 8:00 AM" },
+            { key: "meal" as keyof typeof reminders, icon: "restaurant", iconColor: ACCENT, iconBg: ACCENT + "25", label: "Meal Reminder", sub: "Log your meals on time" },
+            { key: "water" as keyof typeof reminders, icon: "water", iconColor: BLUE, iconBg: BLUE + "25", label: "Water Reminder", sub: "Stay hydrated every 2 hours" },
+            { key: "evening" as keyof typeof reminders, icon: "moon", iconColor: PURPLE, iconBg: PURPLE + "25", label: "Evening Check-in", sub: "End-of-day summary · 9:00 PM" },
           ].map((row, i, arr) => (
-            <SettingRow key={row.key} icon={row.icon} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
+            <SettingRow key={row.key} icon={row.icon} iconColor={row.iconColor} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
               right={
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ fontSize: 12, fontWeight: "600", color: reminders[row.key] ? GREEN : MUTED }}>{reminders[row.key] ? "ON" : "OFF"}</Text>
@@ -980,7 +983,7 @@ export default function ProfileScreen() {
 
         {/* ── Preferences ───────────────────────────────────────────── */}
         <SectionCard title="Preferences" icon="options">
-          <SettingRow icon="moon" iconBg="#8B5CF635" label="Appearance"
+          <SettingRow icon="moon" iconColor={PURPLE} iconBg={PURPLE + "25"} label="Appearance"
             sub={mode === "system" ? "Follows system setting" : mode === "dark" ? "Dark mode on" : "Light mode on"}
             right={
               <View style={styles.themeToggle}>
@@ -997,15 +1000,15 @@ export default function ProfileScreen() {
                 ))}
               </View>
             } />
-          <SettingRow icon="resize" iconBg="#3B82F635" label="Units"
+          <SettingRow icon="resize" iconColor={BLUE} iconBg={BLUE + "25"} label="Units"
             sub={preferences.units === "metric" ? "Metric (kg, cm, ml)" : "Imperial (lbs, ft, oz)"}
             onPress={() => setPreferences({ ...preferences, units: preferences.units === "metric" ? "imperial" : "metric" })}
             right={<Text style={[styles.prefNote, { color: ACCENT }]}>{preferences.units === "metric" ? "Metric" : "Imperial"}</Text>} />
-          <SettingRow icon="barbell" iconBg="#22C55E35" label="Calorie Display"
+          <SettingRow icon="barbell" iconColor={GREEN} iconBg={GREEN + "25"} label="Calorie Display"
             sub={preferences.calorieDisplay === "kcal" ? "Kilocalories (kcal)" : "Kilojoules (kJ)"}
             onPress={() => setPreferences({ ...preferences, calorieDisplay: preferences.calorieDisplay === "kcal" ? "kj" : "kcal" })}
             right={<Text style={[styles.prefNote, { color: ACCENT }]}>{preferences.calorieDisplay.toUpperCase()}</Text>} />
-          <SettingRow icon="sparkles" iconBg="#FF6B3535" label="Habit Completion Effects"
+          <SettingRow icon="sparkles" iconColor={ACCENT} iconBg={ACCENT + "25"} label="Habit Completion Effects"
             sub="Sound & animation when a habit is completed"
             right={
               <Switch
@@ -1113,7 +1116,7 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View>
-              <SettingRow icon="mail-outline" iconBg="#3B82F625" label={user.displayName || "User"} sub={user.email || ""} />
+              <SettingRow icon="mail-outline" iconColor={BLUE} iconBg={BLUE + "25"} label={user.displayName || "User"} sub={user.email || ""} />
               {/* Change Password — only for email/password sign-in, not Google or Guest */}
               {user?.providerData?.[0]?.providerId === 'password' && (
                 <TouchableOpacity
@@ -1164,12 +1167,12 @@ export default function ProfileScreen() {
 
         {/* ── Data & Privacy ────────────────────────────────────────── */}
         <SectionCard title="Data & Privacy" icon="shield-checkmark">
-          <SettingRow icon="share-outline" iconBg="#3B82F625" label="Export My Data" sub="Download a summary of all your data" onPress={handleExportData}
+          <SettingRow icon="share-outline" iconColor={BLUE} iconBg={BLUE + "25"} label="Export My Data" sub="Download a summary of all your data" onPress={handleExportData}
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
-          <SettingRow icon="today-outline" iconBg="#EAB30825" label="Clear Today's Data" sub="Remove today's logs only" onPress={handleClearToday}
+          <SettingRow icon="today-outline" iconColor={YELLOW} iconBg={YELLOW + "25"} label="Clear Today's Data" sub="Remove today's logs only" onPress={handleClearToday}
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
           <Text style={{ fontSize: 12, fontWeight: "600", color: RED, marginTop: 12, marginBottom: 4, marginLeft: 8 }}>⚠️ DANGER ZONE</Text>
-          <SettingRow icon="warning-outline" iconBg="#EF444425" label="Reset All Data" sub="Permanently delete everything" onPress={handleResetAll}
+          <SettingRow icon="warning-outline" iconColor={RED} iconBg={RED + "25"} label="Reset All Data" sub="Permanently delete everything" onPress={handleResetAll}
             right={<Ionicons name="chevron-forward" size={16} color="#EF4444" />} last />
         </SectionCard>
 
