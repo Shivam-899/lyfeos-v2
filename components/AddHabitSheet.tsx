@@ -132,7 +132,10 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
   const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
   const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0]; // Mon→Sun order
 
-  const handleClose = () => onClose();
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   const handleSelectType = (type: HabitType) => {
     setHabitType(type);
@@ -140,6 +143,7 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
   };
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     if (!name.trim()) return;
     const data = {
       name: name.trim(),
