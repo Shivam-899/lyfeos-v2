@@ -1,7 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Keyboard,
   Modal,
   Platform,
@@ -23,7 +25,8 @@ import {
   TrackMethod,
 } from "@/context/HabitsContext";
 import { useHabits } from "@/context/HabitsContext";
-import { useColors } from "@/hooks/useColors";
+import { showRewardedAd } from "../utils/ads";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 interface Props {
   visible: boolean;
@@ -68,9 +71,18 @@ function arraysEqual(a: number[], b: number[]) {
 }
 
 export function AddHabitSheet({ visible, onClose, editHabit, initialName, initialEmoji, initialColorId }: Props) {
-  const colors = useColors();
+  const theme = useAppTheme();
+  const colors = {
+    card: theme.CARD,
+    foreground: theme.TEXT,
+    background: theme.BG,
+    border: theme.BORDER,
+    muted: theme.isDark ? theme.CARD2 : "#F0F2F5",
+    mutedForeground: theme.MUTED,
+    primary: theme.ACCENT,
+  };
   const insets = useSafeAreaInsets();
-  const { addHabit, updateHabit } = useHabits();
+  const { habits, addHabit, updateHabit } = useHabits();
 
   const isEditing = !!editHabit;
 
@@ -127,7 +139,7 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
     setStep("details");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) return;
     const data = {
       name: name.trim(),
@@ -142,11 +154,62 @@ export function AddHabitSheet({ visible, onClose, editHabit, initialName, initia
     };
     if (isEditing && editHabit) {
       updateHabit(editHabit.id, data);
-    } else {
-      addHabit(data);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      handleClose();
+      return;
     }
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    handleClose();
+
+    // ── Habit creation gating: 3 free, then requires watching a rewarded ad (+2 creations) ──
+    try {
+      const bonusStr = await AsyncStorage.getItem('habitBonusUnlocks');
+      let bonus = parseInt(bonusStr || '0');
+
+      if (habits.length < 3) {
+        // Free creation (first 3 habits)
+        addHabit(data);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        handleClose();
+      } else if (bonus > 0) {
+        // Use 1 unlocked bonus creation
+        await AsyncStorage.setItem('habitBonusUnlocks', String(bonus - 1));
+        addHabit(data);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        handleClose();
+      } else {
+        // Limit reached — prompt to watch rewarded ad to unlock 2 more
+        Alert.alert(
+          "Limit Reached",
+          "Watch an ad to unlock 2 more habits.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "WATCH AD",
+              onPress: async () => {
+                let watched = false;
+                try {
+                  watched = await showRewardedAd();
+                } catch (adErr) {
+                  console.log('Rewarded ad error:', adErr);
+                  watched = false;
+                }
+                if (watched) {
+                  // Grants 2 bonus unlocks, consumes 1 for this creation -> 1 remaining for next time
+                  await AsyncStorage.setItem('habitBonusUnlocks', '1');
+                  addHabit(data);
+                  if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  handleClose();
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (e) {
+      console.log('Habit creation limit check failed (non-fatal):', e);
+      addHabit(data);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      handleClose();
+    }
   };
 
   const toggleDay = (dayIdx: number) => {

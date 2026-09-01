@@ -4,6 +4,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logEvent, logError } from "@/utils/analytics";
 import { migrateGuestDataToAccount } from "@/utils/cloudSync";
+import { getStoredJson } from "@/utils/storage";
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
@@ -43,18 +44,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Guest migration helper ─────────────────────────────────────────────────
   const handleGuestMigration = async (newUid: string) => {
     try {
-      // Read current local data
-      const localHabits = await AsyncStorage.getItem("habits");
-      const localTodos = await AsyncStorage.getItem("todos");
-      const localCalories = await AsyncStorage.getItem("calories");
+      // Read current local data using authoritative versioned keys
+      const [localHabits, localHabitLogs, localTodos, localFood, localWater, localMeta] = await Promise.all([
+        getStoredJson<any[]>("@lyfeos_habits_v2", []),
+        getStoredJson<any[]>("@lyfeos_habit_logs_v2", []),
+        getStoredJson<any[]>("@lyfeos_todos_v2", []),
+        getStoredJson<any[]>("@lyfeos_food_v2", []),
+        getStoredJson<any[]>("@lyfeos_water_v2", []),
+        getStoredJson<{ lastModified?: number }>("@lyfeos_food_meta_v1", { lastModified: 0 }),
+      ]);
 
-      const habits = localHabits ? JSON.parse(localHabits) : [];
-      const todos = localTodos ? JSON.parse(localTodos) : [];
-      const calories = localCalories ? JSON.parse(localCalories) : {};
+      const hasData =
+        localHabits.length > 0 ||
+        localHabitLogs.length > 0 ||
+        localTodos.length > 0 ||
+        localFood.length > 0 ||
+        localWater.length > 0;
 
-      // Only migrate if there's actual data
-      if (habits.length > 0 || todos.length > 0) {
-        const success = await migrateGuestDataToAccount(newUid, habits, todos, calories);
+      // Only migrate if there's actual guest data
+      if (hasData) {
+        const success = await migrateGuestDataToAccount(newUid, {
+          habits: localHabits,
+          habitLogs: localHabitLogs,
+          todos: localTodos,
+          foodItems: localFood,
+          waterLogs: localWater,
+          lastModified: localMeta.lastModified || Date.now(),
+        });
         if (success) {
           setMigrationDone(true);
         }

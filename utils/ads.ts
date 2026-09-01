@@ -83,10 +83,19 @@ export const showRewardedAd = (
     return new Promise((resolve) => {
         let earnedReward = false;
         let settled = false;
+        let unsubscribers: Array<() => void> = [];
+
+        const cleanup = () => {
+            unsubscribers.forEach((unsub) => {
+                try { unsub(); } catch (_) {}
+            });
+            unsubscribers = [];
+        };
 
         const finish = (result: boolean) => {
             if (settled) return;
             settled = true;
+            cleanup();
             _isRewardedAdInFlight = false;
             onLoadingChange?.(false);
             resolve(result);
@@ -97,26 +106,35 @@ export const showRewardedAd = (
                 requestNonPersonalizedAdsOnly: false,
             });
 
-            rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
-                try {
-                    rewarded.show();
-                } catch (e) {
+            unsubscribers.push(
+                rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
+                    try {
+                        rewarded.show();
+                    } catch (e) {
+                        finish(false);
+                    }
+                })
+            );
+
+            unsubscribers.push(
+                rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+                    // Record reward earned — wait for user to close ad before resolving caller
+                    earnedReward = true;
+                })
+            );
+
+            unsubscribers.push(
+                rewarded.addAdEventListener(AdEventType.CLOSED, () => {
+                    // Settle with reward result only after the native ad modal is dismissed
+                    finish(earnedReward);
+                })
+            );
+
+            unsubscribers.push(
+                rewarded.addAdEventListener(AdEventType.ERROR, () => {
                     finish(false);
-                }
-            });
-
-            rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
-                earnedReward = true;
-                finish(true);
-            });
-
-            rewarded.addAdEventListener(AdEventType.CLOSED, () => {
-                finish(earnedReward);
-            });
-
-            rewarded.addAdEventListener(AdEventType.ERROR, () => {
-                finish(false);
-            });
+                })
+            );
 
             rewarded.load();
         } catch (e) {

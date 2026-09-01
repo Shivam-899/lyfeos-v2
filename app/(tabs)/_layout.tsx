@@ -5,10 +5,10 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useColors } from "@/hooks/useColors";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 function NativeTabLayout() {
   return (
@@ -38,24 +38,22 @@ function NativeTabLayout() {
 }
 
 function ClassicTabLayout() {
-  const colors = useColors();
-  const colorScheme = useColorScheme();
+  const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: theme.ACCENT,
+        tabBarInactiveTintColor: theme.MUTED,
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
+          backgroundColor: isIOS ? "transparent" : theme.BG,
           borderTopWidth: 1,
-          borderTopColor: colors.border,
+          borderTopColor: theme.BORDER,
           elevation: 0,
           height: isWeb ? 84 : 60 + insets.bottom,
           paddingBottom: isWeb ? 34 : insets.bottom,
@@ -64,11 +62,11 @@ function ClassicTabLayout() {
           isIOS ? (
             <BlurView
               intensity={100}
-              tint={isDark ? "dark" : "light"}
+              tint={theme.isDark ? "dark" : "light"}
               style={StyleSheet.absoluteFill}
             />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.BG }]} />
           ),
         tabBarLabelStyle: {
           fontSize: 10,

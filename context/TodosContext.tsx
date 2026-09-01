@@ -10,6 +10,7 @@ import React, {
 import { getStoredJson, setStoredJson } from "@/utils/storage";
 import { syncTodosToCloud, fetchTodosFromCloud } from "@/utils/cloudSync";
 import { useAuth } from "@/context/AuthContext";
+import { getNextRecurringDate } from "@/utils/date";
 
 export type Priority = "urgent" | "high" | "medium" | "low";
 export type Category = "Work" | "Personal" | "Shopping" | "Health" | "Other";
@@ -89,7 +90,40 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTodo = useCallback((id: string) => {
     setTodos((prev) => {
-      const next = prev.map((t) => t.id === id ? { ...t, completed: !t.completed } : t);
+      const target = prev.find((t) => t.id === id);
+      if (!target) return prev;
+
+      const isCompleting = !target.completed;
+      let next = prev.map((t) => t.id === id ? { ...t, completed: isCompleting } : t);
+
+      // If completing a recurring todo, generate the next uncompleted occurrence
+      if (isCompleting && target.repeat && target.repeat !== "none") {
+        const nextDueDate = getNextRecurringDate(target.dueDate, target.repeat);
+
+        // Prevent duplicate next occurrences if one is already active
+        const duplicateExists = prev.some(
+          (t) => !t.completed && t.title === target.title && t.dueDate === nextDueDate && t.repeat === target.repeat
+        );
+
+        if (!duplicateExists) {
+          const maxOrder = prev.length > 0 ? Math.max(...prev.map((t) => t.order)) + 1 : 0;
+          const nextTodo: Todo = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            title: target.title,
+            completed: false,
+            priority: target.priority,
+            category: target.category,
+            dueDate: nextDueDate,
+            dueTime: target.dueTime,
+            notes: target.notes,
+            repeat: target.repeat,
+            createdAt: new Date().toISOString(),
+            order: maxOrder,
+          };
+          next = [...next, nextTodo];
+        }
+      }
+
       persist(next);
       const { user: u, isGuest: g } = authRef.current;
       if (u && !g) { syncTodosToCloud(u.uid, next); }

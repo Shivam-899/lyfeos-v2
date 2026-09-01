@@ -373,8 +373,10 @@ export function ActivityTracker() {
       const today = new Date().toDateString();
       const lastLogDate = await AsyncStorage.getItem('lastActivityLogDate');
       const countStr = await AsyncStorage.getItem('activityLogCount');
+      const bonusStr = await AsyncStorage.getItem('activityBonusLogs');
       const count = lastLogDate === today ? parseInt(countStr || '0') : 0;
-      setActivityLogsRemaining(Math.max(0, 1 - count));
+      const bonus = lastLogDate === today ? parseInt(bonusStr || '0') : 0;
+      setActivityLogsRemaining(Math.max(0, 3 - count) + bonus);
     } catch (e) {
       console.log('Activity limit display error (non-fatal):', e);
     }
@@ -534,58 +536,8 @@ export function ActivityTracker() {
   };
 
   // ── Handle Log This Session ────────────────────────────────────────────────
-  const handleLogSession = async () => {
+  const executeLogSession = () => {
     if (!analysis) return;
-
-    let canLog = false;
-
-    // Check daily activity log limit (1 free per day, then requires watching a rewarded ad)
-    try {
-      const todayDate = new Date().toDateString();
-      const lastLogDate = await AsyncStorage.getItem('lastActivityLogDate');
-      const countStr = await AsyncStorage.getItem('activityLogCount');
-      let count = lastLogDate === todayDate ? parseInt(countStr || '0') : 0;
-
-      if (count === 0) {
-        // First log of the day — free
-        await AsyncStorage.setItem('lastActivityLogDate', todayDate);
-        await AsyncStorage.setItem('activityLogCount', '1');
-        updateActivityLimitDisplay(); // reflect updated count immediately
-        canLog = true;
-      } else {
-        // Need to watch rewarded ad for subsequent logs
-        let watched = false;
-        try {
-          watched = await showRewardedAd((loading) => setIsLoadingAd(loading));
-        } catch (adErr) {
-          console.log('Rewarded ad error:', adErr);
-          watched = false;
-        }
-
-        if (!watched) {
-          Alert.alert(
-            "Daily Limit Reached",
-            "Watch an ad to log more activities today, or come back tomorrow!",
-            [{ text: "OK", style: "cancel" }]
-          );
-          return;
-        }
-        await AsyncStorage.setItem('activityLogCount', String(count + 1));
-        updateActivityLimitDisplay(); // reflect updated count immediately
-        canLog = true;
-      }
-    } catch (e) {
-      console.log('Activity log limit check failed:', e);
-      Alert.alert(
-        "Error",
-        "Unable to verify activity log limit. Please try again.",
-        [{ text: "OK", style: "cancel" }]
-      );
-      return;
-    }
-
-    if (!canLog) return;
-
     const log = {
       date: today,
       sport: activeSportName,
@@ -611,6 +563,66 @@ export function ActivityTracker() {
     setShowResult(false);
     setSelectedSport("");
     showToast(`💧 Added ${analysis.hydration_glasses.toFixed(1)} glasses to your water goal`);
+  };
+
+  const handleLogSession = async () => {
+    if (!analysis) return;
+
+    // Check daily activity log limit (3 free per day, then requires watching a rewarded ad for +2 logs)
+    try {
+      const todayDate = new Date().toDateString();
+      const lastLogDate = await AsyncStorage.getItem('lastActivityLogDate');
+      const countStr = await AsyncStorage.getItem('activityLogCount');
+      const bonusStr = await AsyncStorage.getItem('activityBonusLogs');
+      let count = lastLogDate === todayDate ? parseInt(countStr || '0') : 0;
+      let bonus = lastLogDate === todayDate ? parseInt(bonusStr || '0') : 0;
+
+      if (count < 3) {
+        // Free log (first 3 per day)
+        await AsyncStorage.setItem('lastActivityLogDate', todayDate);
+        await AsyncStorage.setItem('activityLogCount', String(count + 1));
+        updateActivityLimitDisplay(); // reflect updated count immediately
+        executeLogSession();
+      } else if (bonus > 0) {
+        // Use 1 bonus log
+        await AsyncStorage.setItem('lastActivityLogDate', todayDate);
+        await AsyncStorage.setItem('activityBonusLogs', String(bonus - 1));
+        updateActivityLimitDisplay();
+        executeLogSession();
+      } else {
+        // Need to watch rewarded ad to unlock 2 more
+        Alert.alert(
+          "Limit Reached",
+          "Watch an ad to unlock 2 more activities.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "WATCH AD",
+              onPress: async () => {
+                let watched = false;
+                try {
+                  watched = await showRewardedAd((loading) => setIsLoadingAd(loading));
+                } catch (adErr) {
+                  console.log('Rewarded ad error:', adErr);
+                  watched = false;
+                }
+
+                if (watched) {
+                  // Grants 2 bonus logs, consumes 1 for this log -> 1 remaining for next time
+                  await AsyncStorage.setItem('lastActivityLogDate', todayDate);
+                  await AsyncStorage.setItem('activityBonusLogs', '1');
+                  updateActivityLimitDisplay();
+                  executeLogSession();
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (e) {
+      console.log('Activity log limit check failed (non-fatal):', e);
+      executeLogSession();
+    }
   };
 
   const handleTapHydration = () => {

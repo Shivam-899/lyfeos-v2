@@ -8,7 +8,7 @@ import React, {
 
 import { getStoredJson, getStoredString, removeStoredItems, setStoredJson, setStoredString } from "@/utils/storage";
 import { logEvent, logError } from "@/utils/analytics";
-import { syncHabitsToCloud, fetchHabitsFromCloud } from "@/utils/cloudSync";
+import { syncHabitsToCloud, fetchHabitsFromCloud, fetchHabitLogsFromCloud, mergeHabits, mergeHabitLogs } from "@/utils/cloudSync";
 import { useAuth } from "@/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { showInterstitialAd } from "../utils/ads";
@@ -133,10 +133,33 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
 
           // Cloud sync: fetch from Firestore if logged-in non-guest user
           if (user && !isGuest) {
-            const cloudHabits = await fetchHabitsFromCloud(user.uid);
-            if (cloudHabits && cloudHabits.length > 0) {
-              setHabits(cloudHabits);
-              await setStoredJson(HABITS_KEY, cloudHabits);
+            const [cloudHabits, cloudLogs] = await Promise.all([
+              fetchHabitsFromCloud(user.uid),
+              fetchHabitLogsFromCloud(user.uid),
+            ]);
+
+            const mergedHabits = mergeHabits(storedHabits, cloudHabits || []);
+            const mergedLogs = mergeHabitLogs(storedLogs, cloudLogs || []);
+
+            const habitsChanged = JSON.stringify(mergedHabits) !== JSON.stringify(storedHabits);
+            const logsChanged = JSON.stringify(mergedLogs) !== JSON.stringify(storedLogs);
+
+            if (habitsChanged || logsChanged) {
+              setHabits(mergedHabits);
+              setHabitLogs(mergedLogs);
+              await Promise.all([
+                setStoredJson(HABITS_KEY, mergedHabits),
+                setStoredJson(HABIT_LOGS_KEY, mergedLogs),
+              ]);
+            }
+
+            // If local had items not yet in cloud, or cloud was empty/incomplete, push merged state to cloud
+            const cloudNeedsSync =
+              (storedHabits.length > 0 && (!cloudHabits || cloudHabits.length < mergedHabits.length)) ||
+              (storedLogs.length > 0 && (!cloudLogs || cloudLogs.length < mergedLogs.length));
+
+            if (cloudNeedsSync) {
+              syncHabitsToCloud(user.uid, mergedHabits, mergedLogs);
             }
           }
         }
@@ -182,7 +205,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       setHabitLogs((prevLogs) => {
         persist(next, prevLogs);
         const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncHabitsToCloud(u.uid, next); }
+        if (u && !g) { syncHabitsToCloud(u.uid, next, prevLogs); }
         return prevLogs;
       });
       return next;
@@ -198,7 +221,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       setHabitLogs((prevLogs) => {
         persist(next, prevLogs);
         const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncHabitsToCloud(u.uid, next); }
+        if (u && !g) { syncHabitsToCloud(u.uid, next, prevLogs); }
         return prevLogs;
       });
       return next;
@@ -212,7 +235,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
         const nextLogs = logs.filter((l) => l.habitId !== habitId);
         persist(next, nextLogs);
         const { user: u, isGuest: g } = authRef.current;
-        if (u && !g) { syncHabitsToCloud(u.uid, next); }
+        if (u && !g) { syncHabitsToCloud(u.uid, next, nextLogs); }
         return nextLogs;
       });
       return next;
@@ -238,7 +261,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       }
       persist(habits, next);
       const { user: u, isGuest: g } = authRef.current;
-      if (u && !g) { syncHabitsToCloud(u.uid, habits); }
+      if (u && !g) { syncHabitsToCloud(u.uid, habits, next); }
       // Fire analytics when habit is completed
       if (data.completed === true) {
         const habit = habits.find((h) => h.id === habitId);
@@ -330,6 +353,8 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     setHabitLogs((prev) => {
       const next = prev.filter((l) => l.date !== date);
       persist(habits, next);
+      const { user: u, isGuest: g } = authRef.current;
+      if (u && !g) { syncHabitsToCloud(u.uid, habits, next); }
       return next;
     });
   }, [habits, persist]);

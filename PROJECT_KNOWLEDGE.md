@@ -70,7 +70,7 @@ Health-conscious individuals aged 18–40, primarily in India, who want a privac
 | USDA FoodData Central | REST API | Nutrition lookup (primary) |
 | Open Food Facts | REST API | Nutrition lookup (fallback) |
 
-> **Note:** `@react-native-firebase/analytics` and `@react-native-firebase/crashlytics` are listed as future dependencies with stub implementations in `utils/analytics.ts`. They are **not yet active**.
+> **Note:** `@react-native-firebase/analytics` is now installed and **active** (v24.1.1). `@react-native-firebase/crashlytics` is still deferred — `logError()` and `setCrashlyticsUser()` remain safe no-ops until Crashlytics is added.
 
 ### Local Storage
 - **AsyncStorage** (`@react-native-async-storage/async-storage 2.2.0`) — single local persistence layer for all data.
@@ -577,8 +577,8 @@ User lands →
 | # | Area | Issue | Location |
 |---|---|---|---|
 | 1 | Food Scanner | Camera-based food image scan is **intentionally stubbed** — `analyzeFoodImage()` always throws `"Food Scan is coming soon."` | `utils/analyzeFoodImage.ts:48` |
-| 2 | Analytics | Firebase Analytics + Crashlytics functions are **all no-ops / stubs**. Real implementations are commented out with `TODO` notes requiring a native rebuild. | `utils/analytics.ts` |
-| 3 | Analytics | `@react-native-firebase/analytics` and `@react-native-firebase/crashlytics` are not listed in `package.json` yet — must be installed before activating | `utils/analytics.ts:10-12` |
+| 2 | Analytics | Firebase Analytics is now **active**. `@react-native-firebase/analytics` installed at v24.1.1; all analytics functions call the real SDK. Crashlytics functions remain no-ops. | `utils/analytics.ts` |
+| 3 | Analytics | `@react-native-firebase/crashlytics` is still **not installed**. `logError()` and `setCrashlyticsUser()` are safe no-ops until Crashlytics is added and a native rebuild is done. | `utils/analytics.ts` |
 | 4 | Rewarded Ads | `showRewardedAd()` utility is implemented but **never called from any screen** | `utils/ads.ts:68` |
 | 5 | Banner Ads | `BannerAd`, `BannerAdSize` are exported from `utils/ads.ts` but no banner has been placed in any screen yet | `utils/ads.ts:102` |
 | 6 | Habits cloud sync | `HabitsContext.logHabit()` passes stale `habits` array to `syncHabitsToCloud` — should use the state updater function's latest value | `context/HabitsContext.tsx:236` |
@@ -656,7 +656,7 @@ Based on code placeholders and commented-out sections:
 | Feature | Evidence | File |
 |---|---|---|
 | **Camera Food Scanner** | `analyzeFoodImage()` stub throws "coming soon" | `utils/analyzeFoodImage.ts` |
-| **Firebase Analytics** | Full implementation written, commented out with TODO | `utils/analytics.ts` |
+| **Firebase Analytics** | ✅ **Active** — `@react-native-firebase/analytics` installed, real calls enabled | `utils/analytics.ts` |
 | **Firebase Crashlytics** | Full implementation written, commented out with TODO | `utils/analytics.ts` |
 | **Rewarded ads** | `showRewardedAd()` fully wired but never called from UI | `utils/ads.ts:68` |
 | **Banner ads** | `BannerAd` / `BannerAdSize` exported, no screen uses them | `utils/ads.ts:102` |
@@ -680,7 +680,7 @@ Based on code placeholders and commented-out sections:
 
 3. **`@tanstack/react-query` is a ghost dependency.** It's set up but unused. Don't rely on it without wiring it up to actual queries.
 
-4. **Analytics functions are all no-ops.** `logEvent()`, `logScreen()`, `logError()` etc. do nothing in production. To activate: install the native Firebase packages, run `npx expo run:android`, and uncomment the real implementations in `utils/analytics.ts`.
+4. **Analytics functions are now live.** `logEvent()`, `logScreen()`, `setAnalyticsUser()` all call the real `@react-native-firebase/analytics` SDK. `logError()` and `setCrashlyticsUser()` are still no-ops (Crashlytics not yet installed). A native rebuild is required whenever you install `@react-native-firebase/crashlytics` to activate those.
 
 5. **Adding new persisted state:** Always add a new `@lyfeos_<domain>_v<N>` AsyncStorage key. If you change a data schema, bump the version in the key name AND add a migration in the corresponding Context's `useEffect` initializer.
 

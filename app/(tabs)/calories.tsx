@@ -150,7 +150,7 @@ const GOAL_PRESETS: { emoji: string; label: string; desc: string; goal: DailyGoa
 function GoalsSetupSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
   const { setDailyGoal } = useCalories();
   const { healthProfile } = useProfile();
   const [selected, setSelected] = useState<number | "custom">(1);
@@ -450,7 +450,7 @@ function AllNutrientsSheet({ visible, onClose, stats }: { visible: boolean; onCl
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { CARD, MUTED, GREEN, BORDER, TEXT, CARD2 } = theme;
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const ALL_NUTRIENTS = [
@@ -558,7 +558,7 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { MUTED, GREEN, YELLOW } = theme;
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
   const [portion, setPortion] = useState(1);
   const [meal, setMeal] = useState<MealType>(getSuggestedMealTime());
   const [editedName, setEditedName] = useState("");
@@ -808,7 +808,7 @@ function FoodResultSheet({ visible, result, defaultMeal, onClose, onAdd, onResca
 function MacroCell({ label, value, unit, color, big }: { label: string; value: number | string | undefined; unit: string; color: string; big?: boolean }) {
   const theme = useAppTheme();
   const { MUTED } = theme;
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
   const displayVal = value !== undefined && value !== null ? value : "-";
   return (
     <View style={[s.macroCell, big && s.macroCellBig]}>
@@ -828,7 +828,7 @@ interface ManualEntrySheetProps {
 function ManualEntrySheet({ visible, defaultMeal, onClose, onSave }: ManualEntrySheetProps) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
   const [name, setName] = useState("");
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
@@ -952,7 +952,7 @@ function TextSearchSheet({
 }) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -1117,7 +1117,7 @@ function ProteinSuggestionsModal({
 }) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const s = makeS(theme);
+  const s = useMemo(() => makeS(theme), [theme]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -1160,8 +1160,8 @@ export default function CaloriesScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT } = theme;
-  const styles = makeStyles(theme);
-  const s = makeS(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const s = useMemo(() => makeS(theme), [theme]);
   const { foodItems, dailyGoal, goalsConfigured, getDayStats, getWaterForDate, logWater, addFoodItem, deleteFoodItem } = useCalories();
   const { postActivityBanner, setPostActivityBanner } = useActivity();
 
@@ -1187,6 +1187,7 @@ export default function CaloriesScreen() {
   const [isLoadingAd, setIsLoadingAd] = useState(false);
 
   const [textSearchQuery, setTextSearchQuery] = useState<string | undefined>(undefined);
+  const unlockedSearchSessionRef = useRef(false);
 
   // ── Search limit display ─────────────────────────────────────────────────────
   const updateSearchLimitDisplay = React.useCallback(async () => {
@@ -1194,8 +1195,10 @@ export default function CaloriesScreen() {
       const today = new Date().toDateString();
       const lastSearchDate = await AsyncStorage.getItem('lastFoodSearchDate');
       const countStr = await AsyncStorage.getItem('foodSearchCount');
+      const bonusStr = await AsyncStorage.getItem('foodBonusSearches');
       const count = lastSearchDate === today ? parseInt(countStr || '0') : 0;
-      setSearchesRemaining(Math.max(0, 2 - count));
+      const bonus = lastSearchDate === today ? parseInt(bonusStr || '0') : 0;
+      setSearchesRemaining(Math.max(0, 2 - count) + bonus);
     } catch (e) {
       console.log('Search limit display error (non-fatal):', e);
     }
@@ -1286,13 +1289,22 @@ export default function CaloriesScreen() {
     Alert.alert("Food Scan", "Food Scan is coming soon.");
   };
 
-  // ── Search food limit: 2 free/day, then requires watching a rewarded ad ────────
+  // ── Search food limit: 2 free/day, then requires watching a rewarded ad (+2 searches) ─
   const handleOpenSearch = async (prefillQuery?: string) => {
+    // If a rewarded ad was already completed for this active logging session, allow search directly
+    if (unlockedSearchSessionRef.current) {
+      if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
+      setShowTextSearch(true);
+      return;
+    }
+
     try {
       const todayStr = new Date().toDateString();
       const lastSearchDate = await AsyncStorage.getItem('lastFoodSearchDate');
       const countStr = await AsyncStorage.getItem('foodSearchCount');
+      const bonusStr = await AsyncStorage.getItem('foodBonusSearches');
       let count = lastSearchDate === todayStr ? parseInt(countStr || '0') : 0;
+      let bonus = lastSearchDate === todayStr ? parseInt(bonusStr || '0') : 0;
 
       if (count < 2) {
         // Free search (first 2 per day)
@@ -1301,20 +1313,38 @@ export default function CaloriesScreen() {
         updateSearchLimitDisplay(); // reflect updated count immediately
         if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
         setShowTextSearch(true);
+      } else if (bonus > 0) {
+        // Use 1 unlocked bonus search
+        await AsyncStorage.setItem('lastFoodSearchDate', todayStr);
+        await AsyncStorage.setItem('foodBonusSearches', String(bonus - 1));
+        unlockedSearchSessionRef.current = true;
+        updateSearchLimitDisplay();
+        if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
+        setShowTextSearch(true);
       } else {
-        // Limit reached — show rewarded ad to unlock
-        const watched = await showRewardedAd((loading) => setIsLoadingAd(loading));
-        if (watched) {
-          updateSearchLimitDisplay(); // ad watched, indicator stays at 0
-          if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
-          setShowTextSearch(true);
-        } else {
-          Alert.alert(
-            "Daily Search Limit Reached",
-            "Watch an ad to search more foods today, or try again tomorrow!",
-            [{ text: "OK", style: "cancel" }]
-          );
-        }
+        // Limit reached — prompt to watch rewarded ad to unlock 2 more
+        Alert.alert(
+          "Limit Reached",
+          "Watch an ad to unlock 2 more searches.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "WATCH AD",
+              onPress: async () => {
+                const watched = await showRewardedAd((loading) => setIsLoadingAd(loading));
+                if (watched) {
+                  // Grants 2 bonus searches, consumes 1 for this active session -> 1 remaining for next time
+                  await AsyncStorage.setItem('lastFoodSearchDate', todayStr);
+                  await AsyncStorage.setItem('foodBonusSearches', '1');
+                  unlockedSearchSessionRef.current = true;
+                  updateSearchLimitDisplay();
+                  if (prefillQuery !== undefined) setTextSearchQuery(prefillQuery);
+                  setShowTextSearch(true);
+                }
+              }
+            }
+          ]
+        );
       }
     } catch (e) {
       // Silently fail — always allow search if AsyncStorage errors
@@ -1347,6 +1377,7 @@ export default function CaloriesScreen() {
       meal,
       date: today,
     });
+    unlockedSearchSessionRef.current = false; // Consume unlock upon successful food logging
     setShowFoodResult(false);
     setScanResult(null);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1945,7 +1976,7 @@ export default function CaloriesScreen() {
 // ── Horizontal macro bar ──────────────────────────────────────────────────────
 function HorizMacroBar({ label, value, goal, color }: { label: string; value: number; goal: number; color: string }) {
   const theme = useAppTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const isOver = value > goal;
   const pct = isOver ? 1 : value / goal;
   const barColor = isOver ? "#EF4444" : color;
@@ -2079,6 +2110,7 @@ const makeS = (t: AppTheme) => StyleSheet.create({
 const makeStyles = (t: AppTheme) => StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 14 },
+  limitIndicatorText: { fontSize: 12, color: t.MUTED, fontFamily: 'Inter_400Regular', marginTop: 4, marginBottom: 4, marginLeft: 2 },
 
   activityBanner: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#22C55E18", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#22C55E33", marginBottom: 10 },
   activityBannerTitle: { fontSize: 13, fontWeight: "700" as const, color: t.TEXT, marginBottom: 2 },

@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
 
-import { AD_UNIT_IDS, BannerAd, BannerAdSize } from "@/utils/ads";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize, showRewardedAd } from "@/utils/ads";
 import {
   Alert,
   Animated,
@@ -179,7 +180,7 @@ interface AddTaskSheetProps {
 }
 function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheetProps) {
   const insets = useSafeAreaInsets();
-  const { addTodo, updateTodo } = useTodos();
+  const { todos, addTodo, updateTodo } = useTodos();
   const theme = useAppTheme();
   const { MUTED } = theme;
   const sStyles = useMemo(() => makeSStyles(theme), [theme]);
@@ -229,7 +230,7 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
     else setDueDate("");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return;
     const finalDate = dueDateChip === "custom" ? customDate : dueDate;
     const payload = {
@@ -244,11 +245,58 @@ function AddTaskSheet({ visible, onClose, editTodo, initialTitle }: AddTaskSheet
     };
     if (isEditing && editTodo) {
       updateTodo(editTodo.id, payload);
-    } else {
-      addTodo(payload);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+      return;
     }
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onClose();
+
+    // ── Todo creation gating: 3 free, then requires watching a rewarded ad (+2 tasks) ──
+    try {
+      const bonusStr = await AsyncStorage.getItem('todoBonusUnlocks');
+      let bonus = parseInt(bonusStr || '0');
+
+      if (todos.length < 3) {
+        addTodo(payload);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onClose();
+      } else if (bonus > 0) {
+        await AsyncStorage.setItem('todoBonusUnlocks', String(bonus - 1));
+        addTodo(payload);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onClose();
+      } else {
+        Alert.alert(
+          "Limit Reached",
+          "Watch an ad to unlock 2 more tasks.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "WATCH AD",
+              onPress: async () => {
+                let watched = false;
+                try {
+                  watched = await showRewardedAd();
+                } catch (adErr) {
+                  console.log('Rewarded ad error:', adErr);
+                  watched = false;
+                }
+                if (watched) {
+                  await AsyncStorage.setItem('todoBonusUnlocks', '1');
+                  addTodo(payload);
+                  if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  onClose();
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (e) {
+      console.log('Todo creation limit check failed (non-fatal):', e);
+      addTodo(payload);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    }
   };
 
   const pColor = PRIORITY_COLORS[priority];
@@ -523,8 +571,8 @@ export default function TodosScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, RED, GREEN, TEXT: WHITE } = theme;
-  const styles = makeStyles(theme);
-  const sStyles = makeSStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const sStyles = useMemo(() => makeSStyles(theme), [theme]);
   const { todos, addTodo, toggleTodo, deleteTodo, updateTodo } = useTodos();
 
   const [view, setView] = useState<ViewMode>("today");
@@ -612,12 +660,60 @@ export default function TodosScreen() {
     );
   };
 
-  const handleQuickAdd = () => {
+  const handleQuickAdd = async () => {
     if (!quickTitle.trim()) { setShowAddSheet(true); return; }
-    addTodo({ title: quickTitle.trim(), completed: false, priority: "medium", category: "Personal", dueDate: ts });
-    setQuickTitle("");
-    Keyboard.dismiss();
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const payload = { title: quickTitle.trim(), completed: false, priority: "medium" as Priority, category: "Personal" as const, dueDate: ts };
+
+    try {
+      const bonusStr = await AsyncStorage.getItem('todoBonusUnlocks');
+      let bonus = parseInt(bonusStr || '0');
+
+      if (todos.length < 3) {
+        addTodo(payload);
+        setQuickTitle("");
+        Keyboard.dismiss();
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else if (bonus > 0) {
+        await AsyncStorage.setItem('todoBonusUnlocks', String(bonus - 1));
+        addTodo(payload);
+        setQuickTitle("");
+        Keyboard.dismiss();
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        Alert.alert(
+          "Limit Reached",
+          "Watch an ad to unlock 2 more tasks.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "WATCH AD",
+              onPress: async () => {
+                let watched = false;
+                try {
+                  watched = await showRewardedAd();
+                } catch (adErr) {
+                  console.log('Rewarded ad error:', adErr);
+                  watched = false;
+                }
+                if (watched) {
+                  await AsyncStorage.setItem('todoBonusUnlocks', '1');
+                  addTodo(payload);
+                  setQuickTitle("");
+                  Keyboard.dismiss();
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (e) {
+      console.log('Quick todo limit check failed (non-fatal):', e);
+      addTodo(payload);
+      setQuickTitle("");
+      Keyboard.dismiss();
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
   };
 
   // Change 3: Professional quick suggestions

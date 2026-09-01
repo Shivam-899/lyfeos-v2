@@ -14,9 +14,9 @@ export interface FoodAnalysisResult {
   carbs: number;
   protein: number;
   fat: number;
-  fiber: number;
-  sugar: number;
-  sodium: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
   confidence: "high" | "medium" | "low";
   noFoodDetected?: boolean;
   /** "Indian" | "International" | "Mixed" */

@@ -26,3 +26,40 @@ export function getLocalYesterdayString(): string {
   d.setDate(d.getDate() - 1);
   return getLocalDateString(d);
 }
+
+/**
+ * Calculates the next occurrence date for recurring tasks.
+ * Uses local calendar date arithmetic to prevent timezone shifting.
+ */
+export function getNextRecurringDate(
+  currentDueDate?: string,
+  repeat?: "none" | "daily" | "weekly" | "monthly"
+): string {
+  const today = new Date();
+  let base: Date;
+  if (currentDueDate) {
+    const [y, m, d] = currentDueDate.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      base = new Date(y, m - 1, d);
+    } else {
+      base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+  } else {
+    base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  }
+
+  if (repeat === "daily") {
+    base.setDate(base.getDate() + 1);
+  } else if (repeat === "weekly") {
+    base.setDate(base.getDate() + 7);
+  } else if (repeat === "monthly") {
+    const prevDay = base.getDate();
+    base.setMonth(base.getMonth() + 1);
+    // Handle month-end boundary overflow (e.g. Jan 31 -> Feb 28/29)
+    if (base.getDate() !== prevDay) {
+      base.setDate(0);
+    }
+  }
+
+  return getLocalDateString(base);
+}

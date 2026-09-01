@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -56,7 +56,7 @@ export function HabitTile({ habit, date, onAllDone, allHabits }: Props) {
   const { getHabitLog, logHabit, deleteHabit, getStreak, getCompletionRate } = useHabits();
   const { preferences } = useProfile();
   const theme = useAppTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const log = getHabitLog(habit.id, date);
   const colorInfo = HABIT_COLORS.find((c) => c.id === habit.colorId) ?? HABIT_COLORS[0];
   const scaleAnim = useRef(new Animated.Value(1)).current;

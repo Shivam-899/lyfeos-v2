@@ -53,7 +53,7 @@ export default function LoginScreen() {
   const [resetError, setResetError] = useState("");
 
   const fadeAnim = useState(new Animated.Value(1))[0];
-  const formHeight = useState(new Animated.Value(isSignUp ? 320 : 260))[0];
+  const formHeight = useState(new Animated.Value(isSignUp ? 380 : 330))[0];
 
   const handleToggleMode = () => {
     Haptics.selectionAsync();
@@ -64,7 +64,7 @@ export default function LoginScreen() {
         useNativeDriver: true,
       }),
       Animated.timing(formHeight, {
-        toValue: isSignUp ? 260 : 320,
+        toValue: isSignUp ? 330 : 380,
         duration: 300,
         useNativeDriver: false,
       }),
@@ -222,81 +222,88 @@ export default function LoginScreen() {
             {/* Email Form */}
             <Animated.View style={[styles.formCard, { height: formHeight }]}>
               <Animated.View style={{ opacity: fadeAnim, flex: 1, justifyContent: "space-between" }}>
-                <View style={styles.inputs}>
-                  {isSignUp && (
+                <View>
+                  <View style={styles.inputs}>
+                    {isSignUp && (
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Full Name"
+                        placeholderTextColor={THEME.MUTED}
+                        value={name}
+                        onChangeText={setName}
+                        autoCapitalize="words"
+                      />
+                    )}
                     <TextInput
                       style={styles.input}
-                      placeholder="Full Name"
+                      placeholder="Email address"
                       placeholderTextColor={THEME.MUTED}
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="words"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
                     />
-                  )}
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email address"
-                    placeholderTextColor={THEME.MUTED}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                  <View style={styles.passwordContainer}>
-                    <TextInput
-                      style={styles.passwordInput}
-                      placeholder="Password"
-                      placeholderTextColor={THEME.MUTED}
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                    />
-                    <TouchableOpacity 
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeIcon}
-                    >
-                      <Ionicons 
-                        name={showPassword ? "eye-off" : "eye"} 
-                        size={20} 
-                        color={THEME.MUTED} 
+                    <View style={styles.passwordContainer}>
+                      <TextInput
+                        style={styles.passwordInput}
+                        placeholder="Password"
+                        placeholderTextColor={THEME.MUTED}
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
                       />
-                    </TouchableOpacity>
+                      <TouchableOpacity 
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeIcon}
+                      >
+                        <Ionicons 
+                          name={showPassword ? "eye-off" : "eye"} 
+                          size={20} 
+                          color={THEME.MUTED} 
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Stable Error Container */}
+                  <View style={styles.errorContainer}>
+                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
                   </View>
                 </View>
 
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <View style={styles.actionsContainer}>
+                  <TouchableOpacity 
+                    style={styles.primaryBtn} 
+                    onPress={handleEmailAuth}
+                    activeOpacity={0.8}
+                    disabled={loading !== null}
+                  >
+                    {loading === "email" ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text style={styles.primaryBtnText}>
+                        {isSignUp ? "Create Account" : "Sign In"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={styles.primaryBtn} 
-                  onPress={handleEmailAuth}
-                  activeOpacity={0.8}
-                  disabled={loading !== null}
-                >
-                  {loading === "email" ? (
-                    <ActivityIndicator color="#FFF" />
-                  ) : (
-                    <Text style={styles.primaryBtnText}>
-                      {isSignUp ? "Create Account" : "Sign In"}
-                    </Text>
+                  {/* Forgot Password — only visible in Sign In mode */}
+                  {!isSignUp && (
+                    <TouchableOpacity style={styles.forgotBtn} onPress={openResetModal}>
+                      <Text style={styles.forgotText}>Forgot Password?</Text>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
 
-                <TouchableOpacity onPress={handleToggleMode} style={styles.toggleBtn}>
-                  <Text style={styles.toggleText}>
-                    {isSignUp 
-                      ? "Already have an account? Sign In" 
-                      : "Don't have an account? Sign Up"}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={handleToggleMode} style={styles.toggleBtn}>
+                    <Text style={styles.toggleText}>
+                      {isSignUp 
+                        ? "Already have an account? Sign In" 
+                        : "Don't have an account? Sign Up"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </Animated.View>
             </Animated.View>
-
-            {/* Forgot Password — only visible in Sign In mode */}
-            {!isSignUp && (
-              <TouchableOpacity style={styles.forgotBtn} onPress={openResetModal}>
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
-            )}
 
             <View style={styles.dividerContainer}>
               <View style={styles.dividerLine} />
@@ -337,10 +344,9 @@ export default function LoginScreen() {
                   <View style={styles.modalSuccessIcon}>
                     <Ionicons name="checkmark-circle" size={48} color="#22C55E" />
                   </View>
-                  <Text style={styles.modalTitle}>Check Your Inbox</Text>
+                  <Text style={styles.modalTitle}>Check Your Email</Text>
                   <Text style={styles.modalSubtitle}>
-                    A password reset link has been sent to{"\n"}
-                    <Text style={{ color: THEME.ACCENT, fontWeight: "700" }}>{resetEmail}</Text>
+                    We sent you a password reset link. If you don't see it, check your Spam or Junk folder.
                   </Text>
                   <TouchableOpacity
                     style={styles.modalPrimaryBtn}
@@ -500,19 +506,28 @@ const styles = StyleSheet.create({
     right: 16,
     padding: 4,
   },
+  errorContainer: {
+    minHeight: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 4,
+  },
   errorText: {
     color: THEME.ERROR,
     fontSize: 13,
     fontFamily: "Inter_500Medium",
-    marginTop: 8,
     textAlign: "center",
+  },
+  actionsContainer: {
+    width: "100%",
   },
   primaryBtn: {
     backgroundColor: THEME.ACCENT,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 4,
   },
   primaryBtnText: {
     color: "#FFFFFF",
@@ -520,22 +535,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Inter_600SemiBold",
   },
+  forgotBtn: {
+    alignItems: "center",
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  forgotText: {
+    color: THEME.ACCENT,
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+  },
   toggleBtn: {
-    marginTop: 16,
+    marginTop: 4,
+    paddingVertical: 8,
     alignItems: "center",
   },
   toggleText: {
     color: THEME.MUTED,
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-  },
-  // Forgot Password link
-  forgotBtn: {
-    alignItems: "center",
-    paddingVertical: 14,
-  },
-  forgotText: {
-    color: THEME.ACCENT,
     fontSize: 14,
     fontFamily: "Inter_500Medium",
   },

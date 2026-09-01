@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
 import { AD_UNIT_IDS, BannerAd, BannerAdSize, setInterstitialBlocked } from "@/utils/ads";
 import { StatusBar } from "expo-status-bar";
@@ -74,7 +74,7 @@ function WeeklySummary({ habits, getHabitLog }: {
 }) {
   const theme = useAppTheme();
   const { GREEN } = theme;
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -142,7 +142,7 @@ function WeeklySummary({ habits, getHabitLog }: {
 function CelebrationOverlay({ visible }: { visible: boolean }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const theme = useAppTheme();
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   useEffect(() => {
     if (visible) {
@@ -174,7 +174,7 @@ export default function HabitsScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE, isDark } = theme;
-  const styles = makeStyles(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { habits, addHabit, getHabitsForDate, getHabitLog, getStreak } = useHabits();
 
   // Earliest habit creation date for CalendarStrip back-nav limit

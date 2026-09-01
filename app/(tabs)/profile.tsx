@@ -56,7 +56,7 @@ const ACHIEVEMENTS = [
   { id: "unstoppable", emoji: "🏆", name: "Unstoppable", desc: "30-day habit streak", how: "Maintain a streak of 30 consecutive days on any habit" },
   { id: "all_rounder", emoji: "⭐", name: "All Rounder", desc: "Complete habits + tasks + nutrition in one day", how: "Log habits, a task, and a meal all on the same day" },
   { id: "task_master", emoji: "📋", name: "Task Master", desc: "Complete 10 tasks", how: "Check off 10 tasks in your to-do list" },
-  { id: "mover", emoji: "🏃", name: "Mover", desc: "Log 10 activities", how: "Coming soon — activity logging is on the way!" },
+  { id: "mover", emoji: "🏃", name: "Mover", desc: "Log 10 activities", how: "Log at least 10 workout or physical activities" },
 ];
 
 // ── Goal presets (Mifflin-St Jeor BMR) ───────────────────────────────────────
@@ -402,7 +402,7 @@ export default function ProfileScreen() {
   const { habits, habitLogs, getStreak, getCompletionRate, clearTodayHabitLogs } = useHabits();
   const { todos } = useTodos();
   const { foodItems, waterLogs, dailyGoal, setDailyGoal, clearTodayData } = useCalories();
-  const { getDailyActivityMinutes } = useActivity();
+  const { getDailyActivityMinutes, activityLogs } = useActivity();
   const { userName, setUserName, joinDate, habitGoal, setHabitGoal, activityGoal, setActivityGoal,
     healthProfile, setHealthProfile, reminders, setReminders, preferences, setPreferences } = useProfile();
 
@@ -540,6 +540,7 @@ export default function ProfileScreen() {
   if (new Set(foodItems.map(f => f.date)).size >= 7) unlockedSet.add("nutrition_pro");
   if (bestStreak >= 30) unlockedSet.add("unstoppable");
   if (totalTasksDone >= 10) unlockedSet.add("task_master");
+  if (activityLogs.length >= 10) unlockedSet.add("mover");
 
   // Hydrated: 7 consecutive days where glasses >= goal
   const sortedWaterDates = [...new Set(waterLogs.filter(w => w.glasses >= dailyGoal.water).map(w => w.date))].sort();

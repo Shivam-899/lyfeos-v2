@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { logScreen, logError } from "@/utils/analytics";
-import { showInterstitialAd } from "../../utils/ads";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize, showInterstitialAd } from "@/utils/ads";
 import { requestNotificationPermissions, scheduleDailyNotifications } from "@/utils/notifications";
 import React, {
   useCallback,
@@ -85,96 +85,6 @@ function getRingMotivation(pct: number): string {
   if (pct >= 40) return "Keep going! 🔥";
   if (pct > 0) return "Building momentum";
   return "Let's start! 🚀";
-}
-
-// ─── Change 4: Push notification scheduling helper ────────────────────────────
-async function scheduleAllNotifications(
-  reminders: { morning: boolean; meal: boolean; water: boolean; evening: boolean },
-  firstName: string,
-): Promise<void> {
-  if (Platform.OS === "web") return;
-  try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    const nameStr = firstName ? `, ${firstName}` : "";
-
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("lyfeos_default", {
-        name: "LyfeOS Reminders",
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    }
-
-    if (reminders.morning) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Good morning${nameStr}! ☀️`,
-          body: "Time to check in on your habits for today.",
-          data: { route: "/(tabs)/habits" },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: 8,
-          minute: 0,
-        },
-      });
-    }
-
-    if (reminders.meal) {
-      const meals = [
-        { hour: 8, minute: 30, name: "Breakfast" },
-        { hour: 13, minute: 0, name: "Lunch" },
-        { hour: 19, minute: 0, name: "Dinner" },
-      ];
-      for (const m of meals) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `${m.name} time! 🍽️`,
-            body: "Don't forget to log your meal.",
-            data: { route: "/(tabs)/calories" },
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: m.hour,
-            minute: m.minute,
-          },
-        });
-      }
-    }
-
-    if (reminders.water) {
-      for (let hour = 10; hour <= 22; hour += 2) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "Hydration reminder 💧",
-            body: "Time to drink a glass of water!",
-            data: { route: "/(tabs)/calories" },
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour,
-            minute: 0,
-          },
-        });
-      }
-    }
-
-    if (reminders.evening) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Evening check-in${nameStr} 🌙`,
-          body: "How did today go? Review your progress.",
-          data: { route: "/(tabs)/index" },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: 21,
-          minute: 0,
-        },
-      });
-    }
-  } catch (e) {
-    console.warn("[LyfeOS] Notification scheduling failed:", e);
-  }
 }
 
 // ─── SmallRing (unchanged) ────────────────────────────────────────────────────
@@ -888,6 +798,7 @@ export default function HomeScreen() {
   const [notifSheetOpen, setNotifSheetOpen] = useState(false);
   const [notifPermSheetOpen, setNotifPermSheetOpen] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [adLoaded, setAdLoaded] = useState(false);
 
   const today = getLocalDateString();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -1552,6 +1463,24 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Banner Ad ─────────────────────────────────────────────── */}
+      {/* BannerAd is always mounted so it persists across tab switches and
+          does not trigger a new ad request on every navigation focus.
+          The container collapses to height 0 until onAdLoaded fires,
+          eliminating the blank placeholder when no ad has filled yet. */}
+      <View style={[
+        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
+        !adLoaded && { height: 0, overflow: "hidden" },
+      ]}>
+        <BannerAd
+          unitId={AD_UNIT_IDS.banner}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Home Tab)'); }}
+          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Home Tab):', JSON.stringify(error)); }}
+        />
+      </View>
 
       {/* ── Change 3: Confetti (rendered outside ScrollView, not clipped) ── */}
       <ConfettiEffect
