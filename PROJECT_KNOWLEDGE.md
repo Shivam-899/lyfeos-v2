@@ -12,7 +12,7 @@
 **App Store slug:** `lyfeos`
 **EAS Project ID:** `54f639f6-a140-4168-afdc-eb3bca56979e`
 **Owner / Developer account:** `shivam.2k` (EAS) / **Orbits Lab** (Play Store developer)
-**Current version:** `2.1` (Android `versionCode: 33`)
+**Current version:** `2.2.1` (Android `versionCode: 35`)
 
 ### What is LyfeOS?
 LyfeOS is an **AI-powered, all-in-one life management and productivity app** built in React Native (Expo). It unifies daily task management, habit tracking, sports & activity logging, nutrition & calorie tracking (with a specialised Indian food database), water intake tracking, and a personal health dashboard — all in a single app with real-time cloud sync and optional Google AdMob ads.
@@ -669,6 +669,21 @@ Based on code placeholders and commented-out sections:
 | **Weekly AI coach insight** | `WeeklyCoachInsight` model exists; generation call exists in `ActivityContext`, UI display on home screen | `context/ActivityContext.tsx:48-51` |
 | **Consent version bumping** | `CONSENT_VERSION = '1.0'` in legal-consent.tsx — architecture supports re-prompting on version bump | `app/legal-consent.tsx:18` |
 | **Gemini Vision / multimodal** | `metro.config.js` has a generic `/api/gemini` proxy endpoint (accepts arbitrary model + payload) ready for image analysis | `metro.config.js:43-62` |
+
+---
+
+## 13. IMPORTANT RULES FOR FUTURE CHANGES
+
+1. **NEVER touch `components/ActivityTracker.tsx` without reading the full file.** It is 76 KB and contains complex canvas/chart drawing and animation logic.
+2. **Always test on Android.** iOS is not currently deployed.
+3. **Keep `PROJECT_KNOWLEDGE.md` updated** whenever new packages, env vars, or architecture decisions are added.
+4. **Analytics & Ads:**
+   - Firebase Analytics is active (`@react-native-firebase/analytics`).
+   - Meta App Events is active (`react-native-fbsdk-next` with Meta App ID `1369488158633446`).
+   - Google AdMob is active (`react-native-google-mobile-ads`).
+   - Before production EAS builds, ensure the real Meta Client Token (`META_CLIENT_TOKEN`) is supplied in `android/app/src/main/res/values/strings.xml` / `app.json`.
+   - `logError()` and `setCrashlyticsUser()` are still no-ops (Crashlytics not yet installed). A native rebuild is required whenever you install `@react-native-firebase/crashlytics` to activate those.
+5. **No AI imports in client code.** All Gemini calls MUST go through the backend proxy (`/api/gemini` or `/api/analyze-activity`).
 
 ---
 

@@ -2,7 +2,7 @@
   "expo": {
     "name": "LyfeOS",
     "slug": "lyfeos",
-    "version": "2.1.1",
+    "version": "2.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lyfeos",
@@ -67,8 +67,20 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.swmansion.worklets.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-dontwarn com.swmansion.reanimated.**\n-dontwarn com.swmansion.worklets.**"
+            "extraProguardRules": "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.swmansion.worklets.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.facebook.** { *; }\n-dontwarn com.swmansion.reanimated.**\n-dontwarn com.swmansion.worklets.**\n-dontwarn com.facebook.**"
           }
+        }
+      ],
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "1369488158633446",
+          "clientToken": "baa4ccd5f7520f7b478c91e706c11ba4",
+          "displayName": "LyfeOS",
+          "scheme": "fb1369488158633446",
+          "advertiserIDCollectionEnabled": true,
+          "autoLogAppEventsEnabled": true,
+          "isAutoInitEnabled": true
         }
       ]
     ],

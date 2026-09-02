@@ -10,6 +10,18 @@
  */
 
 import analytics from "@react-native-firebase/analytics";
+import { AppEventsLogger, Settings } from "react-native-fbsdk-next";
+
+// ── Meta SDK Initialization ───────────────────────────────────────────────────
+
+export const initializeMetaSDK = async (): Promise<void> => {
+  try {
+    Settings.initializeSDK();
+    if (__DEV__) console.log("[Meta] SDK initialized successfully");
+  } catch (e) {
+    if (__DEV__) console.warn("[Meta] SDK initialization failed:", e);
+  }
+};
 
 // ── Screen Tracking ───────────────────────────────────────────────────────────
 
@@ -25,17 +37,64 @@ export const logScreen = async (screenName: string): Promise<void> => {
   }
 };
 
+// Helper to ensure parameters passed to Meta SDK match its `{ [key: string]: string | number }` requirement
+const formatMetaParams = (p?: Record<string, any>): Record<string, string | number> | undefined => {
+  if (!p) return undefined;
+  const result: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(p)) {
+    if (typeof v === "number" || typeof v === "string") {
+      result[k] = v;
+    } else if (v !== null && v !== undefined) {
+      result[k] = String(v);
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+};
+
 // ── Custom Events ─────────────────────────────────────────────────────────────
 
 export const logEvent = async (
   eventName: string,
   params?: Record<string, any>
 ): Promise<void> => {
+  // 1. Firebase Analytics (Existing & unchanged)
   try {
     if (__DEV__) console.log(`[Analytics] Event: ${eventName}`, params);
     await analytics().logEvent(eventName, params);
   } catch (e) {
     if (__DEV__) console.warn("[Analytics] logEvent failed:", e);
+  }
+
+  // 2. Meta (Facebook) App Events (Dual logging for attribution & key actions)
+  try {
+    const metaParams = formatMetaParams(params);
+    if (eventName === "login") {
+      if (metaParams) {
+        AppEventsLogger.logEvent("fb_mobile_login", metaParams);
+      } else {
+        AppEventsLogger.logEvent("fb_mobile_login");
+      }
+    } else if (eventName === "sign_up") {
+      const regParams: Record<string, string | number> = {
+        fb_registration_method: String(params?.method ?? "email"),
+        ...(metaParams ?? {}),
+      };
+      AppEventsLogger.logEvent(AppEventsLogger.AppEvents.CompletedRegistration, regParams);
+    } else if (eventName === "habit_completed") {
+      if (metaParams) {
+        AppEventsLogger.logEvent("HabitCompleted", metaParams);
+      } else {
+        AppEventsLogger.logEvent("HabitCompleted");
+      }
+    } else if (eventName === "meal_logged") {
+      if (metaParams) {
+        AppEventsLogger.logEvent("MealLogged", metaParams);
+      } else {
+        AppEventsLogger.logEvent("MealLogged");
+      }
+    }
+  } catch (e) {
+    if (__DEV__) console.warn("[Meta] logEvent failed:", e);
   }
 };
 
@@ -55,6 +114,12 @@ export const setAnalyticsUser = async (
     }
   } catch (e) {
     if (__DEV__) console.warn("[Analytics] setAnalyticsUser failed:", e);
+  }
+
+  try {
+    AppEventsLogger.setUserID(userId);
+  } catch (e) {
+    if (__DEV__) console.warn("[Meta] setUserID failed:", e);
   }
 };
 

@@ -28,7 +28,7 @@ SplashScreen.preventAutoHideAsync().catch(() => { });
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSegments } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setAnalyticsUser, setCrashlyticsUser } from "@/utils/analytics";
+import { setAnalyticsUser, setCrashlyticsUser, initializeMetaSDK } from "@/utils/analytics";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +137,9 @@ export default function RootLayout() {
   // to prevent flashing the index screen
 
   useEffect(() => {
+    // Initialize Meta (Facebook) SDK
+    initializeMetaSDK().catch(() => {});
+
     const timer = setTimeout(async () => {
       try {
         await initializeAds();
