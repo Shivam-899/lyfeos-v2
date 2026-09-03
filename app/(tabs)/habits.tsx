@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
-import { AD_UNIT_IDS, BannerAd, BannerAdSize, setInterstitialBlocked } from "@/utils/ads";
+import { AD_UNIT_IDS, setInterstitialBlocked } from "@/utils/ads";
 import { StatusBar } from "expo-status-bar";
 import {
   Animated,
@@ -170,7 +170,6 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function HabitsScreen() {
-  const [adLoaded, setAdLoaded] = useState(false);
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, GREEN, TEXT: WHITE, isDark } = theme;
@@ -355,7 +354,7 @@ export default function HabitsScreen() {
           data={sortedHabits}
           keyExtractor={(h) => `${h.id}-${dateStr}`}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 136 }]}
           ListHeaderComponent={
             <>
               {/* ── Completion Banner ──────────────────────────────────── */}
@@ -493,24 +492,6 @@ export default function HabitsScreen() {
           }
         />
       )}
-
-      {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      {/* BannerAd is always mounted so it persists across tab switches and
-          does not trigger a new ad request on every navigation focus.
-          The container collapses to height 0 until onAdLoaded fires,
-          eliminating the blank placeholder when no ad has filled yet. */}
-      <View style={[
-        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
-        !adLoaded && { height: 0, overflow: "hidden" },
-      ]}>
-        <BannerAd
-          unitId={AD_UNIT_IDS.banner}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Habits Tab)'); }}
-          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Habits Tab):', JSON.stringify(error)); }}
-        />
-      </View>
 
       <AddHabitSheet
         visible={showAddSheet}

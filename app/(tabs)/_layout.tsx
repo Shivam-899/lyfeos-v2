@@ -4,7 +4,8 @@ import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { AD_UNIT_IDS, BannerAd, BannerAdSize, initializeAds, isAdsInitialized } from "@/utils/ads";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -139,8 +140,40 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const [adLoaded, setAdLoaded] = useState(false);
+  const [isSdkReady, setIsSdkReady] = useState(isAdsInitialized());
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (!isAdsInitialized()) {
+      initializeAds().then(() => setIsSdkReady(true));
+    }
+  }, []);
+  
+  let content;
   if (Platform.OS === "ios" && isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
+    content = <NativeTabLayout />;
+  } else {
+    content = <ClassicTabLayout />;
   }
-  return <ClassicTabLayout />;
+
+  return (
+    <View style={{ flex: 1 }}>
+      {content}
+      <View style={[
+        { position: "absolute", bottom: 0, width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
+        !adLoaded && { height: 0, overflow: "hidden" },
+      ]} pointerEvents="box-none">
+        {isSdkReady && (
+          <BannerAd
+            unitId={AD_UNIT_IDS.banner}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+            onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Global)'); }}
+            onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Global):', JSON.stringify(error)); }}
+          />
+        )}
+      </View>
+    </View>
+  );
 }

@@ -140,14 +140,10 @@ export default function RootLayout() {
     // Initialize Meta (Facebook) SDK
     initializeMetaSDK().catch(() => {});
 
-    const timer = setTimeout(async () => {
-      try {
-        await initializeAds();
-      } catch (e) {
-        console.log('AdMob init failed silently:', e);
-      }
-    }, 2000);
-    return () => clearTimeout(timer);
+    // Initialize Google Mobile Ads SDK immediately without arbitrary delay
+    initializeAds().catch((e) => {
+      console.log('AdMob init failed silently:', e);
+    });
   }, []);
 
   if (!fontsLoaded && !fontError) return null;

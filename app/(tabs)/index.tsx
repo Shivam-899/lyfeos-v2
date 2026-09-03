@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { logScreen, logError } from "@/utils/analytics";
-import { AD_UNIT_IDS, BannerAd, BannerAdSize, showInterstitialAd } from "@/utils/ads";
+import { AD_UNIT_IDS, showInterstitialAd } from "@/utils/ads";
 import { requestNotificationPermissions, scheduleDailyNotifications } from "@/utils/notifications";
 import React, {
   useCallback,
@@ -798,7 +798,6 @@ export default function HomeScreen() {
   const [notifSheetOpen, setNotifSheetOpen] = useState(false);
   const [notifPermSheetOpen, setNotifPermSheetOpen] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
-  const [adLoaded, setAdLoaded] = useState(false);
 
   const today = getLocalDateString();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -871,10 +870,16 @@ export default function HomeScreen() {
         const lastAdDate = await AsyncStorage.getItem("lastInterstitialDate");
         const today = new Date().toDateString();
         if (lastAdDate !== today) {
-          await AsyncStorage.setItem("lastInterstitialDate", today);
           // Wait 2 minutes after app load before showing ad
-          setTimeout(() => {
-            showInterstitialAd().catch(e => console.log('Interstitial failed silently:', e));
+          setTimeout(async () => {
+            try {
+              const shown = await showInterstitialAd();
+              if (shown) {
+                await AsyncStorage.setItem("lastInterstitialDate", today);
+              }
+            } catch (e) {
+              console.log('Interstitial failed silently:', e);
+            }
           }, 120000);
         }
       } catch (e) {
@@ -1074,7 +1079,7 @@ export default function HomeScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: topPad + 8, paddingBottom: insets.bottom + 100 },
+          { paddingTop: topPad + 8, paddingBottom: insets.bottom + 136 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -1464,24 +1469,6 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      {/* BannerAd is always mounted so it persists across tab switches and
-          does not trigger a new ad request on every navigation focus.
-          The container collapses to height 0 until onAdLoaded fires,
-          eliminating the blank placeholder when no ad has filled yet. */}
-      <View style={[
-        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
-        !adLoaded && { height: 0, overflow: "hidden" },
-      ]}>
-        <BannerAd
-          unitId={AD_UNIT_IDS.banner}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Home Tab)'); }}
-          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Home Tab):', JSON.stringify(error)); }}
-        />
-      </View>
-
       {/* ── Change 3: Confetti (rendered outside ScrollView, not clipped) ── */}
       <ConfettiEffect
         trigger={confettiTrigger}
@@ -1490,7 +1477,7 @@ export default function HomeScreen() {
       />
 
       {/* ── FAB — Change 5: safe area fix (insets.bottom + 80) ───────────── */}
-      <View style={[styles.fabContainer, { bottom: insets.bottom + 80 }]}>
+      <View style={[styles.fabContainer, { bottom: insets.bottom + 136 }]}>
         <TouchableOpacity
           style={[styles.fab, fabOpen && styles.fabOpen]}
           onPress={() => setFabOpen((v) => !v)}

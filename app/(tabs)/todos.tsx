@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen } from "@/utils/analytics";
 
-import { AD_UNIT_IDS, BannerAd, BannerAdSize, showRewardedAd } from "@/utils/ads";
+import { AD_UNIT_IDS, showRewardedAd } from "@/utils/ads";
 import {
   Alert,
   Animated,
@@ -567,7 +567,6 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function TodosScreen() {
-  const [adLoaded, setAdLoaded] = useState(false);
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { BG, CARD, MUTED, BORDER, RED, GREEN, TEXT: WHITE } = theme;
@@ -957,24 +956,6 @@ export default function TodosScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-
-      {/* ── Banner Ad ─────────────────────────────────────────────── */}
-      {/* BannerAd is always mounted so it persists across tab switches and
-          does not trigger a new ad request on every navigation focus.
-          The container collapses to height 0 until onAdLoaded fires,
-          eliminating the blank placeholder when no ad has filled yet. */}
-      <View style={[
-        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
-        !adLoaded && { height: 0, overflow: "hidden" },
-      ]}>
-        <BannerAd
-          unitId={AD_UNIT_IDS.banner}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Todos Tab)'); }}
-          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Todos Tab):', JSON.stringify(error)); }}
-        />
-      </View>
 
       <AddTaskSheet
         visible={showAddSheet}

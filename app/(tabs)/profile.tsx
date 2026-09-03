@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen, logError } from "@/utils/analytics";
 import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/notifications";
 import Svg, { Circle } from "react-native-svg";
-import { AD_UNIT_IDS, BannerAd, BannerAdSize } from "@/utils/ads";
+import { AD_UNIT_IDS } from "@/utils/ads";
 import {
   Alert,
   Animated,
@@ -398,7 +398,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [adLoaded, setAdLoaded] = useState(false);
   const { BG, CARD, CARD2, BORDER, MUTED, GREEN, BLUE, YELLOW, RED, TEXT: WHITE, mode, setMode } = theme;
   const styles = makeStyles(theme);
   const st = makeSt(theme);
@@ -783,7 +782,7 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor: BG }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 8, paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 8, paddingBottom: insets.bottom + 136 }]}
         keyboardShouldPersistTaps="handled"
       >
 
@@ -1240,24 +1239,6 @@ export default function ProfileScreen() {
         onClose={() => setEditingGoal(null)}
       />
       <BadgePopup badge={activeBadge} unlocked={activeBadgeUnlocked} onClose={() => setActiveBadge(null)} />
-
-      {/* ── Banner Ad (same pattern as habits.tsx/todos.tsx) ───────────────── */}
-      {/* BannerAd is always mounted so it persists across tab switches and
-          does not trigger a new ad request on every navigation focus.
-          The container collapses to height 0 until onAdLoaded fires,
-          eliminating the blank placeholder when no ad has filled yet. */}
-      <View style={[
-        { width: "100%", alignItems: "center", marginBottom: (Platform.OS === "web" ? 84 : 60 + insets.bottom) + (insets.bottom > 0 ? 0 : 4) },
-        !adLoaded && { height: 0, overflow: "hidden" },
-      ]}>
-        <BannerAd
-          unitId={AD_UNIT_IDS.banner}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Profile Tab)'); }}
-          onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Profile Tab):', JSON.stringify(error)); }}
-        />
-      </View>
     </View>
   );
 }
