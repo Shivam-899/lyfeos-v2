@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
+import * as StoreReview from "expo-store-review";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen, logError } from "@/utils/analytics";
 import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/notifications";
@@ -865,6 +866,25 @@ export default function ProfileScreen() {
     );
   };
 
+  const PLAY_STORE_URL =
+    "https://play.google.com/store/apps/details?id=com.lyfeos.app&showAllReviews=true";
+
+  const handleRateApp = async () => {
+    try {
+      const available = await StoreReview.isAvailableAsync();
+      if (available) {
+        await StoreReview.requestReview();
+      } else {
+        await WebBrowser.openBrowserAsync(PLAY_STORE_URL);
+      }
+    } catch {
+      // Fallback: attempt to open Play Store listing; silently fail if that also fails
+      try {
+        await WebBrowser.openBrowserAsync(PLAY_STORE_URL);
+      } catch { }
+    }
+  };
+
   const toggleWeightUnit = () => {
     const isLb = hp.weight.includes("lb");
     const val = parseFloat(hp.weight) || 0;
@@ -1196,7 +1216,17 @@ export default function ProfileScreen() {
                 trackColor={{ false: BORDER, true: ACCENT }}
                 thumbColor="#ffffff"
               />
-            } last />
+            } />
+          <SettingRow
+            icon="star"
+            iconColor={YELLOW}
+            iconBg={YELLOW + "25"}
+            label="Rate LyfeOS"
+            sub="Enjoying LyfeOS? Your feedback helps us improve."
+            onPress={handleRateApp}
+            right={<Ionicons name="chevron-forward" size={16} color={MUTED} />}
+            last
+          />
         </SectionCard>
 
         {/* ── Health Profile ────────────────────────────────────────── */}
