@@ -10,7 +10,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logError } from "./analytics";
 import { getLocalDateString } from "./date";
-import { getStoredJson } from "./storage";
+import { getStoredJson, getStoredString, setStoredJson } from "./storage";
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -420,7 +420,173 @@ export const scheduleDailyNotifications = async (
         },
       });
     }
+
+    // Schedule or re-register Rate LyfeOS reminder if user is eligible
+    await scheduleRateReminderIfEligible(ctx);
   } catch (e) {
     logError(e as Error, "scheduleDailyNotifications");
   }
 };
+
+// ── Rate LyfeOS Reminder Engine ──────────────────────────────────────────────
+
+export const RATE_REMINDER_KEY = "@lyfeos_rate_reminder_v1";
+
+export interface RateReminderState {
+  scheduledFor: string | null;     // ISO timestamp of the planned trigger time
+  lastTriggeredAt: string | null;  // ISO timestamp when the scheduled reminder time was passed
+  cooldownUntil: string | null;    // ISO timestamp (30 days from last trigger)
+}
+
+const DEFAULT_RATE_REMINDER_STATE: RateReminderState = {
+  scheduledFor: null,
+  lastTriggeredAt: null,
+  cooldownUntil: null,
+};
+
+/**
+ * Evaluates user activity and schedules a gentle, one-shot "Rate LyfeOS" reminder notification.
+ *
+ * Rules:
+ * 1. User has used LyfeOS for at least 7 calendar days since first meaningful usage (joinDate).
+ * 2. User has had at least 5 meaningful active days across habit, food, or activity logs.
+ * 3. Never schedules while a 30-day cooldown is active.
+ * 4. Idempotent: If a reminder is already scheduled in the future, it is safely re-registered
+ *    with the OS (since cancelAllNotifications cleared previous notifications) without creating duplicates.
+ * 5. When a scheduled reminder's time has passed, begins a 30-day cooldown.
+ * 6. Never directly invokes Google Play in-app review; tapping routes the user to the Profile tab.
+ */
+export async function scheduleRateReminderIfEligible(
+  context?: SmartNotificationContext
+): Promise<void> {
+  try {
+    if (Platform.OS === "web") return;
+
+    // Check notification permission silently (never prompt here)
+    const permissions = await Notifications.getPermissionsAsync();
+    if (permissions.status !== "granted") {
+      return;
+    }
+
+    const state = await getStoredJson<RateReminderState>(
+      RATE_REMINDER_KEY,
+      DEFAULT_RATE_REMINDER_STATE
+    );
+
+    const now = new Date();
+
+    // 1. Check if an active cooldown is in effect (30 days after a reminder trigger)
+    if (state.cooldownUntil && new Date(state.cooldownUntil).getTime() > now.getTime()) {
+      return;
+    }
+
+    // 2. Check if a previously scheduled reminder's time has passed
+    // Android does not provide a reliable delivery callback in this setup, so we treat
+    // "the scheduled reminder time has passed" as the practical indicator to begin the 30-day cooldown.
+    if (state.scheduledFor && new Date(state.scheduledFor).getTime() <= now.getTime()) {
+      const cooldownDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const updatedState: RateReminderState = {
+        scheduledFor: null,
+        lastTriggeredAt: now.toISOString(),
+        cooldownUntil: cooldownDate.toISOString(),
+      };
+      await setStoredJson(RATE_REMINDER_KEY, updatedState);
+      return;
+    }
+
+    // 3. If already scheduled for a future time, re-register the existing single notification
+    // after cancelAllNotifications() without moving the time or creating duplicates
+    if (state.scheduledFor && new Date(state.scheduledFor).getTime() > now.getTime()) {
+      const targetDate = new Date(state.scheduledFor);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "⭐ Enjoying LyfeOS?",
+          body: "Your feedback helps us improve. Take a moment to rate LyfeOS.",
+          sound: true,
+          data: {
+            id: "rate_reminder",
+            route: "/(tabs)/profile",
+          },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: targetDate,
+          channelId: "default",
+        },
+      });
+      return;
+    }
+
+    // 4. Check eligibility criteria:
+    // a) At least 7 calendar days since first meaningful usage / join date
+    const joinDateStr = await getStoredString("@lyfeos_profile_join_v1");
+    if (!joinDateStr) return;
+    const joinTimestamp = new Date(joinDateStr).getTime();
+    if (isNaN(joinTimestamp)) return;
+
+    const daysSinceJoin = (now.getTime() - joinTimestamp) / (1000 * 60 * 60 * 24);
+    if (daysSinceJoin < 7) {
+      return;
+    }
+
+    // b) At least 5 meaningful active days across habit, food, and activity logs
+    const ctx = context ?? (await loadStoredNotificationContext());
+    const activeDates = new Set<string>();
+
+    if (ctx.habitLogs) {
+      for (const log of ctx.habitLogs) {
+        if (log?.date) activeDates.add(log.date);
+      }
+    }
+    if (ctx.foodItems) {
+      for (const item of ctx.foodItems) {
+        if (item?.date) activeDates.add(item.date);
+      }
+    }
+    if (ctx.activityLogs) {
+      for (const act of ctx.activityLogs) {
+        if (act?.date) activeDates.add(act.date);
+      }
+    }
+
+    if (activeDates.size < 5) {
+      return;
+    }
+
+    // 5. User is eligible: schedule one gentle reminder for 19:00 tomorrow (local time)
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + 1);
+    targetDate.setHours(19, 0, 0, 0);
+
+    // Safeguard against edge cases
+    if (targetDate.getTime() <= now.getTime()) {
+      targetDate.setDate(targetDate.getDate() + 1);
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "⭐ Enjoying LyfeOS?",
+        body: "Your feedback helps us improve. Take a moment to rate LyfeOS.",
+        sound: true,
+        data: {
+          id: "rate_reminder",
+          route: "/(tabs)/profile",
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: targetDate,
+        channelId: "default",
+      },
+    });
+
+    const nextState: RateReminderState = {
+      scheduledFor: targetDate.toISOString(),
+      lastTriggeredAt: state.lastTriggeredAt,
+      cooldownUntil: null,
+    };
+    await setStoredJson(RATE_REMINDER_KEY, nextState);
+  } catch (e) {
+    logError(e as Error, "scheduleRateReminderIfEligible");
+  }
+}

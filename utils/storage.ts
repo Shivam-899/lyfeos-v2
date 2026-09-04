@@ -98,6 +98,7 @@ export const LYFEOS_STORAGE_KEYS = [
   "@lyfeos_theme_mode_v1",
   "@lyfeos_notifications_v1",
   "@lyfeos_notif_asked_v1",
+  "@lyfeos_rate_reminder_v1",
   "@lyfeos_confetti_date_v1",
   // Legacy keys
   "@lyfeos_habits",
