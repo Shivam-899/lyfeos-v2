@@ -232,3 +232,54 @@ export const migrateGuestDataToAccount = async (
         return false;
     }
 };
+
+// ─── DELETE USER CLOUD DATA ───
+/**
+ * Permanently deletes all user-owned data from Firestore:
+ * - All documents under `users/{uid}/data/*` (habits, todos, calories, consent, etc.)
+ * - The parent `users/{uid}` document
+ * Throws an error if any deletion step fails so caller does NOT delete the auth user.
+ */
+export const deleteUserCloudData = async (uid: string): Promise<boolean> => {
+    try {
+        if (!uid) {
+            throw new Error('deleteUserCloudData: Valid UID required');
+        }
+
+        const userDocRef = getUserDoc(uid);
+        const dataColRef = userDocRef.collection('data');
+
+        // 1. Fetch any and all documents currently under users/{uid}/data
+        const dataSnapshot = await dataColRef.get();
+        const batch = firestore().batch();
+
+        // Queue all existing documents in subcollection for deletion
+        dataSnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+
+        // Also explicitly queue known document IDs to guarantee cleanup
+        const knownDocNames = ['habits', 'todos', 'calories', 'consent'];
+        for (const docName of knownDocNames) {
+            batch.delete(dataColRef.doc(docName));
+        }
+
+        // Delete parent users/{uid} document
+        batch.delete(userDocRef);
+
+        // Commit the batch
+        await batch.commit();
+
+        // Verify that deletion succeeded
+        const verifySnapshot = await dataColRef.get();
+        if (!verifySnapshot.empty) {
+            throw new Error(`Cloud deletion verification failed: ${verifySnapshot.size} document(s) still exist under users/${uid}/data`);
+        }
+
+        return true;
+    } catch (e) {
+        logError(e as Error, 'deleteUserCloudData');
+        throw e;
+    }
+};
+

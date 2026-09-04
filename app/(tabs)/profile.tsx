@@ -11,6 +11,7 @@ import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/noti
 import Svg, { Circle } from "react-native-svg";
 import { AD_UNIT_IDS } from "@/utils/ads";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -27,6 +28,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { clearAllLyfeOSLocalData } from "@/utils/storage";
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
@@ -394,7 +396,15 @@ function BadgePopup({ badge, unlocked, onClose }: { badge: typeof ACHIEVEMENTS[0
 // MAIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { user, isGuest, signOut, migrationDone, clearMigrationDone } = useAuth();
+  const {
+    user,
+    isGuest,
+    signOut,
+    migrationDone,
+    clearMigrationDone,
+    deleteAccountAndData,
+    deleteGuestData,
+  } = useAuth();
   const router = useRouter();
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -434,6 +444,14 @@ export default function ProfileScreen() {
 
   // ── Migration success banner ───────────────────────────────────────────────
   const [migrationSuccess, setMigrationSuccess] = useState(false);
+
+  // ── Account & Data Deletion State ──────────────────────────────────────────
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState("");
+  const [showPasswordText, setShowPasswordText] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingMessage, setDeletingMessage] = useState("Deleting your account…");
 
   useEffect(() => {
     if (migrationDone && user && !isGuest) {
@@ -666,23 +684,185 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.replace("/login" as any);
+    } catch (e: any) {
+      logError(e, "profile_sign_out");
+    }
+  };
+
   const handleResetAll = () => {
-    Alert.alert("⚠️ Reset All Data", "This will permanently delete ALL your habits, tasks, nutrition logs, and settings. This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "I understand, delete everything", style: "destructive", onPress: () => {
-          Alert.alert("Last warning", "Are you absolutely sure? All data will be lost forever.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete Everything", style: "destructive", onPress: async () => {
-                await AsyncStorage.clear();
-                Alert.alert("Done", "All data has been cleared. Please restart the app.");
+    Alert.alert(
+      "⚠️ Reset All Data",
+      "This will permanently delete ALL your local habits, tasks, nutrition logs, and settings on this device. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "I understand, delete local data",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Last warning",
+              "Are you absolutely sure? All local data on this device will be lost.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Local Data",
+                  style: "destructive",
+                  onPress: async () => {
+                    await clearAllLyfeOSLocalData();
+                    Alert.alert("Done", "All local data has been cleared on this device.");
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const performDeletion = async (password?: string) => {
+    setIsDeleting(true);
+    setDeletingMessage("Verifying credentials & deleting your account…");
+    try {
+      await deleteAccountAndData(password);
+      setShowPasswordModal(false);
+      setReauthPassword("");
+      setIsDeleting(false);
+      router.replace("/login" as any);
+      setTimeout(() => {
+        Alert.alert(
+          "Account Deleted",
+          "Your LyfeOS account and associated data have been deleted successfully."
+        );
+      }, 400);
+    } catch (err: any) {
+      setIsDeleting(false);
+      logError(err, "deleteAccountAndData");
+
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        setPasswordError("Incorrect password. Please try again.");
+        return;
+      }
+
+      if (err.code === "auth/requires-recent-login") {
+        setShowPasswordModal(true);
+        setPasswordError("Recent authentication is required. Please enter your password.");
+        return;
+      }
+
+      // Check if Google sign-in was cancelled by user
+      if (
+        err.code === "12501" ||
+        err.message?.toLowerCase().includes("cancel") ||
+        err.message?.toLowerCase().includes("user canceled")
+      ) {
+        Alert.alert(
+          "Verification Cancelled",
+          "Google re-authentication was cancelled. Your account and cloud data have not been deleted."
+        );
+        return;
+      }
+
+      // Check if error came from Firestore cloud deletion
+      if (
+        err.message?.includes("deleteUserCloudData") ||
+        err.message?.includes("Cloud deletion verification failed")
+      ) {
+        Alert.alert(
+          "Deletion Incomplete",
+          "We couldn't complete cloud data deletion. Your account has not been deleted. Please check your internet connection and try again.\n\nSupport: onlineworld4k@gmail.com"
+        );
+        return;
+      }
+
+      Alert.alert(
+        "Deletion Failed",
+        "We couldn't complete account deletion. Your account has not been deleted. Please try again.\n\nIf the issue persists, contact support at onlineworld4k@gmail.com."
+      );
+    }
+  };
+
+  const handleDeleteAccountFlow = () => {
+    if (isGuest || !user) {
+      Alert.alert(
+        "Guest Account Data",
+        "You are currently using LyfeOS as a guest. Guest sessions are stored locally on this device and do not have a registered cloud account or cloud data.\n\nWould you like to permanently delete your local guest data?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete Local Data",
+            style: "destructive",
+            onPress: async () => {
+              setIsDeleting(true);
+              setDeletingMessage("Deleting guest data…");
+              try {
+                await deleteGuestData();
+                setIsDeleting(false);
+                router.replace("/login" as any);
+                setTimeout(() => {
+                  Alert.alert(
+                    "Data Deleted",
+                    "Your local guest data has been cleared successfully."
+                  );
+                }, 400);
+              } catch (e: any) {
+                setIsDeleting(false);
+                logError(e, "deleteGuestData");
+                Alert.alert("Error", "Failed to delete guest data. Please try again.");
               }
             },
-          ]);
-        }
-      },
-    ]);
+          },
+        ]
+      );
+      return;
+    }
+
+    // Registered user: Confirmation 1
+    Alert.alert(
+      "Delete Account & Data?",
+      "This will permanently delete your LyfeOS account and cloud data. This action cannot be undone.\n\nThis includes cloud-synchronized:\n• Habits and habit logs\n• To-dos\n• Food/nutrition logs\n• Water logs\n• Legal consent record\n• Other LyfeOS cloud data associated with this account\n\nLocal data on this device will also be removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            // Confirmation 2
+            Alert.alert(
+              "Are you absolutely sure?",
+              "Your account and associated cloud data will be permanently deleted. You will not be able to recover this data.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Permanently",
+                  style: "destructive",
+                  onPress: () => {
+                    const providerId = user?.providerData?.[0]?.providerId;
+                    const isEmailUser =
+                      providerId === "password" ||
+                      user?.providerData?.some((p) => p.providerId === "password");
+
+                    if (isEmailUser) {
+                      // Prompt for password FIRST before touching any data
+                      setPasswordError("");
+                      setReauthPassword("");
+                      setShowPasswordModal(true);
+                    } else {
+                      // Google user: prompts Google Sign-in re-auth FIRST before deleting
+                      performDeletion();
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   };
 
   const toggleWeightUnit = () => {
@@ -1154,7 +1334,7 @@ export default function ProfileScreen() {
                   <Ionicons name="chevron-forward" size={16} color={MUTED} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={async () => { await signOut(); router.replace("/login" as any); }} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 12, marginTop: 4 }}>
+              <TouchableOpacity onPress={handleSignOut} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 12, marginTop: 4 }}>
                 <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: RED + "25", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
                   <Ionicons name="log-out-outline" size={18} color={RED} />
                 </View>
@@ -1169,10 +1349,30 @@ export default function ProfileScreen() {
           <SettingRow icon="share-outline" iconColor={BLUE} iconBg={BLUE + "25"} label="Export My Data" sub="Download a summary of all your data" onPress={handleExportData}
             right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
           <SettingRow icon="today-outline" iconColor={YELLOW} iconBg={YELLOW + "25"} label="Clear Today's Data" sub="Remove today's logs only" onPress={handleClearToday}
-            right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} />
-          <Text style={{ fontSize: 12, fontWeight: "600", color: RED, marginTop: 12, marginBottom: 4, marginLeft: 8 }}>⚠️ DANGER ZONE</Text>
-          <SettingRow icon="warning-outline" iconColor={RED} iconBg={RED + "25"} label="Reset All Data" sub="Permanently delete everything" onPress={handleResetAll}
-            right={<Ionicons name="chevron-forward" size={16} color="#EF4444" />} last />
+            right={<Ionicons name="chevron-forward" size={16} color={MUTED} />} last />
+        </SectionCard>
+
+        {/* ── Danger Zone ───────────────────────────────────────────── */}
+        <SectionCard title="Danger Zone" icon="warning-outline">
+          <SettingRow
+            icon="warning-outline"
+            iconColor={YELLOW}
+            iconBg={YELLOW + "25"}
+            label="Reset All Data"
+            sub="Clears local LyfeOS data on this device"
+            onPress={handleResetAll}
+            right={<Ionicons name="chevron-forward" size={16} color={MUTED} />}
+          />
+          <SettingRow
+            icon="trash-outline"
+            iconColor={RED}
+            iconBg={RED + "25"}
+            label="Delete Account & Data"
+            sub="Permanently deletes your LyfeOS account and associated cloud data"
+            onPress={handleDeleteAccountFlow}
+            right={<Ionicons name="chevron-forward" size={16} color={RED} />}
+            last
+          />
         </SectionCard>
 
         {/* ── Footer ───────────────────────────────────────────────── */}
@@ -1239,6 +1439,218 @@ export default function ProfileScreen() {
         onClose={() => setEditingGoal(null)}
       />
       <BadgePopup badge={activeBadge} unlocked={activeBadgeUnlocked} onClose={() => setActiveBadge(null)} />
+
+      {/* ── Re-Authentication Password Modal ───────────────────────── */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isDeleting) {
+            setShowPasswordModal(false);
+            setReauthPassword("");
+            setPasswordError("");
+          }
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.72)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              backgroundColor: CARD,
+              borderRadius: 20,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: BORDER,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.35,
+              shadowRadius: 16,
+              elevation: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: RED + "25",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="key-outline" size={20} color={RED} />
+              </View>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: WHITE, flex: 1 }}>
+                Confirm Deletion
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 13, color: MUTED, lineHeight: 18, marginBottom: 16 }}>
+              For your security, please enter your current password to verify ownership before permanently deleting your account and cloud data.
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: CARD2,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: passwordError ? RED : BORDER,
+                paddingHorizontal: 14,
+                marginBottom: 6,
+              }}
+            >
+              <TextInput
+                secureTextEntry={!showPasswordText}
+                placeholder="Enter your current password"
+                placeholderTextColor={MUTED}
+                value={reauthPassword}
+                onChangeText={(t) => {
+                  setReauthPassword(t);
+                  setPasswordError("");
+                }}
+                autoCapitalize="none"
+                editable={!isDeleting}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  fontSize: 15,
+                  color: WHITE,
+                }}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPasswordText(!showPasswordText)}
+                style={{ padding: 4 }}
+              >
+                <Ionicons
+                  name={showPasswordText ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={MUTED}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {passwordError ? (
+              <Text style={{ color: RED, fontSize: 12, marginBottom: 14, marginLeft: 2 }}>
+                {passwordError}
+              </Text>
+            ) : (
+              <View style={{ height: 14 }} />
+            )}
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowPasswordModal(false);
+                  setReauthPassword("");
+                  setPasswordError("");
+                }}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  backgroundColor: CARD2,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                }}
+              >
+                <Text style={{ color: WHITE, fontWeight: "600", fontSize: 14 }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (!reauthPassword.trim()) {
+                    setPasswordError("Please enter your password.");
+                    return;
+                  }
+                  performDeletion(reauthPassword);
+                }}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  backgroundColor: RED,
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
+                    Delete Account
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Deletion Loading Overlay ───────────────────────────────── */}
+      <Modal visible={isDeleting && !showPasswordModal} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: CARD,
+              borderRadius: 20,
+              padding: 28,
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: BORDER,
+              width: "100%",
+              maxWidth: 320,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.35,
+              shadowRadius: 16,
+              elevation: 10,
+            }}
+          >
+            <ActivityIndicator size="large" color={ACCENT} style={{ marginBottom: 16 }} />
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: WHITE,
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              {deletingMessage}
+            </Text>
+            <Text style={{ fontSize: 13, color: MUTED, textAlign: "center", lineHeight: 18 }}>
+              Please do not close or leave the app.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

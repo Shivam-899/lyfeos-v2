@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { getLocalDateString } from "@/utils/date";
 import { getStoredJson, removeStoredItem, setStoredJson } from "@/utils/storage";
+import { useAuth } from "./AuthContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface ActivityLog {
@@ -89,6 +90,7 @@ function last7Days(): string[] {
 }
 
 export function ActivityProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [stepsLogs, setStepsLogs] = useState<StepsLog[]>([]);
   const [postActivityBanner, setPostActivityBannerState] = useState<PostActivityBanner | null>(null);
@@ -115,7 +117,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
         if (insight) setWeeklyCoachInsightState(insight);
       } catch {}
     })();
-  }, []);
+  }, [user]);
 
   const addActivityLog = useCallback((log: Omit<ActivityLog, "id">) => {
     setActivityLogs(prev => {

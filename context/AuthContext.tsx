@@ -2,9 +2,11 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { logEvent, logError } from "@/utils/analytics";
-import { migrateGuestDataToAccount } from "@/utils/cloudSync";
-import { getStoredJson } from "@/utils/storage";
+import { logEvent, logError, setAnalyticsUser } from "@/utils/analytics";
+import { AppEventsLogger } from "react-native-fbsdk-next";
+import { migrateGuestDataToAccount, deleteUserCloudData } from "@/utils/cloudSync";
+import { getStoredJson, clearAllLyfeOSLocalData } from "@/utils/storage";
+import { cancelAllNotifications } from "@/utils/notifications";
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
@@ -18,6 +20,10 @@ interface AuthContextType {
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
   signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
+  reauthenticateWithEmail: (password: string) => Promise<void>;
+  reauthenticateWithGoogle: () => Promise<void>;
+  deleteAccountAndData: (passwordForReauth?: string) => Promise<void>;
+  deleteGuestData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -146,6 +152,119 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const reauthenticateWithEmail = async (password: string) => {
+    const currentUser = auth().currentUser;
+    if (!currentUser || !currentUser.email) {
+      throw new Error("No authenticated email user found to re-authenticate.");
+    }
+    const credential = auth.EmailAuthProvider.credential(currentUser.email, password);
+    await currentUser.reauthenticateWithCredential(credential);
+  };
+
+  const reauthenticateWithGoogle = async () => {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user found to re-authenticate.");
+    }
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const { data } = await GoogleSignin.signIn();
+    const idToken = data?.idToken;
+    if (!idToken) {
+      throw new Error("Google re-authentication failed: No ID token returned.");
+    }
+    const credential = auth.GoogleAuthProvider.credential(idToken);
+    await currentUser.reauthenticateWithCredential(credential);
+  };
+
+  const deleteAccountAndData = async (passwordForReauth?: string) => {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user found.");
+    }
+
+    if (currentUser.isAnonymous) {
+      // Guest users should be routed to deleteGuestData
+      return deleteGuestData();
+    }
+
+    const uid = currentUser.uid;
+    const providerId = currentUser.providerData[0]?.providerId;
+
+    // ── STEP 1: RE-AUTHENTICATION FIRST ─────────────────────────────────────
+    // Re-authenticate BEFORE touching any Firestore data or local data.
+    // If re-authentication fails or is cancelled, NOTHING is deleted.
+    if (providerId === "password" || providerId === auth.EmailAuthProvider.PROVIDER_ID) {
+      if (!passwordForReauth) {
+        const err: any = new Error("Password required for re-authentication.");
+        err.code = "auth/requires-recent-login";
+        throw err;
+      }
+      await reauthenticateWithEmail(passwordForReauth);
+    } else if (providerId === "google.com" || providerId === auth.GoogleAuthProvider.PROVIDER_ID) {
+      await reauthenticateWithGoogle();
+    }
+
+    // ── STEP 2: DESTRUCTIVE FIRESTORE DELETION ──────────────────────────────
+    // Only executed after re-authentication has completely succeeded.
+    // If Firestore deletion fails, throw immediately so auth account is NOT deleted.
+    await deleteUserCloudData(uid);
+
+    // ── STEP 3: FIREBASE AUTHENTICATION DELETION ─────────────────────────────
+    // Delete the verified, freshly re-authenticated Firebase Auth user.
+    await currentUser.delete();
+
+    // ── STEP 4: LOCAL DATA CLEANUP ──────────────────────────────────────────
+    // Clear all LyfeOS AsyncStorage keys and scheduled notifications.
+    await cancelAllNotifications();
+    await clearAllLyfeOSLocalData();
+
+    // Reset analytics and tracking identifiers
+    try {
+      await setAnalyticsUser("");
+    } catch {}
+    try {
+      AppEventsLogger.setUserID(null);
+    } catch {}
+
+    // Sign out from Google Client if signed in
+    if (GoogleSignin.hasPreviousSignIn()) {
+      await GoogleSignin.signOut().catch(() => {});
+    }
+
+    // ── STEP 5: RESET IN-MEMORY AUTH STATE ───────────────────────────────────
+    setUser(null);
+  };
+
+  const deleteGuestData = async () => {
+    const currentUser = auth().currentUser;
+
+    // 1. Delete anonymous Firebase Auth session if it exists
+    if (currentUser && currentUser.isAnonymous) {
+      try {
+        await currentUser.delete();
+      } catch {
+        await auth().signOut().catch(() => {});
+      }
+    } else {
+      await auth().signOut().catch(() => {});
+    }
+
+    // 2. Clear all local notifications and LyfeOS storage keys
+    await cancelAllNotifications();
+    await clearAllLyfeOSLocalData();
+
+    // 3. Reset analytics identity
+    try {
+      await setAnalyticsUser("");
+    } catch {}
+    try {
+      AppEventsLogger.setUserID(null);
+    } catch {}
+
+    // 4. Reset auth state
+    setUser(null);
+  };
+
   const isGuest = user?.isAnonymous ?? false;
 
   // Removed blocking loading view to allow Expo Router to mount
@@ -163,6 +282,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUpWithEmail,
         signInAsGuest,
         signOut,
+        reauthenticateWithEmail,
+        reauthenticateWithGoogle,
+        deleteAccountAndData,
+        deleteGuestData,
       }}
     >
       {children}

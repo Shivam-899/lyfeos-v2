@@ -7,6 +7,7 @@ import React, {
 } from "react";
 
 import { getStoredJson, getStoredString, setStoredJson, setStoredString } from "@/utils/storage";
+import { useAuth } from "./AuthContext";
 
 export interface HealthProfile {
   age: string;
@@ -62,6 +63,7 @@ const DEFAULT_REMIND: Reminders = { morning: false, meal: false, water: false, e
 const DEFAULT_PREFS: Preferences = { units: "metric", calorieDisplay: "kcal", habitEffectsEnabled: true };
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [userName, setUserNameState] = useState("LyfeOS User");
   // Bug 15 fix: default to empty string, set from storage or generate+save in effect
   const [joinDate, setJoinDate] = useState("");
@@ -83,7 +85,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         getStoredJson<Reminders>(KEY_REMIND, DEFAULT_REMIND),
         getStoredJson<Partial<Preferences>>(KEY_PREFS, {}),
       ]);
-      if (name) setUserNameState(name);
+      setUserNameState(name || "LyfeOS User");
       // Bug 15 fix: always generate+save joinDate on first launch; never leave it as empty
       if (join) {
         setJoinDate(join);
@@ -92,15 +94,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         setJoinDate(now);
         await setStoredString(KEY_JOIN, now);
       }
-      if (hg) setHabitGoalState(parseInt(hg) || 5);
-      if (ag) setActivityGoalState(parseInt(ag) || 30);
+      setHabitGoalState(hg ? parseInt(hg) || 5 : 5);
+      setActivityGoalState(ag ? parseInt(ag) || 30 : 30);
       setHealthProfileState(health);
       setRemindersState(remind);
       // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
       setPreferencesState({ ...DEFAULT_PREFS, ...prefs });
       setIsProfileLoaded(true);
     })();
-  }, []);
+  }, [user]);
 
   const setUserName = useCallback(async (name: string) => {
     setUserNameState(name);
