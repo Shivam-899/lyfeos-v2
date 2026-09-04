@@ -26,6 +26,7 @@ import { useActivity } from "@/context/ActivityContext";
 import { useCalories } from "@/context/CaloriesContext";
 import { useProfile } from "@/context/ProfileContext";
 import { showRewardedAd } from "../utils/ads";
+import { useBannerLoaded } from "@/utils/bannerState";
 import {
   ActivityAnalysis,
   analyzeActivity,
@@ -333,6 +334,10 @@ const styles_activity = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 export function ActivityTracker() {
   const insets = useSafeAreaInsets();
+  const isBannerLoaded = useBannerLoaded();
+  const bottomPadding = isBannerLoaded
+    ? (Platform.OS === "web" ? 150 : insets.bottom + 136)
+    : (Platform.OS === "web" ? 100 : insets.bottom + 76);
   const theme = useAppTheme();
   const { BG, CARD, CARD2, BORDER, MUTED, SUBTEXT, TEXT, GREEN, BLUE, YELLOW, RED } = theme;
   const styles = makeStyles(theme);
@@ -654,7 +659,7 @@ export function ActivityTracker() {
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPadding }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -1065,10 +1070,7 @@ export function ActivityTracker() {
           )}
         </View>
 
-      </ScrollView>
-
-      {/* ── Sticky Bottom Bar ─────────────────────────────────────────── */}
-      <View style={[styles.stickyBottomBar, { paddingBottom: insets.bottom + 8 }]}>
+        {/* ── Log Activity Button (Normal Screen Content) ─────────────── */}
         <TouchableOpacity
           style={styles.stickyLogBtn}
           onPress={() => {
@@ -1086,7 +1088,8 @@ export function ActivityTracker() {
               : "＋ Log Activity"}
           </Text>
         </TouchableOpacity>
-      </View>
+
+      </ScrollView>
 
       {/* ── Toast ──────────────────────────────────────────────────── */}
       <Toast message={toastMsg} visible={toastVisible} />

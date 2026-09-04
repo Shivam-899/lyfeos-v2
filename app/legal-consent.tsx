@@ -130,14 +130,14 @@ export default function LegalConsentScreen() {
             onPress={() => setTermsAccepted(v => !v)}
             label="I agree to the"
             linkText="Terms of Service"
-            linkUrl="https://sites.google.com/view/lyfeos-terms/home"
+            linkUrl="https://lyfeos.web.app/terms-of-service"
           />
           <CheckboxRow
             checked={privacyAccepted}
             onPress={() => setPrivacyAccepted(v => !v)}
             label="I agree to the"
             linkText="Privacy Policy"
-            linkUrl="https://sites.google.com/view/lyfe-os-privacy-policy/home"
+            linkUrl="https://lyfeos.web.app/privacy-policy"
           />
           <CheckboxRow
             checked={healthDisclaimerAccepted}

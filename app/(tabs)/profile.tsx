@@ -1411,9 +1411,9 @@ export default function ProfileScreen() {
           <Text style={styles.footerVersion}>Version {Constants.expoConfig?.version || "1.0.0"}</Text>
           <Text style={styles.footerTagline}>Made with ❤️ for your wellbeing</Text>
           <View style={styles.footerLinks}>
-            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://sites.google.com/view/lyfe-os-privacy-policy/home")}><Text style={styles.footerLink}>Privacy Policy</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://lyfeos.web.app/privacy-policy")}><Text style={styles.footerLink}>Privacy Policy</Text></TouchableOpacity>
             <Text style={styles.footerDot}>·</Text>
-            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://sites.google.com/view/lyfeos-terms/home")}><Text style={styles.footerLink}>Terms of Service</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync("https://lyfeos.web.app/terms-of-service")}><Text style={styles.footerLink}>Terms of Service</Text></TouchableOpacity>
           </View>
         </View>
 

@@ -345,7 +345,11 @@ export default function HabitsScreen() {
       </View>
 
       {/* ── Activity Tab ──────────────────────────────────────────────── */}
-      {activeTab === "activity" && <ActivityTracker />}
+      {activeTab === "activity" && (
+        <View style={styles.activityTabWrap}>
+          <ActivityTracker />
+        </View>
+      )}
 
       {/* ── Rituals Tab ───────────────────────────────────────────────── */}
       {activeTab === "rituals" && (
@@ -609,6 +613,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
 
   // List
   listContent: { paddingHorizontal: 16, paddingTop: 16 },
+  activityTabWrap: { flex: 1 },
 
   // Completion Banner
   completionCard: {

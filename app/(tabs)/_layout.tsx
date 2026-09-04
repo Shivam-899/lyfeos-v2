@@ -6,6 +6,7 @@ import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { AD_UNIT_IDS, BannerAd, BannerAdSize, initializeAds, isAdsInitialized } from "@/utils/ads";
+import { setGlobalBannerLoaded } from "@/utils/bannerState";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -169,8 +170,16 @@ export default function TabLayout() {
             unitId={AD_UNIT_IDS.banner}
             size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
             requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-            onAdLoaded={() => { setAdLoaded(true); console.log('✅ Banner Ad Loaded Successfully (Global)'); }}
-            onAdFailedToLoad={(error) => { setAdLoaded(false); console.log('❌ Banner Ad Failed (Global):', JSON.stringify(error)); }}
+            onAdLoaded={() => {
+              setAdLoaded(true);
+              setGlobalBannerLoaded(true);
+              console.log('✅ Banner Ad Loaded Successfully (Global)');
+            }}
+            onAdFailedToLoad={(error) => {
+              setAdLoaded(false);
+              setGlobalBannerLoaded(false);
+              console.log('❌ Banner Ad Failed (Global):', JSON.stringify(error));
+            }}
           />
         )}
       </View>
