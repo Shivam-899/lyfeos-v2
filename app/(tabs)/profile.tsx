@@ -685,13 +685,42 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const handleSignOut = async () => {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const executeSignOut = async () => {
+    setIsLoggingOut(true);
     try {
       await signOut();
       router.replace("/login" as any);
     } catch (e: any) {
       logError(e, "profile_sign_out");
+      Alert.alert(
+        "Sync failed — could not log out",
+        "Your personal health and activity data could not be backed up to the cloud. Please check your internet connection and try again.\n\nYour local data has NOT been cleared and you remain logged in.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Retry", onPress: () => executeSignOut() },
+        ]
+      );
+    } finally {
+      setIsLoggingOut(false);
     }
+  };
+
+  const handleSignOut = () => {
+    if (isLoggingOut) return;
+    Alert.alert(
+      "Log out?",
+      "Your personal health, activity, and goals will be securely backed up to your account before you are logged out, and restored the next time you sign in.\n\nYour locally stored personal data on this device will be cleared.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log out",
+          style: "destructive",
+          onPress: executeSignOut,
+        },
+      ]
+    );
   };
 
   const handleResetAll = () => {
@@ -1364,11 +1393,28 @@ export default function ProfileScreen() {
                   <Ionicons name="chevron-forward" size={16} color={MUTED} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={handleSignOut} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 12, marginTop: 4 }}>
+              <TouchableOpacity
+                onPress={handleSignOut}
+                disabled={isLoggingOut}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 14,
+                  paddingHorizontal: 12,
+                  marginTop: 4,
+                  opacity: isLoggingOut ? 0.6 : 1,
+                }}
+              >
                 <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: RED + "25", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                  <Ionicons name="log-out-outline" size={18} color={RED} />
+                  {isLoggingOut ? (
+                    <ActivityIndicator size="small" color={RED} />
+                  ) : (
+                    <Ionicons name="log-out-outline" size={18} color={RED} />
+                  )}
                 </View>
-                <Text style={{ color: RED, fontSize: 15, fontWeight: "600" }}>Sign Out</Text>
+                <Text style={{ color: RED, fontSize: 15, fontWeight: "600" }}>
+                  {isLoggingOut ? "Logging out…" : "Sign Out"}
+                </Text>
               </TouchableOpacity>
             </View>
           )}

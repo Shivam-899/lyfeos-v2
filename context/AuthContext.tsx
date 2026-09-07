@@ -3,8 +3,7 @@ import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logEvent, logError, setAnalyticsUser } from "@/utils/analytics";
-import { AppEventsLogger } from "react-native-fbsdk-next";
-import { migrateGuestDataToAccount, deleteUserCloudData } from "@/utils/cloudSync";
+import { migrateGuestDataToAccount, deleteUserCloudData, syncAllUserDataBeforeLogout } from "@/utils/cloudSync";
 import { getStoredJson, clearAllLyfeOSLocalData } from "@/utils/storage";
 import { cancelAllNotifications } from "@/utils/notifications";
 
@@ -13,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   isInitializing: boolean; // Kept for backward compatibility with existing layout routing
   isGuest: boolean;
+  isSigningOut: boolean;
   migrationDone: boolean;
   clearMigrationDone: () => void;
   signInWithGoogle: () => Promise<void>;
@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [loading, setLoading] = useState(true);
   const [migrationDone, setMigrationDone] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     // Configure Google Sign-In
@@ -48,7 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── Guest migration helper ─────────────────────────────────────────────────
-  const handleGuestMigration = async (newUid: string) => {
+  const handleGuestMigration = async (newUid: string, wasAnonymous: boolean) => {
+    // Only migrate if the prior session was a genuine anonymous/guest session
+    if (!wasAnonymous) {
+      return;
+    }
+
     try {
       // Read current local data using authoritative versioned keys
       const [localHabits, localHabitLogs, localTodos, localFood, localWater, localMeta] = await Promise.all([
@@ -90,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      const wasAnonymous = auth().currentUser?.isAnonymous === true;
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const { data } = await GoogleSignin.signIn();
       const idToken = data?.idToken;
@@ -100,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
       const result = await auth().signInWithCredential(googleCredential);
-      await handleGuestMigration(result.user.uid);
+      await handleGuestMigration(result.user.uid, wasAnonymous);
       await logEvent("login", { method: "google" });
     } catch (e) {
       logError(e as Error, "signInWithGoogle");
@@ -110,8 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
+      const wasAnonymous = auth().currentUser?.isAnonymous === true;
       const result = await auth().signInWithEmailAndPassword(email, password);
-      await handleGuestMigration(result.user.uid);
+      await handleGuestMigration(result.user.uid, wasAnonymous);
       await logEvent("login", { method: "email" });
     } catch (e) {
       logError(e as Error, "signInWithEmail");
@@ -121,13 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmail = async (name: string, email: string, password: string) => {
     try {
+      const wasAnonymous = auth().currentUser?.isAnonymous === true;
       const result = await auth().createUserWithEmailAndPassword(email, password);
       if (result.user) {
         await result.user.updateProfile({ displayName: name });
         // Update local user state immediately to reflect the new display name
         setUser({ ...result.user, displayName: name } as FirebaseAuthTypes.User);
       }
-      await handleGuestMigration(result.user.uid);
+      await handleGuestMigration(result.user.uid, wasAnonymous);
       await logEvent("sign_up", { method: "email" });
     } catch (e) {
       logError(e as Error, "signUpWithEmail");
@@ -146,9 +155,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await auth().signOut();
-    if (GoogleSignin.hasPreviousSignIn()) {
-      await GoogleSignin.signOut();
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      return;
+    }
+
+    if (currentUser.isAnonymous) {
+      await deleteGuestData();
+      return;
+    }
+
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+
+    try {
+      // ── STEP 1: MANDATORY CLOUD BACKUP BEFORE LOGOUT ──────────────────────
+      // Await full backup of personal data. If this fails (offline/network/error),
+      // we throw immediately and abort logout so local data is NEVER lost.
+      await syncAllUserDataBeforeLogout(currentUser.uid);
+
+      // ── STEP 2: CLEAR LOCAL PERSONAL DATA & CANCEL NOTIFICATIONS ───────────
+      // Only runs if cloud backup was 100% successful.
+      await cancelAllNotifications();
+      await clearAllLyfeOSLocalData();
+
+      // ── STEP 3: RESET ANALYTICS IDENTITY ──────────────────────────────────
+      try {
+        await setAnalyticsUser("");
+      } catch {}
+
+      // ── STEP 4: SIGN OUT FROM AUTH PROVIDERS ──────────────────────────────
+      await auth().signOut();
+      if (GoogleSignin.hasPreviousSignIn()) {
+        await GoogleSignin.signOut().catch(() => {});
+      }
+
+      setUser(null);
+    } catch (e) {
+      logError(e as Error, "signOut");
+      throw e;
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -222,9 +269,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await setAnalyticsUser("");
     } catch {}
-    try {
-      AppEventsLogger.setUserID(null);
-    } catch {}
 
     // Sign out from Google Client if signed in
     if (GoogleSignin.hasPreviousSignIn()) {
@@ -257,9 +301,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await setAnalyticsUser("");
     } catch {}
-    try {
-      AppEventsLogger.setUserID(null);
-    } catch {}
 
     // 4. Reset auth state
     setUser(null);
@@ -275,6 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isInitializing: loading,
         isGuest,
+        isSigningOut,
         migrationDone,
         clearMigrationDone,
         signInWithGoogle,

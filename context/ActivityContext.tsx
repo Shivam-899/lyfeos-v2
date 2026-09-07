@@ -3,10 +3,13 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { getLocalDateString } from "@/utils/date";
 import { getStoredJson, removeStoredItem, setStoredJson } from "@/utils/storage";
+import { fetchActivityFromCloud, syncActivityToCloud } from "@/utils/cloudSync";
+import { logError } from "@/utils/analytics";
 import { useAuth } from "./AuthContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -91,12 +94,15 @@ function last7Days(): string[] {
 
 export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [stepsLogs, setStepsLogs] = useState<StepsLog[]>([]);
   const [postActivityBanner, setPostActivityBannerState] = useState<PostActivityBanner | null>(null);
   const [weeklyCoachInsight, setWeeklyCoachInsightState] = useState<WeeklyCoachInsight | null>(null);
 
-  // ── Load from storage ──────────────────────────────────────────────────────
+  // ── Load from storage & Cloud sync ──────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const [logs, steps, banner, insight] = await Promise.all([
@@ -116,6 +122,51 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
         }
         if (insight) setWeeklyCoachInsightState(insight);
       } catch {}
+
+      // ── Cloud restore on login for authenticated non-guest users ──────
+      if (user && !user.isAnonymous) {
+        try {
+          const cloudActivity = await fetchActivityFromCloud(user.uid);
+          if (cloudActivity) {
+            if (Array.isArray(cloudActivity.activityLogs) && cloudActivity.activityLogs.length > 0) {
+              if (logs.length === 0) {
+                setActivityLogs(cloudActivity.activityLogs);
+                await setStoredJson(LOGS_KEY, cloudActivity.activityLogs);
+              } else {
+                const existingIds = new Set(logs.map((l) => l.id));
+                const toAdd = cloudActivity.activityLogs.filter((l: ActivityLog) => !existingIds.has(l.id));
+                if (toAdd.length > 0) {
+                  const merged = [...logs, ...toAdd];
+                  setActivityLogs(merged);
+                  await setStoredJson(LOGS_KEY, merged);
+                }
+              }
+            }
+            if (Array.isArray(cloudActivity.stepsLogs) && cloudActivity.stepsLogs.length > 0) {
+              if (steps.length === 0) {
+                setStepsLogs(cloudActivity.stepsLogs);
+                await setStoredJson(STEPS_KEY, cloudActivity.stepsLogs);
+              } else {
+                const stepMap = new Map(steps.map((s) => [s.date, s]));
+                for (const s of cloudActivity.stepsLogs) {
+                  if (!stepMap.has(s.date)) {
+                    stepMap.set(s.date, s);
+                  }
+                }
+                const mergedSteps = Array.from(stepMap.values());
+                setStepsLogs(mergedSteps);
+                await setStoredJson(STEPS_KEY, mergedSteps);
+              }
+            }
+            if (cloudActivity.coachInsight && !insight) {
+              setWeeklyCoachInsightState(cloudActivity.coachInsight);
+              await setStoredJson(INSIGHT_KEY, cloudActivity.coachInsight);
+            }
+          }
+        } catch (e) {
+          logError(e as Error, "fetchActivityFromCloud_onMount");
+        }
+      }
     })();
   }, [user]);
 
@@ -124,6 +175,10 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       const newLog: ActivityLog = { ...log, id: Date.now().toString() + Math.random().toString(36).slice(2, 7) };
       const next = [...prev, newLog];
       void setStoredJson(LOGS_KEY, next);
+      const currentUser = userRef.current;
+      if (currentUser && !currentUser.isAnonymous) {
+        syncActivityToCloud(currentUser.uid, { activityLogs: next }).catch((e) => logError(e, "sync_addActivityLog"));
+      }
       return next;
     });
   }, []);
@@ -132,6 +187,10 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     setActivityLogs(prev => {
       const next = prev.filter(l => l.id !== id);
       void setStoredJson(LOGS_KEY, next);
+      const currentUser = userRef.current;
+      if (currentUser && !currentUser.isAnonymous) {
+        syncActivityToCloud(currentUser.uid, { activityLogs: next }).catch((e) => logError(e, "sync_deleteActivityLog"));
+      }
       return next;
     });
   }, []);
@@ -140,6 +199,10 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     setStepsLogs(prev => {
       const next = [...prev.filter(s => s.date !== entry.date), entry];
       void setStoredJson(STEPS_KEY, next);
+      const currentUser = userRef.current;
+      if (currentUser && !currentUser.isAnonymous) {
+        syncActivityToCloud(currentUser.uid, { stepsLogs: next }).catch((e) => logError(e, "sync_logSteps"));
+      }
       return next;
     });
   }, []);
@@ -157,6 +220,10 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const setWeeklyCoachInsight = useCallback((insight: WeeklyCoachInsight) => {
     setWeeklyCoachInsightState(insight);
     void setStoredJson(INSIGHT_KEY, insight);
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncActivityToCloud(currentUser.uid, { coachInsight: insight }).catch((e) => logError(e, "sync_weeklyCoachInsight"));
+    }
   }, []);
 
   const getWeeklySports = useCallback(() => {

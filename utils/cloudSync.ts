@@ -1,6 +1,6 @@
 import firestore from '@react-native-firebase/firestore';
 import { logError } from './analytics';
-import { setStoredJson } from './storage';
+import { getStoredJson, getStoredString, setStoredJson } from './storage';
 
 const getUserDoc = (uid: string) =>
     firestore().collection('users').doc(uid);
@@ -45,17 +45,173 @@ export const fetchTodosFromCloud = async (uid: string): Promise<any[] | null> =>
 };
 
 // ─── CALORIES ───
-export const syncCaloriesToCloud = async (uid: string, calories: any) => {
+export const syncCaloriesToCloud = async (
+    uid: string,
+    calories: any,
+    dailyGoal?: any,
+    goalsConfigured?: boolean
+) => {
     try {
-        await getUserDoc(uid).collection('data').doc('calories').set({ calories, updatedAt: firestore.FieldValue.serverTimestamp() });
+        const payload: any = { calories, updatedAt: firestore.FieldValue.serverTimestamp() };
+        if (dailyGoal !== undefined) payload.dailyGoal = dailyGoal;
+        if (goalsConfigured !== undefined) payload.goalsConfigured = goalsConfigured;
+        await getUserDoc(uid).collection('data').doc('calories').set(payload, { merge: true });
     } catch (e) { logError(e as Error, 'syncCaloriesToCloud'); }
 };
 
 export const fetchCaloriesFromCloud = async (uid: string): Promise<any | null> => {
     try {
         const doc = await getUserDoc(uid).collection('data').doc('calories').get();
-        return doc.exists() ? doc.data()?.calories ?? null : null;
+        if (!doc.exists()) return null;
+        const data = doc.data();
+        return {
+            ...(data?.calories ?? {}),
+            dailyGoal: data?.dailyGoal ?? null,
+            goalsConfigured: data?.goalsConfigured ?? null,
+        };
     } catch (e) { logError(e as Error, 'fetchCaloriesFromCloud'); return null; }
+};
+
+// ─── PROFILE ───
+export const syncProfileToCloud = async (uid: string, profile: any) => {
+    try {
+        await getUserDoc(uid).collection('data').doc('profile').set({
+            ...profile,
+            updatedAt: firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    } catch (e) { logError(e as Error, 'syncProfileToCloud'); }
+};
+
+export const fetchProfileFromCloud = async (uid: string): Promise<any | null> => {
+    try {
+        const doc = await getUserDoc(uid).collection('data').doc('profile').get();
+        return doc.exists() ? doc.data() ?? null : null;
+    } catch (e) { logError(e as Error, 'fetchProfileFromCloud'); return null; }
+};
+
+// ─── ACTIVITY ───
+export const syncActivityToCloud = async (uid: string, activity: any) => {
+    try {
+        await getUserDoc(uid).collection('data').doc('activity').set({
+            ...activity,
+            updatedAt: firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    } catch (e) { logError(e as Error, 'syncActivityToCloud'); }
+};
+
+export const fetchActivityFromCloud = async (uid: string): Promise<any | null> => {
+    try {
+        const doc = await getUserDoc(uid).collection('data').doc('activity').get();
+        return doc.exists() ? doc.data() ?? null : null;
+    } catch (e) { logError(e as Error, 'fetchActivityFromCloud'); return null; }
+};
+
+// ─── PRE-LOGOUT MANDATORY CLOUD SYNC ───
+/**
+ * Reads all user-specific data from AsyncStorage and synchronously batches it to Firestore.
+ * Crucial: Throws immediately on failure (e.g. offline, timeout, network error)
+ * so that caller does NOT clear local data or complete logout.
+ */
+export const syncAllUserDataBeforeLogout = async (uid: string): Promise<void> => {
+    if (!uid) {
+        throw new Error('Valid UID required for sync before logout');
+    }
+
+    const [
+        habits,
+        habitLogs,
+        todos,
+        foodItems,
+        waterLogs,
+        foodMeta,
+        dailyGoal,
+        goalsConfiguredStr,
+        profileName,
+        joinDate,
+        habitGoalStr,
+        actGoalStr,
+        healthProfile,
+        reminders,
+        prefs,
+        activityLogs,
+        stepsLogs,
+        coachInsight,
+    ] = await Promise.all([
+        getStoredJson<any[]>('@lyfeos_habits_v2', []),
+        getStoredJson<any[]>('@lyfeos_habit_logs_v2', []),
+        getStoredJson<any[]>('@lyfeos_todos_v2', []),
+        getStoredJson<any[]>('@lyfeos_food_v2', []),
+        getStoredJson<any[]>('@lyfeos_water_v2', []),
+        getStoredJson<{ lastModified?: number }>('@lyfeos_food_meta_v1', { lastModified: 0 }),
+        getStoredJson<any>('@lyfeos_goal_v2', null),
+        getStoredString('@lyfeos_goals_configured_v1'),
+        getStoredString('@lyfeos_profile_name_v1'),
+        getStoredString('@lyfeos_profile_join_v1'),
+        getStoredString('@lyfeos_profile_habitgoal_v1'),
+        getStoredString('@lyfeos_profile_actgoal_v1'),
+        getStoredJson<any>('@lyfeos_profile_health_v1', null),
+        getStoredJson<any>('@lyfeos_profile_reminders_v1', null),
+        getStoredJson<any>('@lyfeos_profile_prefs_v1', null),
+        getStoredJson<any[]>('@lyfeos_activity_logs_v1', []),
+        getStoredJson<any[]>('@lyfeos_steps_v1', []),
+        getStoredJson<any>('@lyfeos_coach_insight_v1', null),
+    ]);
+
+    const batch = firestore().batch();
+    const userDocRef = getUserDoc(uid);
+    const dataColRef = userDocRef.collection('data');
+
+    // 1. Habits & Logs
+    batch.set(dataColRef.doc('habits'), {
+        habits,
+        habitLogs,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // 2. Todos
+    batch.set(dataColRef.doc('todos'), {
+        todos,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // 3. Calories, Water, Goals
+    const caloriesPayload: any = {
+        foodItems,
+        waterLogs,
+        lastModified: foodMeta.lastModified || Date.now(),
+    };
+    const caloriesDocPayload: any = {
+        calories: caloriesPayload,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+    };
+    if (dailyGoal) caloriesDocPayload.dailyGoal = dailyGoal;
+    if (goalsConfiguredStr !== null) caloriesDocPayload.goalsConfigured = goalsConfiguredStr === 'true';
+    batch.set(dataColRef.doc('calories'), caloriesDocPayload, { merge: true });
+
+    // 4. Profile & Health
+    const profileDocPayload: any = {
+        userName: profileName || 'LyfeOS User',
+        joinDate: joinDate || new Date().toISOString(),
+        habitGoal: habitGoalStr ? parseInt(habitGoalStr, 10) || 5 : 5,
+        activityGoal: actGoalStr ? parseInt(actGoalStr, 10) || 30 : 30,
+        healthProfile: healthProfile || null,
+        reminders: reminders || null,
+        preferences: prefs || null,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+    };
+    batch.set(dataColRef.doc('profile'), profileDocPayload, { merge: true });
+
+    // 5. Activity & Steps
+    const activityDocPayload: any = {
+        activityLogs,
+        stepsLogs,
+        coachInsight: coachInsight || null,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+    };
+    batch.set(dataColRef.doc('activity'), activityDocPayload, { merge: true });
+
+    // Commit atomic batch — will reject and throw if network/auth fails
+    await batch.commit();
 };
 
 // ─── HABIT MERGE HELPERS ───
@@ -259,7 +415,7 @@ export const deleteUserCloudData = async (uid: string): Promise<boolean> => {
         });
 
         // Also explicitly queue known document IDs to guarantee cleanup
-        const knownDocNames = ['habits', 'todos', 'calories', 'consent'];
+        const knownDocNames = ['habits', 'todos', 'calories', 'consent', 'profile', 'activity'];
         for (const docName of knownDocNames) {
             batch.delete(dataColRef.doc(docName));
         }

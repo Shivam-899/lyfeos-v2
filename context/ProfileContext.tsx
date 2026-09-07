@@ -3,10 +3,13 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import { getStoredJson, getStoredString, setStoredJson, setStoredString } from "@/utils/storage";
+import { fetchProfileFromCloud, syncProfileToCloud } from "@/utils/cloudSync";
+import { logError } from "@/utils/analytics";
 import { useAuth } from "./AuthContext";
 
 export interface HealthProfile {
@@ -64,6 +67,9 @@ const DEFAULT_PREFS: Preferences = { units: "metric", calorieDisplay: "kcal", ha
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   const [userName, setUserNameState] = useState("LyfeOS User");
   // Bug 15 fix: default to empty string, set from storage or generate+save in effect
   const [joinDate, setJoinDate] = useState("");
@@ -101,37 +107,106 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
       setPreferencesState({ ...DEFAULT_PREFS, ...prefs });
       setIsProfileLoaded(true);
+
+      // ── Cloud restore on login for authenticated non-guest users ──────
+      if (user && !user.isAnonymous) {
+        try {
+          const cloudProfile = await fetchProfileFromCloud(user.uid);
+          if (cloudProfile) {
+            if (cloudProfile.userName && (!name || name === "LyfeOS User")) {
+              setUserNameState(cloudProfile.userName);
+              await setStoredString(KEY_NAME, cloudProfile.userName);
+            }
+            if (cloudProfile.joinDate) {
+              setJoinDate(cloudProfile.joinDate);
+              await setStoredString(KEY_JOIN, cloudProfile.joinDate);
+            }
+            if (cloudProfile.habitGoal !== undefined && !hg) {
+              setHabitGoalState(cloudProfile.habitGoal);
+              await setStoredString(KEY_HABIT_G, String(cloudProfile.habitGoal));
+            }
+            if (cloudProfile.activityGoal !== undefined && !ag) {
+              setActivityGoalState(cloudProfile.activityGoal);
+              await setStoredString(KEY_ACT_G, String(cloudProfile.activityGoal));
+            }
+            // If local health profile is default/empty, restore from cloud
+            const isLocalHealthEmpty = !health.age && !health.weight && !health.height && !health.activityLevel;
+            if (cloudProfile.healthProfile && isLocalHealthEmpty) {
+              setHealthProfileState(cloudProfile.healthProfile);
+              await setStoredJson(KEY_HEALTH, cloudProfile.healthProfile);
+            }
+            // If local reminders are default, restore from cloud
+            const isLocalRemindEmpty = !remind.morning && !remind.meal && !remind.water && !remind.evening;
+            if (cloudProfile.reminders && isLocalRemindEmpty) {
+              setRemindersState(cloudProfile.reminders);
+              await setStoredJson(KEY_REMIND, cloudProfile.reminders);
+            }
+            // Restore preferences if present
+            if (cloudProfile.preferences) {
+              const merged = { ...DEFAULT_PREFS, ...prefs, ...cloudProfile.preferences };
+              setPreferencesState(merged);
+              await setStoredJson(KEY_PREFS, merged);
+            }
+          }
+        } catch (e) {
+          logError(e as Error, "fetchProfileFromCloud_onMount");
+        }
+      }
     })();
   }, [user]);
 
   const setUserName = useCallback(async (name: string) => {
     setUserNameState(name);
     await setStoredString(KEY_NAME, name);
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncProfileToCloud(currentUser.uid, { userName: name }).catch((e) => logError(e, "sync_userName"));
+    }
   }, []);
 
   const setHabitGoal = useCallback(async (v: number) => {
     setHabitGoalState(v);
     await setStoredString(KEY_HABIT_G, String(v));
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncProfileToCloud(currentUser.uid, { habitGoal: v }).catch((e) => logError(e, "sync_habitGoal"));
+    }
   }, []);
 
   const setActivityGoal = useCallback(async (v: number) => {
     setActivityGoalState(v);
     await setStoredString(KEY_ACT_G, String(v));
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncProfileToCloud(currentUser.uid, { activityGoal: v }).catch((e) => logError(e, "sync_actGoal"));
+    }
   }, []);
 
   const setHealthProfile = useCallback(async (p: HealthProfile) => {
     setHealthProfileState(p);
     await setStoredJson(KEY_HEALTH, p);
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncProfileToCloud(currentUser.uid, { healthProfile: p }).catch((e) => logError(e, "sync_healthProfile"));
+    }
   }, []);
 
   const setReminders = useCallback(async (r: Reminders) => {
     setRemindersState(r);
     await setStoredJson(KEY_REMIND, r);
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncProfileToCloud(currentUser.uid, { reminders: r }).catch((e) => logError(e, "sync_reminders"));
+    }
   }, []);
 
   const setPreferences = useCallback(async (p: Preferences) => {
     setPreferencesState(p);
     await setStoredJson(KEY_PREFS, p);
+    const currentUser = userRef.current;
+    if (currentUser && !currentUser.isAnonymous) {
+      syncProfileToCloud(currentUser.uid, { preferences: p }).catch((e) => logError(e, "sync_prefs"));
+    }
   }, []);
 
   return (

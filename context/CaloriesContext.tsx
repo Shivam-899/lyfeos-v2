@@ -166,6 +166,14 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
               // Cloud is definitively newer — safe to overwrite local.
               if (cloudCalories.foodItems) setFoodItems(cloudCalories.foodItems);
               if (cloudCalories.waterLogs) setWaterLogs(cloudCalories.waterLogs);
+              if (cloudCalories.dailyGoal) {
+                setDailyGoalState(cloudCalories.dailyGoal);
+                await setStoredJson(GOAL_KEY, cloudCalories.dailyGoal);
+              }
+              if (cloudCalories.goalsConfigured !== null && cloudCalories.goalsConfigured !== undefined) {
+                setGoalsConfiguredState(Boolean(cloudCalories.goalsConfigured));
+                await setStoredString(GOALS_CONFIGURED_KEY, String(cloudCalories.goalsConfigured));
+              }
               if (cloudCalories.foodItems) await setStoredJson(FOOD_KEY, cloudCalories.foodItems);
               if (cloudCalories.waterLogs) await setStoredJson(WATER_KEY, cloudCalories.waterLogs);
               // Persist cloud's timestamp locally so future comparisons are accurate.
@@ -177,6 +185,8 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
               syncCaloriesToCloud(
                 user.uid,
                 buildCaloriesPayload(food, water, localTs || Date.now()),
+                goal,
+                configured === "true",
               ).catch((e) => logError(e as Error, "reupload_after_stale_cloud"));
             }
           }
@@ -210,6 +220,8 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       syncCaloriesToCloud(
         u.uid,
         buildCaloriesPayload(food, water, lastModified),
+        dailyGoal,
+        goalsConfigured,
       ).catch((e) => logError(e as Error, "syncCaloriesToCloud"));
     }
   };
@@ -221,12 +233,30 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
       setStoredJson(GOAL_KEY, goal),
       setStoredString(GOALS_CONFIGURED_KEY, "true"),
     ]);
-  }, []);
+    const { user: u, isGuest: g } = authRef.current;
+    if (u && !g) {
+      syncCaloriesToCloud(
+        u.uid,
+        buildCaloriesPayload(foodItems, waterLogs),
+        goal,
+        true,
+      ).catch((e) => logError(e as Error, "syncCaloriesToCloud_dailyGoal"));
+    }
+  }, [foodItems, waterLogs]);
 
   const setGoalsConfigured = useCallback(async (v: boolean) => {
     setGoalsConfiguredState(v);
     await setStoredString(GOALS_CONFIGURED_KEY, String(v));
-  }, []);
+    const { user: u, isGuest: g } = authRef.current;
+    if (u && !g) {
+      syncCaloriesToCloud(
+        u.uid,
+        buildCaloriesPayload(foodItems, waterLogs),
+        dailyGoal,
+        v,
+      ).catch((e) => logError(e as Error, "syncCaloriesToCloud_goalsConfigured"));
+    }
+  }, [foodItems, waterLogs, dailyGoal]);
 
   const addFoodItem = useCallback((item: Omit<FoodItem, "id">) => {
     setFoodItems((prev) => {

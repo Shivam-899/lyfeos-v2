@@ -553,9 +553,11 @@ function CelebrationOverlay({ visible }: { visible: boolean }) {
         Animated.delay(1500),
         Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: true }),
       ]).start();
+    } else {
+      opacity.setValue(0);
     }
   }, [visible]);
-  if (!visible) return null;
+
   return (
     <Animated.View style={[cStyles.overlay, { opacity }]} pointerEvents="none">
       <Text style={cStyles.emoji}>🎯</Text>
@@ -623,14 +625,25 @@ export default function TodosScreen() {
   // Overdue tasks
   const overdueTodos = todos.filter(t => !t.completed && t.dueDate && t.dueDate < ts);
 
-  // Celebration
-  const prevAllDone = useRef(false);
+  // Watch for "all today done" transition (incomplete -> 100% complete)
+  const isInitialMount = useRef(true);
+  const prevAllDone = useRef(allTodayDone);
+
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevAllDone.current = allTodayDone;
+      return;
+    }
+
     if (allTodayDone && !prevAllDone.current && todayTotal > 0) {
       setShowCelebration(true);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const t = setTimeout(() => setShowCelebration(false), 2300);
-      return () => clearTimeout(t);
+      return () => {
+        clearTimeout(t);
+        setShowCelebration(false);
+      };
     }
     prevAllDone.current = allTodayDone;
   }, [allTodayDone, todayTotal]);

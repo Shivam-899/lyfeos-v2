@@ -229,14 +229,24 @@ export default function HabitsScreen() {
     return () => { if (showAddSheet) setInterstitialBlocked(false); };
   }, [showAddSheet]);
 
-  // Watch for "all done" on today
-  const prevAllDone = useRef(false);
+  // Watch for "all done" transition on today (incomplete -> 100% complete)
+  const isInitialMount = useRef(true);
+  const prevAllDone = useRef(allDone);
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevAllDone.current = allDone;
+      return;
+    }
+
     if (isViewingToday && allDone && !prevAllDone.current) {
       setShowCelebration(true);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const t = setTimeout(() => setShowCelebration(false), 2200);
-      return () => clearTimeout(t);
+      return () => {
+        clearTimeout(t);
+        setShowCelebration(false);
+      };
     }
     prevAllDone.current = allDone;
   }, [allDone, isViewingToday]);
@@ -256,14 +266,6 @@ export default function HabitsScreen() {
   });
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-
-  const handleAllDone = () => {
-    if (isViewingToday && !prevAllDone.current) {
-      setShowCelebration(true);
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => setShowCelebration(false), 2200);
-    }
-  };
 
   const quickAddHabit = (q: (typeof QUICK_HABITS)[number]) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -443,8 +445,6 @@ export default function HabitsScreen() {
               key={`${habit.id}-${dateStr}`}
               habit={habit}
               date={dateStr}
-              onAllDone={handleAllDone}
-              allHabits={todayHabits}
             />
           )}
           ListEmptyComponent={

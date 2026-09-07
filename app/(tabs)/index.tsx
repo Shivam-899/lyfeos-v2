@@ -950,8 +950,8 @@ export default function HomeScreen() {
       (async () => {
         try {
           const storedDate = await AsyncStorage.getItem(CONFETTI_DATE_KEY);
+          confettiShownRef.current = true;
           if (storedDate !== today) {
-            confettiShownRef.current = true;
             setConfettiTrigger((t) => t + 1);
             await AsyncStorage.setItem(CONFETTI_DATE_KEY, today);
           }

@@ -1,338 +1,639 @@
 # PROJECT_KNOWLEDGE.md — LyfeOS
 
-> **This file is the single source of truth for any developer or AI assistant working on this codebase.**
-> Generated: 2026-07-07. Update this file whenever a significant architectural change is made.
+> **Living Document — Single Source of Truth**
+>
+> This file is the **single source of truth and living documentation** for any developer or AI assistant working on the LyfeOS codebase. It reflects the **actual current state** of the project and must be updated as part of every meaningful change.
+> See [§19 Documentation Maintenance](#19-documentation-maintenance) for the update protocol.
+>
+> **Last audited:** 2026-09-07  
+> **App version at audit:** `2.2.1` (Android `versionCode: 35`)
 
 ---
 
-## 1. PROJECT OVERVIEW
+## Table of Contents
 
-**App name:** LyfeOS
-**Package ID:** `com.lyfeos.app`
-**App Store slug:** `lyfeos`
-**EAS Project ID:** `54f639f6-a140-4168-afdc-eb3bca56979e`
-**Owner / Developer account:** `shivam.2k` (EAS) / **Orbits Lab** (Play Store developer)
-**Current version:** `2.2.1` (Android `versionCode: 35`)
-
-### What is LyfeOS?
-LyfeOS is an **AI-powered, all-in-one life management and productivity app** built in React Native (Expo). It unifies daily task management, habit tracking, sports & activity logging, nutrition & calorie tracking (with a specialised Indian food database), water intake tracking, and a personal health dashboard — all in a single app with real-time cloud sync and optional Google AdMob ads.
-
-### Core value proposition
-- Replace 4–5 single-purpose apps with one cohesive experience.
-- AI-powered activity analysis (via Google Gemini 2.5 Flash) personalises post-workout nutrition and recovery advice.
-- Deep Indian cuisine support with a bundled 300+ item food database.
-- Cloud sync via Firebase Firestore so data roams across devices.
-- Works fully offline (local-first architecture using AsyncStorage).
-
-### Target users
-Health-conscious individuals aged 18–40, primarily in India, who want a privacy-respecting, single-app solution for fitness and daily productivity.
-
-### Current stage
-**Live on Google Play Store** (internal track → production). Android-only production build. iOS support scaffolded in code (`supportsTablet: false`) but not deployed.
+1. [Project Overview](#1-project-overview)
+2. [Tech Stack](#2-tech-stack)
+3. [Folder Structure](#3-folder-structure)
+4. [Navigation Architecture](#4-navigation-architecture)
+5. [State Management](#5-state-management)
+6. [Authentication](#6-authentication)
+7. [Database & Storage](#7-database--storage)
+8. [Data Synchronization](#8-data-synchronization)
+9. [Core Features](#9-core-features)
+10. [Data Models](#10-data-models)
+11. [External APIs & Third-Party Services](#11-external-apis--third-party-services)
+12. [Analytics & Telemetry](#12-analytics--telemetry)
+13. [Monetization](#13-monetization)
+14. [Build & Deployment](#14-build--deployment)
+15. [Environment Variables & Secrets](#15-environment-variables--secrets)
+16. [Security Analysis](#16-security-analysis)
+17. [Known Issues & Tech Debt](#17-known-issues--tech-debt)
+18. [Future Roadmap Hooks](#18-future-roadmap-hooks)
+19. [Documentation Maintenance](#19-documentation-maintenance)
+20. [Change Log](#20-change-log)
 
 ---
 
-## 2. TECH STACK
+## 1. Project Overview
 
-### Frontend
-| Layer | Technology | Version |
+| Field | Value |
+|---|---|
+| **App name** | LyfeOS |
+| **Package ID** | `com.lyfeos.app` |
+| **Expo slug** | `lyfeos` |
+| **EAS Project ID** | `54f639f6-a140-4168-afdc-eb3bca56979e` |
+| **Developer account** | `shivam.2k` (EAS) / **Orbits Lab** (Google Play Store) |
+| **Current version** | `2.2.1` (Android versionCode `35`) |
+| **Platform status** | Android — **Live on Google Play** (internal track → production). iOS config present but not deployed. |
+| **Firebase project** | `lyfe-os-2c7cd` |
+
+### What LyfeOS Is
+
+LyfeOS is an **AI-styled, all-in-one life management and productivity app** built with React Native (Expo). It unifies:
+
+- **Habit tracking** — build or quit habits with streak counting, colour/emoji customisation, and flexible tracking methods (task, numeric target, timer)
+- **Task management** — prioritised to-do list with categories, due dates, repeat rules, and drag-to-reorder
+- **Nutrition tracking** — calorie and macro/micro-nutrient logging with an embedded 300+ item Indian food database plus USDA/Open Food Facts fallback
+- **Water tracking** — daily glass counter with custom target
+- **Sports & activity logging** — logs workouts with offline MET-based calorie/hydration analysis (styled with AI output delay)
+- **Personal health dashboard** — BMR/TDEE calculation (Mifflin-St Jeor), weekly summaries, and in-app coach insights
+- **Cloud sync** — Firestore sync for habits, todos, and nutrition (not activity, health profile, or preferences)
+- **Push notifications** — 7 configurable daily reminders via Expo Notifications
+
+### Core Architectural Philosophy
+
+The app is **local-first**. AsyncStorage is the primary source of truth during runtime. Cloud sync is a secondary, opportunistic, fire-and-forget layer via Firestore. The app runs fully offline.
+
+> **Critical fact:** The activity analysis ("AI coach") does **not** call any external AI API at runtime on mobile. It uses a fully offline, local MET (Metabolic Equivalent of Task) scientific calculation engine in `utils/analyzeActivity.ts` with an artificial 300–1200 ms delay to simulate a network call. The Gemini API proxy in `metro.config.js` and `server/serve.js` exists for development inspection and static web exports.
+
+---
+
+## 2. Tech Stack
+
+### Frontend & Runtime
+
+| Category | Package | Version |
 |---|---|---|
-| Framework | React Native | `0.81.5` |
-| Platform | Expo SDK | `~54.0.35` |
-| Router | Expo Router | `~6.0.24` (file-based) |
+| Framework | `react-native` | `0.81.5` |
+| Platform | `expo` | `~54.0.35` |
 | Language | TypeScript | `~5.9.2` |
-| UI Animations | react-native-reanimated | `~4.1.1` |
-| Gesture handling | react-native-gesture-handler | `~2.28.0` |
-| Safe area | react-native-safe-area-context | `~5.6.0` |
-| SVG | react-native-svg | `15.12.1` |
-| Keyboard | react-native-keyboard-controller | `^1.18.5` |
-| Keyboard scroll | react-native-keyboard-aware-scroll-view | `^0.9.5` |
-| Blur / Glass | expo-blur, expo-glass-effect | `~15.0.8`, `~0.1.4` |
-| Linear gradients | expo-linear-gradient | `~15.0.8` |
-| Haptics | expo-haptics | `~15.0.8` |
-| Image picker | expo-image-picker | `~17.0.9` |
-| Audio/video | expo-av | `^16.0.8` |
-| Server state | @tanstack/react-query | `^5.80.0` |
-| Validation | zod + zod-validation-error | `^3.25.0` / `^3.4.0` |
-| Icons | @expo/vector-icons (Ionicons + SymbolView) | `^15.0.3` |
-| Font | @expo-google-fonts/inter (400/500/600/700) | `^0.4.0` |
-| Notifications | expo-notifications | `^0.32.17` |
-| React Compiler | babel-plugin-react-compiler | experimental beta |
+| Router | `expo-router` | `~6.0.24` (file-based) |
+| Animations | `react-native-reanimated` | `~4.1.1` |
+| Gestures | `react-native-gesture-handler` | `~2.28.0` |
+| Safe area | `react-native-safe-area-context` | `~5.6.0` |
+| SVG | `react-native-svg` | `15.12.1` |
+| Keyboard | `react-native-keyboard-controller` | `^1.18.5` |
+| Keyboard scroll | `react-native-keyboard-aware-scroll-view` | `^0.9.5` |
+| Blur/Glass | `expo-blur` / `expo-glass-effect` | `~15.0.8` / `~0.1.4` |
+| Linear gradients | `expo-linear-gradient` | `~15.0.8` |
+| Haptics | `expo-haptics` | `~15.0.8` |
+| Image picker | `expo-image-picker` | `~17.0.9` |
+| Audio/video | `expo-av` | `^16.0.8` |
+| Icons | `@expo/vector-icons` (Ionicons + SymbolView) | `^15.0.3` |
+| Font | `@expo-google-fonts/inter` (400/500/600/700) | `^0.4.0` |
+| Notifications | `expo-notifications` | `^0.32.17` |
+| Store review | `expo-store-review` | `~9.0.9` |
+| OTA updates | `expo-updates` | `~29.0.18` |
+| Server state | `@tanstack/react-query` | `^5.80.0` (scaffolded, not actively used) |
+| Validation | `zod` + `zod-validation-error` | `^3.25.0` / `^3.4.0` |
+| Worklets | `react-native-worklets` | `0.5.1` |
+| React Compiler | `babel-plugin-react-compiler` | `^19.0.0-beta` (experimental) |
 
-### Backend / Cloud
-| Service | SDK | Purpose |
-|---|---|---|
-| Firebase Auth | `@react-native-firebase/auth ^24.1.1` | Email, Google, Anonymous sign-in |
-| Firebase Firestore | `@react-native-firebase/firestore ^24.1.1` | Cloud sync for habits, todos, calories |
-| Google Sign-In | `@react-native-google-signin/google-signin ^16.1.2` | OAuth token for Firebase Auth |
-| Google AdMob | `react-native-google-mobile-ads ^16.3.3` | Banner, interstitial, rewarded ads |
-| Gemini AI | Google Generative Language API (REST) | Sports activity analysis (proxied) |
-| USDA FoodData Central | REST API | Nutrition lookup (primary) |
-| Open Food Facts | REST API | Nutrition lookup (fallback) |
+> **Babel Configuration Note:** The current `babel.config.js` uses `babel-preset-expo` with `unstable_transformImportMeta: true`. The `react-native-reanimated/plugin` that appeared in older templates is no longer listed in `babel.config.js`.
 
-> **Note:** `@react-native-firebase/analytics` is now installed and **active** (v24.1.1). `@react-native-firebase/crashlytics` is still deferred — `logError()` and `setCrashlyticsUser()` remain safe no-ops until Crashlytics is added.
+### Backend & Cloud
+
+| Service | SDK | Version | Status |
+|---|---|---|---|
+| Firebase Auth | `@react-native-firebase/auth` | `^24.1.1` | **Active** |
+| Firebase Firestore | `@react-native-firebase/firestore` | `^24.1.1` | **Active** |
+| Firebase Analytics | `@react-native-firebase/analytics` | `^24.1.1` | **Active** (real native SDK, not a stub) |
+| Firebase Crashlytics | *(not installed)* | — | **Deferred** — `logError()` and `setCrashlyticsUser()` are safe stubs |
+| Google Sign-In | `@react-native-google-signin/google-signin` | `^16.1.2` | **Active** |
+| Google AdMob | `react-native-google-mobile-ads` | `^16.3.3` | **Active** |
+| Meta (Facebook) SDK | `react-native-fbsdk-next` | `13.4.3` | **Active** |
 
 ### Local Storage
-- **AsyncStorage** (`@react-native-async-storage/async-storage 2.2.0`) — single local persistence layer for all data.
-- Wrapped and type-safe via `utils/storage.ts`.
 
-### Build system
-- **EAS Build** (`eas-cli >= 19.0.5`) for production `.aab` (Android App Bundle).
-- `pnpm` workspaces (mono-repo style though only one app exists).
-- `metro.config.js` acts as a **development-time API proxy** for Gemini (proxies `/api/gemini` and `/api/analyze-activity`).
-- `server/serve.js` is a standalone Node.js server for hosting **static Expo web builds** with the same Gemini proxy routes — used for production web hosting only.
+- **`@react-native-async-storage/async-storage`** `2.2.0` — single local persistence layer; stores all user data as plain-text JSON.
+
+### Build System
+
+- **EAS Build** (`eas-cli >= 19.0.5`) for production `.aab` and `.apk`
+- **pnpm** `9.15.4` package manager
+- **Metro** bundler with custom `metro.config.js` that embeds a Gemini API proxy for **development inspection only**
+- **Kotlin** pinned to `2.1.20` via custom `plugins/withKotlinVersion.js` config plugin
+- **ProGuard & Resource Shrinking** enabled in release builds (`enableProguardInReleaseBuilds: true`, `enableShrinkResourcesInReleaseBuilds: true`)
+- **React Compiler** experimental (`reactCompiler: true` in `app.json`)
+- **New Architecture** enabled (`newArchEnabled: true` in `app.json`)
 
 ---
 
-## 3. FOLDER STRUCTURE
+## 3. Folder Structure
 
 ```
-D:\vf\                              ← Project root (LyfeOS)
-├── app/                            ← Expo Router: all screens live here
-│   ├── _layout.tsx                 ← Root layout: providers, auth guard, splash, ads init
-│   ├── index.tsx                   ← Entry redirect (minimal, just renders nothing)
-│   ├── onboarding.tsx              ← 4-slide animated onboarding carousel (first-launch only)
-│   ├── login.tsx                   ← Auth screen: Google, Email/Password, Guest, Forgot Password
-│   ├── legal-consent.tsx           ← Terms/Privacy/Health disclaimer gate (CONSENT_VERSION='1.0')
-│   ├── +not-found.tsx              ← 404 fallback screen
-│   └── (tabs)/                     ← Bottom-tab group (authenticated users only)
-│       ├── _layout.tsx             ← Tab bar layout (adaptive: iOS Liquid Glass or classic Expo Tabs)
-│       ├── index.tsx               ← Home / Dashboard screen
-│       ├── habits.tsx              ← Habit tracker screen
-│       ├── todos.tsx               ← To-do / task list screen
-│       ├── calories.tsx            ← Nutrition / calorie tracker screen
-│       └── profile.tsx             ← Profile, health settings, preferences, notifications
+D:\vf\                                 <- Project root (LyfeOS)
+├── app/                               <- Expo Router: all screens live here
+│   ├── _layout.tsx                    <- Root layout: providers, auth guard, splash, ads init
+│   ├── index.tsx                      <- Minimal entry (routing handled in _layout)
+│   ├── onboarding.tsx                 <- 4-slide animated onboarding (first-launch only)
+│   ├── login.tsx                      <- Auth: Google, Email/Password, Guest, Forgot Password
+│   ├── legal-consent.tsx              <- Terms/Privacy/Health disclaimer gate (CONSENT_VERSION='1.0')
+│   ├── +not-found.tsx                 <- 404 fallback
+│   └── (tabs)/                        <- Authenticated tab group
+│       ├── _layout.tsx                <- Tab bar (iOS Liquid Glass or classic Expo Tabs)
+│       ├── index.tsx                  <- Home / Dashboard (~70 KB)
+│       ├── habits.tsx                 <- Habit tracker (~30 KB)
+│       ├── todos.tsx                  <- Task list (~55 KB)
+│       ├── calories.tsx               <- Nutrition tracker (~121 KB — largest screen)
+│       └── profile.tsx                <- Profile, health settings, account deletion (~90 KB)
 │
-├── components/                     ← Reusable UI components
-│   ├── ActivityTracker.tsx         ← Full sports/activity logging modal (76 KB — very large)
-│   ├── AddHabitSheet.tsx           ← Bottom sheet for creating/editing habits
-│   ├── CalendarStrip.tsx           ← Horizontal scrollable calendar strip (used in habits/todos)
-│   ├── CircularProgress.tsx        ← SVG circular progress ring component
-│   ├── ConfettiEffect.tsx          ← Confetti animation for habit streak celebrations
-│   ├── ErrorBoundary.tsx           ← React error boundary wrapper
-│   ├── ErrorFallback.tsx           ← UI shown inside ErrorBoundary on crash
-│   └── HabitTile.tsx               ← Individual habit card with completion toggle
+├── components/                        <- Reusable UI components
+│   ├── ActivityTracker.tsx            <- Sports/activity logging modal (~80 KB)
+│   ├── AddHabitSheet.tsx              <- Bottom sheet: create/edit habits (~34 KB)
+│   ├── CalendarStrip.tsx              <- Horizontal scrollable calendar strip (~17 KB)
+│   ├── CircularProgress.tsx           <- SVG circular progress ring
+│   ├── ConfettiEffect.tsx             <- Confetti animation for habit streak celebrations
+│   ├── ErrorBoundary.tsx              <- React error boundary wrapper
+│   ├── ErrorFallback.tsx              <- UI shown on crash (~7 KB)
+│   └── HabitTile.tsx                  <- Individual habit card with toggle (~19 KB)
 │
-├── context/                        ← React Context API: global state management
-│   ├── AuthContext.tsx             ← Firebase auth state, Google/Email/Guest sign-in, migration
-│   ├── CaloriesContext.tsx         ← Food items, water logs, daily goals, cloud sync
-│   ├── HabitsContext.tsx           ← Habits, habit logs, streaks, completion rate, cloud sync
-│   ├── TodosContext.tsx            ← Todos with priority/category/repeat, cloud sync
-│   ├── ActivityContext.tsx         ← Activity logs, steps logs, AI coach insight, stats
-│   ├── ProfileContext.tsx          ← User profile: name, health data, reminders, preferences
-│   └── ThemeContext.tsx            ← Theme mode (system/dark/light), persisted to AsyncStorage
+├── context/                           <- React Context API: all global state
+│   ├── AuthContext.tsx                <- Firebase auth state + all auth actions (303 lines)
+│   ├── CaloriesContext.tsx            <- Food items, water logs, daily goals, sync
+│   ├── HabitsContext.tsx              <- Habits, logs, streaks, ad integration
+│   ├── TodosContext.tsx               <- Todos: CRUD, ordering, sync
+│   ├── ActivityContext.tsx            <- Activity logs, steps, banner, coach insight
+│   ├── ProfileContext.tsx             <- User profile, health data, reminders, prefs
+│   └── ThemeContext.tsx               <- Theme mode (system/dark/light)
 │
 ├── constants/
-│   └── colors.ts                   ← Light/dark color tokens for the entire app
+│   └── colors.ts                      <- Light/dark token palette for the app
 │
 ├── hooks/
-│   ├── useAppTheme.ts              ← Returns theme tokens (DARK_TOKENS / LIGHT_TOKENS) + mode/setMode
-│   └── useColors.ts                ← Returns the colors object for the current theme
+│   ├── useAppTheme.ts                 <- Returns DARK_TOKENS / LIGHT_TOKENS + mode/setMode
+│   └── useColors.ts                   <- Returns the active colors object
 │
-├── utils/                          ← Pure utility functions and external API clients
-│   ├── storage.ts                  ← Type-safe AsyncStorage wrapper (get/set/remove JSON/strings)
-│   ├── cloudSync.ts                ← Firestore read/write for habits, todos, calories; guest migration
-│   ├── analytics.ts                ← Firebase Analytics + Crashlytics stubs (TODO: activate)
-│   ├── ads.ts                      ← Google AdMob: banner, interstitial, rewarded ad helpers
-│   ├── notifications.ts            ← expo-notifications: permissions + daily reminder scheduling
-│   ├── analyzeFoodImage.ts         ← FoodAnalysisResult interface; image scan STUBBED ("coming soon")
-│   ├── nutritionSearch.ts          ← Main nutrition search: Indian DB → USDA → Open Food Facts
-│   ├── indianFoodDatabase.ts       ← Bundled local database of 300+ Indian foods with nutrients
-│   ├── analyzeActivity.ts          ← Client side helper that calls /api/analyze-activity proxy
-│   └── date.ts                     ← getLocalDateString() — timezone-safe YYYY-MM-DD formatter
+├── utils/                             <- Pure utilities and external API clients
+│   ├── storage.ts                     <- AsyncStorage wrapper + LYFEOS_STORAGE_KEYS + clearAllLyfeOSLocalData()
+│   ├── cloudSync.ts                   <- Firestore CRUD: sync/fetch/merge + deleteUserCloudData (286 lines)
+│   ├── analytics.ts                   <- Firebase Analytics (active) + Meta SDK events + Crashlytics stubs (154 lines)
+│   ├── ads.ts                         <- AdMob: banner, interstitial, rewarded + interstitial block guard
+│   ├── notifications.ts               <- expo-notifications: permissions + 7 daily reminders
+│   ├── analyzeFoodImage.ts            <- FoodAnalysisResult interface; camera scan STUBBED; text delegates to nutritionSearch
+│   ├── nutritionSearch.ts             <- Waterfall: local Indian DB -> cache -> USDA -> Open Food Facts
+│   ├── indianFoodDatabase.ts          <- Bundled ~300 Indian food items with nutrients
+│   ├── analyzeActivity.ts             <- Offline MET-based calculation engine + 30+ activities (404 lines)
+│   └── date.ts                        <- getLocalDateString() — timezone-safe YYYY-MM-DD
+│
+├── plugins/
+│   └── withKotlinVersion.js           <- Custom Expo config plugin: pins Kotlin to 2.1.20
 │
 ├── server/
-│   ├── serve.js                    ← Standalone Node.js HTTP server for web/static production
-│   └── templates/
-│       └── landing-page.html       ← HTML landing page template for web deployment
+│   ├── serve.js                       <- Node.js HTTP server for static Expo web export (not used in native app)
+│   └── templates/landing-page.html
 │
 ├── scripts/
-│   ├── build.js                    ← Custom build script for static Expo web export
-│   ├── diagnose-gemini.mjs         ← Dev diagnostic: tests Gemini API key and connectivity
-│   └── test-indian-db.js           ← Dev test: validates indianFoodDatabase entries
+│   ├── build.js                       <- Static Expo web export build script
+│   ├── diagnose-gemini.mjs            <- Dev diagnostic: tests Gemini API connectivity
+│   └── test-indian-db.js              <- Dev test: validates indianFoodDatabase entries
 │
-├── assets/
-│   ├── images/                     ← App icon, splash image
-│   └── sounds/                     ← (Reserved for future audio, possibly habit completion sounds)
+├── assets/images/                     <- App icon, splash image
+├── assets/sounds/                     <- Empty — reserved for future audio
+├── android/                           <- Native Android project (EAS build target)
 │
-├── android/                        ← Native Android project (EAS build target)
-│   └── app/                        ← gradle, keystore references, google-services.json integration
-│
-├── app.json                        ← Expo config: name, slug, version, permissions, plugins
-├── eas.json                        ← EAS Build profiles (development/preview/production/production-apk)
-├── package.json                    ← Dependencies, npm scripts
-├── metro.config.js                 ← Metro bundler config + dev Gemini API proxy middleware
-├── babel.config.js                 ← Babel with babel-preset-expo + reanimated plugin
-├── tsconfig.json                   ← TypeScript config (strict, paths: "@/*" → root)
-├── .env.example                    ← Template for required environment variables
-├── .env.local                      ← !! GITIGNORED !! Actual secrets (never commit)
-├── google-services.json            ← Firebase config for Android (safe to commit per Firebase docs)
-├── @shivam.2k__lyfeos.jks          ← Android keystore (KEEP SECURE, commit is a mistake if public)
-├── build-android.sh                ← Shell script: clears EAS temp dirs, runs `eas build production`
-└── pnpm-workspace.yaml             ← pnpm workspace config
+├── app.json                           <- Expo config: name, plugins, permissions, SDK versions
+├── eas.json                           <- EAS Build profiles
+├── package.json                       <- Dependencies and scripts
+├── metro.config.js                    <- Metro bundler + dev-only Gemini proxy middleware
+├── babel.config.js                    <- Babel: babel-preset-expo only (no reanimated plugin)
+├── tsconfig.json                      <- TypeScript strict, paths: "@/*" -> root
+├── google-services.json               <- Firebase Android config (safe to commit)
+├── @shivam.2k__lyfeos.jks             <- DANGER: Production Android keystore (never commit to public repo)
+├── @shivam.2k__lyfeos_OLD_1.jks       <- Old keystore (keep for reference only)
+├── .env.example                       <- Template for environment variables
+├── .env.local                         <- GITIGNORED — actual secrets
+└── build-android.sh                   <- Shell: clears EAS temp dirs + runs production build
 ```
 
-### Naming conventions
-- **Screens/components:** PascalCase (`CaloriesContext.tsx`, `ActivityTracker.tsx`)
-- **Utilities:** camelCase (`cloudSync.ts`, `nutritionSearch.ts`)
-- **AsyncStorage keys:** `@lyfeos_<domain>_<version>` (e.g., `@lyfeos_habits_v2`, `@lyfeos_food_v2`)
-- **Routes:** Expo Router file-based — file name IS the route segment
+### Naming Conventions
+
+| Type | Convention | Example |
+|---|---|---|
+| Screens / components | PascalCase | `CaloriesContext.tsx` |
+| Utilities | camelCase | `cloudSync.ts` |
+| AsyncStorage keys | `@lyfeos_<domain>_v<N>` | `@lyfeos_habits_v2` |
+| Routes | File name = route segment | `calories.tsx` -> `/calories` |
 
 ---
 
-## 4. CORE FEATURES & HOW THEY'RE IMPLEMENTED
+## 4. Navigation Architecture
 
-### 4.1 Personal Dashboard (Home)
-**File:** `app/(tabs)/index.tsx` (~69 KB)
+**Router:** Expo Router (file-based, Stack + Tabs)
 
-- Shows daily summary: habit completion ring, calorie progress, active minutes, water intake
-- Lists today's habits with quick completion toggles
-- Shows upcoming todos
-- Displays a post-activity banner (from `ActivityContext`) for 2 hours after workout
-- Shows weekly coach insight (AI-generated text stored in `ActivityContext`)
-- Notification scheduling runs here: morning, meal, water, evening reminders
-- Progress ring colour changes dynamically based on % (0–100%): `getProgressColor()` 6-tier system
-- Key hooks: `useCalories`, `useHabits`, `useTodos`, `useActivity`, `useProfile`
-- Uses `ConfettiEffect` when all daily habits are completed
+```
+/ (root Stack — app/_layout.tsx)
+├── /index                    <- Minimal redirect (renders null, routing in _layout)
+├── /onboarding               <- First-launch 4-slide carousel; sets hasSeenOnboarding
+├── /login                    <- Auth screen
+├── /legal-consent            <- GDPR/legal gate (must pass before entering tabs)
+└── /(tabs)                   <- Bottom tab group (requires auth + legal consent)
+    ├── /             (index) <- Home / Dashboard
+    ├── /habits               <- Habit tracker
+    ├── /todos                <- Task list
+    ├── /calories             <- Nutrition tracker
+    └── /profile              <- Profile & settings
+```
 
-### 4.2 Habit Tracker
-**Files:** `app/(tabs)/habits.tsx`, `components/HabitTile.tsx`, `components/AddHabitSheet.tsx`, `components/CalendarStrip.tsx`, `context/HabitsContext.tsx`
+### Navigation Guard Logic (`app/_layout.tsx` -> `RootLayoutNav`)
 
-- Supports two habit types: `"build"` (build a new habit) and `"quit"` (break a bad habit)
-- Three tracking methods: `"task"` (done/not done), `"amount"` (numeric target), `"time"` (timer in seconds)
-- Custom colour picker (8 colours) and emoji picker (~60 emojis in 5 categories)
-- Optional description field and weekday scheduling (select which days habit is active)
-- Streak calculation: `getStreak()` returns `{ current, best }` using timezone-safe local date arithmetic
-- Completion rate: `getCompletionRate()` = % of all scheduled days completed
-- Cloud sync to Firestore on every mutation (add/update/delete)
-- **Interstitial ad shown every 3rd habit completion** (`maybeShowCompletionAd()` in `HabitsContext`)
-- `CalendarStrip` component handles horizontal date scrolling and date selection
-- `HabitTile` handles the completion toggle with animated feedback and haptics
-- Key data in `HabitsContext`: `HABITS_KEY = "@lyfeos_habits_v2"`, `HABIT_LOGS_KEY = "@lyfeos_habit_logs_v2"`
+```
+App launches
+  |-- isInitializing (auth resolving) -> wait, no redirect
+  |-- Not logged in:
+  |   |-- hasSeenOnboarding = false -> /onboarding
+  |   +-- hasSeenOnboarding = true  -> /login
+  +-- Logged in (user or guest):
+      |-- legalConsentAccepted = false -> /legal-consent
+      +-- legalConsentAccepted = true  -> /(tabs)
+```
 
-### 4.3 To-do / Task Management
-**Files:** `app/(tabs)/todos.tsx`, `context/TodosContext.tsx`
+**Consent versioning:** `CONSENT_VERSION = '1.0'` stored alongside the acceptance timestamp in both AsyncStorage (`legalConsent`) and Firestore (`users/{uid}/data/consent`). Bumping this constant forces all existing users through the consent screen again on launch.
 
-- Full CRUD with priority (`urgent/high/medium/low`), category (`Work/Personal/Shopping/Health/Other`)
-- Optional due date, due time, notes, repeat type (`none/daily/weekly/monthly`)
-- Manual drag-to-reorder via `reorderTodos(fromIdx, toIdx)`
-- Order persisted as `order: number` field on each `Todo`
-- Cloud sync to Firestore on every mutation
-- Key: `TODOS_KEY = "@lyfeos_todos_v2"`
+### Tab Bar Adaptation
 
-### 4.4 Sports / Activity Tracker
-**Files:** `components/ActivityTracker.tsx`, `context/ActivityContext.tsx`, `utils/analyzeActivity.ts`
+- **iOS with Liquid Glass available:** uses `expo-router/unstable-native-tabs` (native iOS tab bar)
+- **All other platforms (Android, web):** uses Expo Router `<Tabs>` with `BlurView` on iOS, solid background on Android
 
-- Large bottom-sheet modal (`ActivityTracker.tsx` ~76 KB) for logging a workout
-- User selects sport (with emoji), duration (minutes), intensity (`light/moderate/intense`)
-- On submission, calls `POST /api/analyze-activity` (proxied through `metro.config.js` in dev, `server/serve.js` in production)
-- Proxy sends request to **Gemini 2.5 Flash** with a structured prompt requesting JSON output:
-  - `calories_burned`, `hydration_needed_ml`, `hydration_glasses`, `protein_needed_g`, `carbs_needed_g`, `recovery_time_hours`, `heart_rate_zone`, `health_benefits[]`, `tips[]`, `post_activity_meal`, `sport_category`
-- Results stored as `ActivityLog` in `ActivityContext` (persisted via `@lyfeos_activity_logs_v1`)
-- Post-activity banner shown on home screen for 2 hours after logging (`PostActivityBanner`)
-- Steps logging: separate `StepsLog` entity with `steps`, `distanceKm`, `caloriesBurned`, `activeMinutes`
-- Weekly coach insight: AI-generated text stored as `WeeklyCoachInsight` (1 per week)
-- Stats functions: `getWeeklySports()`, `getBestStreak()`, `getFavoriteSport()`, `getMostCalsBurned()`, `getLongestSession()`, `getMostActiveMonth()`
+---
 
-### 4.5 Nutrition / Calorie Tracking
-**Files:** `app/(tabs)/calories.tsx` (~116 KB), `context/CaloriesContext.tsx`, `utils/analyzeFoodImage.ts`, `utils/nutritionSearch.ts`, `utils/indianFoodDatabase.ts`
+## 5. State Management
 
-- Logs food across 4 meal slots: `breakfast`, `lunch`, `dinner`, `snacks`
-- Smart default meal selection based on time of day
-- **BMR calculation** (Mifflin-St Jeor formula) using profile data (age, sex, height, weight)
-- Activity level multipliers (`sedentary → 1.2`, `lightly → 1.375`, etc.) applied to BMR for TDEE
-- Macro tracking: Calories, Carbs, Protein, Fat with progress bars
+**Strategy:** React Context API only. No Redux, Zustand, MobX, or Jotai.  
+`@tanstack/react-query` is scaffolded in `_layout.tsx` but **not used anywhere in the app**.
+
+### Provider Hierarchy (`app/_layout.tsx`)
+
+```
+SafeAreaProvider
+  +-- ThemeProvider
+      +-- ErrorBoundary
+          +-- QueryClientProvider          (not actively used)
+              +-- AuthProvider
+                  +-- HabitsProvider
+                      +-- TodosProvider
+                          +-- CaloriesProvider
+                              +-- ActivityProvider
+                                  +-- ProfileProvider
+                                      +-- GestureHandlerRootView
+                                          +-- KeyboardProvider
+                                              +-- RootLayoutNav
+```
+
+### Lifecycle Pattern (all contexts follow this)
+
+1. **Mount:** Read from AsyncStorage -> set React state. (`HabitsProvider` renders `null` until loaded.)
+2. **If auth user (non-guest):** One-time `.get()` from Firestore -> merge/conflict-resolve -> update state + AsyncStorage
+3. **On every mutation:** Update React state -> write AsyncStorage -> fire-and-forget Firestore `.set()` (non-blocking)
+4. **Stale closure fix:** All mutation callbacks use `useRef` to access latest `user`/`isGuest` values without re-render
+
+### Auth-Aware Sync
+
+- Firestore sync only fires when `user && !isGuest`
+- Guest users have full local functionality, no cloud sync
+- On sign-in from guest -> `migrateGuestDataToAccount()` uploads and merges local data to Firestore atomically
+
+---
+
+## 6. Authentication
+
+**File:** `context/AuthContext.tsx` (303 lines)
+
+### Sign-In Methods
+
+| Method | Implementation |
+|---|---|
+| **Email / Password** | `auth().createUserWithEmailAndPassword()` / `auth().signInWithEmailAndPassword()` |
+| **Google Sign-In** | `GoogleSignin.signIn()` -> `auth.GoogleAuthProvider.credential(idToken)` -> `auth().signInWithCredential()` |
+| **Anonymous (Guest)** | `auth().signInAnonymously()` — `user.isAnonymous === true` |
+| **Password Reset** | `auth().sendPasswordResetEmail()` — triggered from modal in `app/login.tsx` |
+
+**Google Sign-In webClientId (hardcoded):** `66808080139-r6t78lrsqsoabug2jlrltb1bbevt2003.apps.googleusercontent.com`
+
+### Auth Context API
+
+```typescript
+interface AuthContextType {
+  user: FirebaseAuthTypes.User | null;
+  loading: boolean;
+  isInitializing: boolean;      // alias for loading (backward compat)
+  isGuest: boolean;             // user.isAnonymous
+  migrationDone: boolean;
+  clearMigrationDone: () => void;
+  signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email, password) => Promise<void>;
+  signUpWithEmail: (name, email, password) => Promise<void>;
+  signInAsGuest: () => Promise<void>;
+  signOut: () => Promise<void>;
+  reauthenticateWithEmail: (password) => Promise<void>;
+  reauthenticateWithGoogle: () => Promise<void>;
+  deleteAccountAndData: (passwordForReauth?) => Promise<void>;
+  deleteGuestData: () => Promise<void>;
+}
+```
+
+### Sign-Out
+
+`signOut()` calls `auth().signOut()` + `GoogleSignin.signOut()`.
+
+> **CRITICAL ISSUE:** `signOut()` does **not** call `clearAllLyfeOSLocalData()`. All user data remains in AsyncStorage after logout. On shared devices, a subsequent user's `handleGuestMigration()` may read and upload the prior user's data. See [§17, Issue #1](#17-known-issues--tech-debt).
+
+### Account Deletion (5-Step Sequence)
+
+1. **Re-authenticate** — email users must supply password; Google users must re-sign-in. If re-auth fails, nothing is deleted.
+2. **Delete Firestore data** — `deleteUserCloudData(uid)` batch-deletes all docs under `users/{uid}/data/*` + `users/{uid}` doc, then verifies `snapshot.empty`.
+3. **Delete Firebase Auth record** — `currentUser.delete()`
+4. **Clear local data** — `cancelAllNotifications()` + `clearAllLyfeOSLocalData()` (removes all `@lyfeos_*` keys; preserves `hasSeenOnboarding`)
+5. **Reset telemetry** — `setAnalyticsUser("")` + `AppEventsLogger.setUserID(null)` + `GoogleSignin.signOut()`
+
+### Guest Account Deletion (`deleteGuestData()`)
+
+Deletes anonymous Firebase Auth session (or signs out), then runs steps 4 and 5 above.
+
+### Guest -> Account Migration (`handleGuestMigration()`)
+
+Reads all local guest data using **correct versioned keys** (`@lyfeos_habits_v2`, `@lyfeos_habit_logs_v2`, `@lyfeos_todos_v2`, `@lyfeos_food_v2`, `@lyfeos_water_v2`, `@lyfeos_food_meta_v1`) then calls `migrateGuestDataToAccount()` in `cloudSync.ts` which:
+- Fetches existing cloud data for habits, todos, calories in parallel
+- Merges: habits (set-union by ID + name), habit logs (keep true + max amount/time), todos (cloud-first union with re-indexing), food (dedup by ID), water (max glasses per date)
+- Writes all merged data in a single atomic Firestore batch
+- Updates local AsyncStorage with the merged result so device stays consistent
+
+---
+
+## 7. Database & Storage
+
+### Firestore Structure
+
+Firestore uses a **document-as-table array store** pattern. Individual items are NOT separate Firestore documents.
+
+```
+users/                             (Collection)
+  +-- {uid}/                       (Document — no direct fields)
+        +-- data/                  (Subcollection)
+              +-- habits           { habits: Habit[], habitLogs: HabitLog[], updatedAt, migratedFromGuest? }
+              +-- todos            { todos: Todo[], updatedAt, migratedFromGuest? }
+              +-- calories         { calories: { foodItems: FoodItem[], waterLogs: WaterLog[], lastModified: number }, updatedAt, migratedFromGuest? }
+              +-- consent          { accepted: boolean, version: string, timestamp: string (ISO) }
+```
+
+**No real-time listeners (`onSnapshot`) are used.** All reads are one-time `.get()` calls on mount.
+
+### What Is and Is Not Synced to Firestore
+
+| Data Domain | AsyncStorage | Firestore | Notes |
+|---|---|---|---|
+| Habits + Habit Logs | YES | YES | Set-union merge |
+| Todos | YES | YES | Naive cloud-overwrite on fetch — known issue |
+| Nutrition (food + water) | YES | YES | Timestamp-guarded last-write-wins |
+| Legal Consent | YES | YES | Written once on acceptance |
+| Activity / Workout Logs | YES | **NO** | Local only — lost on device replacement |
+| Daily Steps | YES | **NO** | Local only |
+| Health Profile | YES | **NO** | Local only |
+| User Preferences | YES | **NO** | Local only |
+| Notification Settings | YES | **NO** | Local only |
+| Daily Nutrition Goals | YES | **NO** | Local only |
+| Post-Activity Banner & Coach Insight | YES | **NO** | Local only |
+| Theme Mode | YES | **NO** | Local only |
+
+### AsyncStorage Key Registry
+
+All keys are defined in `utils/storage.ts` — `LYFEOS_STORAGE_KEYS` array. `clearAllLyfeOSLocalData()` removes all of these plus any dynamic `@lyfeos_*` keys, while **preserving `hasSeenOnboarding`**.
+
+| Key | Data Type | Notes |
+|---|---|---|
+| `@lyfeos_food_v2` | `FoodItem[]` | |
+| `@lyfeos_water_v2` | `WaterLog[]` | |
+| `@lyfeos_goal_v2` | `DailyGoal` | |
+| `@lyfeos_goals_configured_v1` | `"true"\|"false"` | |
+| `@lyfeos_food_meta_v1` | `{ lastModified: number }` | Calories sync timestamp guard |
+| `@lyfeos_habits_v2` | `Habit[]` | |
+| `@lyfeos_habit_logs_v2` | `HabitLog[]` | |
+| `@lyfeos_version` | `"v2_empty"` | Schema migration gate |
+| `@lyfeos_todos_v2` | `Todo[]` | |
+| `@lyfeos_activity_logs_v1` | `ActivityLog[]` | |
+| `@lyfeos_steps_v1` | `StepsLog[]` | |
+| `@lyfeos_activity_banner_v1` | `PostActivityBanner \| null` | Auto-purged if > 2 hours old |
+| `@lyfeos_coach_insight_v1` | `WeeklyCoachInsight \| null` | |
+| `@lyfeos_profile_name_v1` | `string` | |
+| `@lyfeos_profile_join_v1` | ISO date string | |
+| `@lyfeos_profile_habitgoal_v1` | `string` (number) | |
+| `@lyfeos_profile_actgoal_v1` | `string` (number) | |
+| `@lyfeos_profile_health_v1` | `HealthProfile` | |
+| `@lyfeos_profile_reminders_v1` | `Reminders` | |
+| `@lyfeos_profile_prefs_v1` | `Preferences` | |
+| `@lyfeos_theme_mode_v1` | `"system"\|"dark"\|"light"` | |
+| `@lyfeos_notifications_v1` | `NotifItem[]` | In-app notification inbox |
+| `@lyfeos_notif_asked_v1` | flag string | |
+| `@lyfeos_rate_reminder_v1` | `RateReminderState` | |
+| `@lyfeos_confetti_date_v1` | date string | |
+| `legalConsent` | `{ accepted, version, timestamp }` | |
+| `hasSeenOnboarding` | `"true"` | **Preserved** by `clearAllLyfeOSLocalData()` |
+| `habitCompletionCount` | string (counter) | Ad trigger |
+| `lastFoodSearchDate` / `foodSearchCount` / `foodBonusSearches` | strings | Ad/reward gate counters |
+| `lastInterstitialDate` | string | |
+| `todoBonusUnlocks` / `habitBonusUnlocks` | strings | |
+| `lastActivityLogDate` / `activityLogCount` / `activityBonusLogs` | strings | |
+| `notificationsEnabled` | string | |
+
+> **Rule for new keys:** Always use `@lyfeos_<domain>_v<N>` prefix. Add to `LYFEOS_STORAGE_KEYS` in `utils/storage.ts`. If the schema changes, bump the version in the key name and add a migration in the Context's `useEffect` initializer.
+
+### Storage Security
+
+- AsyncStorage stores all data as **unencrypted plain text** (SQLite files at `/data/data/com.lyfeos.app/databases/RKStorage`)
+- `android:allowBackup="true"` in the manifest — data can be fully extracted via `adb backup` on a debug-enabled device
+
+---
+
+## 8. Data Synchronization
+
+### Conflict Resolution by Domain
+
+| Domain | Policy | Details |
+|---|---|---|
+| **Habits** | Set-union deduplication | Cloud + local merged. Deduped by ID or normalised name. Cloud takes precedence; local-only appended. |
+| **Habit Logs** | Union + max value merge | Keyed by `habitId_date`. If both exist: `completed = true` if either is; `amount`/`timeSeconds` take maximum. |
+| **Todos** | **Naive cloud overwrite** | If cloud has items, it replaces local. Locally-created todos while offline are **silently lost** on reconnect. |
+| **Calories/Water** | Timestamp-guarded last-write-wins | `@lyfeos_food_meta_v1.lastModified` vs Firestore `calories.lastModified`. Newer wins; if local is newer, it re-pushes to repair stale cloud. |
+| **Guest Migration** | Deterministic merge (atomic batch) | Reads cloud state first, merges per domain rules, writes single atomic batch, then updates local AsyncStorage. |
+
+### Sync Functions in `utils/cloudSync.ts`
+
+| Function | Purpose |
+|---|---|
+| `syncHabitsToCloud(uid, habits, habitLogs?)` | `.set({ habits, habitLogs, updatedAt }, { merge: true })` to `users/{uid}/data/habits` |
+| `fetchHabitsFromCloud(uid)` | One-time `.get()` returning `habits` array |
+| `fetchHabitLogsFromCloud(uid)` | One-time `.get()` returning `habitLogs` array |
+| `syncTodosToCloud(uid, todos)` | `.set({ todos, updatedAt })` to `users/{uid}/data/todos` |
+| `fetchTodosFromCloud(uid)` | One-time `.get()` returning `todos` array |
+| `syncCaloriesToCloud(uid, calories)` | `.set({ calories, updatedAt })` to `users/{uid}/data/calories` |
+| `fetchCaloriesFromCloud(uid)` | One-time `.get()` returning `calories` object |
+| `mergeHabits(local, cloud)` | Set-union dedup by ID + name |
+| `mergeHabitLogs(local, cloud)` | Union + max value merge keyed by `habitId_date` |
+| `migrateGuestDataToAccount(uid, payload)` | Atomic batch: fetch + merge + write + update local AsyncStorage |
+| `deleteUserCloudData(uid)` | Batch delete all `users/{uid}/data/*` docs + parent doc + verify empty |
+
+### Behavior Under Network Conditions
+
+| Condition | Result |
+|---|---|
+| Internet available | Background Firestore write succeeds silently |
+| Internet unavailable | Local write succeeds; Firebase SDK queues mutation; error caught by `logError()` (no-op stub); UI seamless |
+| Firebase request fails | Error logged; local state untouched; app functional |
+| App restart | AsyncStorage loaded first; cloud fetch + merge if authenticated |
+| User logs out | Firebase session ends; AsyncStorage data **remains on device** |
+| New device login | Habits, todos, calories download from cloud. Profile, activity, steps do NOT — new device starts with empty defaults. |
+
+---
+
+## 9. Core Features
+
+### 9.1 Home / Dashboard (`app/(tabs)/index.tsx`, ~70 KB)
+
+- Daily summary ring (habit completion %), calorie progress bars, active minutes, water count
+- Quick habit completion toggles for today
+- Upcoming todos preview
+- Post-activity banner (shown for 2 hours after a logged workout; stored in `@lyfeos_activity_banner_v1`)
+- Weekly AI coach insight text (stored in `@lyfeos_coach_insight_v1`)
+- In-app notification inbox
+- Rate-reminder prompt (uses `expo-store-review`)
+- `ConfettiEffect` fires when 100% of daily habits are completed (guarded by `@lyfeos_confetti_date_v1` to show once per day)
+- Progress ring colour: 6-tier dynamic system based on percentage (0–100%)
+
+### 9.2 Habit Tracker (`app/(tabs)/habits.tsx`, `components/AddHabitSheet.tsx`, `components/HabitTile.tsx`)
+
+**Context:** `HabitsContext.tsx`
+
+- Types: `"build"` (start a habit) / `"quit"` (break a bad habit)
+- Tracking methods: `"task"` (done/not done), `"amount"` (numeric target), `"time"` (timer in seconds)
+- 8 colour choices, ~60 emoji options in 5 categories
+- Optional description and weekday scheduling
+- `getStreak()` -> `{ current, best }` using local-date-safe arithmetic via `utils/date.ts`
+- `getCompletionRate()` -> % of all scheduled days where habit was completed
+- Cloud sync on every mutation (add/update/delete/log)
+- **Interstitial ad trigger:** every 3rd habit completion -> `maybeShowCompletionAd()` -> `showInterstitialAd()`
+
+### 9.3 Task Management (`app/(tabs)/todos.tsx`, ~55 KB)
+
+**Context:** `TodosContext.tsx`
+
+- Priority: `urgent | high | medium | low`
+- Category: `Work | Personal | Shopping | Health | Other`
+- Optional: due date, due time, notes, repeat (`none | daily | weekly | monthly`)
+- Drag-to-reorder via `reorderTodos(fromIdx, toIdx)`; order persisted as `order: number`
+- Cloud sync on every mutation
+
+### 9.4 Sports / Activity Tracker (`components/ActivityTracker.tsx`, ~80 KB)
+
+**Context:** `ActivityContext.tsx`
+
+- Bottom-sheet modal: user selects sport (with emoji), duration (minutes), intensity (`light | moderate | intense`)
+- On submit: calls `analyzeActivity(sport, duration, intensity, weightKg, age)` from `utils/analyzeActivity.ts`
+- **This is a 100% offline calculation** using `ACTIVITY_DATABASE` (30+ sports with MET values). No network call. 300–1200 ms artificial delay simulates AI.
+- `estimateCalories(sport, durationMin, intensity, weightKg)` — synchronous quick-preview for the live preview card
+- Results stored as `ActivityLog` in `@lyfeos_activity_logs_v1`; **never synced to Firestore**
+- Post-activity banner: stored in `@lyfeos_activity_banner_v1`, auto-expires after 2 hours
+- Steps: separate `StepsLog` entity; `calculateSteps(steps, weightKg, heightCm)` for stride-based distance/calorie calc
+
+> **Important:** `metro.config.js` and `server/serve.js` both expose `/api/analyze-activity` and `/api/gemini` Gemini proxy endpoints. The **native Android/iOS client never calls these**. `utils/analyzeActivity.ts` is fully offline. The proxy is only for development testing or a potential future web deployment.
+
+### 9.5 Nutrition Tracking (`app/(tabs)/calories.tsx`, ~121 KB)
+
+**Context:** `CaloriesContext.tsx`
+
+- 4 meal slots: `breakfast | lunch | dinner | snacks`; default selected based on time of day
+- **BMR** computed with Mifflin-St Jeor formula from `HealthProfile`; multiplied by activity level for TDEE
+- Macro tracking: Calories, Carbs, Protein, Fat
 - Micro-nutrient tracking: Fiber, Sugar, Sodium, Potassium, Calcium, Iron, Magnesium, Zinc, Vitamins A/C/D/B12
-- **Food search flow:**
-  1. User types food name (text-based; camera scan is STUBBED — throws "Food Scan is coming soon")
-  2. `analyzeFoodText(description)` → `performNutritionSearch(query)`
-  3. Checks **local Indian food DB** first (`indianFoodDatabase.ts`)
-  4. Falls back to **USDA FoodData Central API** (`EXPO_PUBLIC_USDA_API_KEY`)
-  5. Falls back to **Open Food Facts API** (no key required, rate-limited)
-  6. Returns `FoodAnalysisResult` with confidence (`"high"/"medium"/"low"`) and source tag
-- Indian food quick chips: 20+ preset items shown as shortcuts for common Indian foods
-- `getDayStats(date)`: aggregates all nutrients for a given day from stored `FoodItem[]`
-- Cloud sync: food + water data synced to Firestore with **last-modified timestamp guard** (prevents stale cloud data from overwriting newer local data)
+- Indian food quick-chips: 20+ preset items as shortcuts
+- `getDayStats(date)` aggregates all nutrients for a given day
 
-### 4.6 Water Tracker
-**Files:** `context/CaloriesContext.tsx`, `app/(tabs)/calories.tsx`
+**Food search waterfall (`utils/nutritionSearch.ts`):**
+1. Local in-memory cache (`searchCache` Map; concurrent duplicate requests deduped via `pendingRequests`)
+2. Local Indian food DB (`utils/indianFoodDatabase.ts`, ~300 items)
+3. USDA FoodData Central API (`api.nal.usda.gov` — uses `EXPO_PUBLIC_USDA_API_KEY` or falls back to `"DEMO_KEY"` at 30 req/hr/IP)
+4. Open Food Facts API (`world.openfoodfacts.org` — no key required)
 
-- Tracked as `WaterLog[]` with `date` (YYYY-MM-DD) and `glasses` count
-- `logWater(date, delta)`: increments/decrements glasses count for a day
-- Daily goal default: 8 glasses (customisable via `DailyGoal.water`)
-- Stored under `@lyfeos_water_v2`
+**Camera food scan:** `analyzeFoodImage()` always throws `"Food Scan is coming soon."` — intentionally disabled.
 
-### 4.7 Profile & Health Settings
-**Files:** `app/(tabs)/profile.tsx`, `context/ProfileContext.tsx`
+### 9.6 Water Tracking
 
-- User name (default: "LyfeOS User"), join date, habit goal (default: 5), activity goal (default: 30 min)
-- `HealthProfile`: `age`, `sex`, `height`, `weight`, `activityLevel`, `goal` — all strings, stored in `@lyfeos_profile_health_v1`
-- `Reminders`: `morning`, `meal`, `water`, `evening` booleans → controls notification scheduling
-- `Preferences`: `units` (metric/imperial), `calorieDisplay` (kcal/kj), `habitEffectsEnabled` (celebration animations)
-- Profile screen also shows: streak stats, total habits, total activity sessions, sign-out button, theme toggle
-- `joinDate` is generated and persisted on first launch (Bug 15 fix)
+Part of `CaloriesContext`. `logWater(date, delta)` increments/decrements `WaterLog.glasses`. Default goal: 8 glasses. Synced to Firestore as part of the calories document.
 
-### 4.8 AI Food Analysis (Text-based)
-**Files:** `utils/nutritionSearch.ts`, `utils/indianFoodDatabase.ts`, `utils/analyzeFoodImage.ts`
+### 9.7 Profile & Health Settings (`app/(tabs)/profile.tsx`, ~90 KB)
 
-- Text input → `performNutritionSearch(query)` → waterfall: Local DB → USDA → Open Food Facts
-- Response cached in-memory (`searchCache` Map) to avoid duplicate network requests
-- Deduplication of concurrent identical requests via `pendingRequests` Map
-- Camera-based scan: `analyzeFoodImage(base64)` is **intentionally stubbed** — throws an error
+**Context:** `ProfileContext.tsx`
 
-### 4.9 Daily/Weekly/Monthly Progress
-- **Daily:** `getDayStats(date)` in `CaloriesContext`, habit completion % in `HabitsContext`
-- **Weekly:** `getWeeklySports()` in `ActivityContext` (last 7 days), weekly habit view in `habits.tsx`
-- **Monthly:** `getMostActiveMonth()` in `ActivityContext`
-- All visualised in the home dashboard and individual tab screens
+- `userName`, `joinDate`, `habitGoal` (default: 5), `activityGoal` (default: 30 min)
+- `HealthProfile`: `age`, `sex`, `height`, `weight`, `activityLevel`, `goal` — all strings
+- `Reminders`: `morning`, `meal`, `water`, `evening` booleans
+- `Preferences`: `units` (metric/imperial — stored but UI only shows metric), `calorieDisplay` (kcal/kj — stored but UI hardcodes kcal), `habitEffectsEnabled`
+- Profile avatar: picked via `expo-image-picker`, stored only in volatile component state — **lost on app reload** (never persisted)
+- Account deletion and guest data deletion flows are exposed from this screen
 
-### 4.10 Push Notifications
-**Files:** `utils/notifications.ts`, `app/(tabs)/index.tsx`
+### 9.8 Push Notifications (`utils/notifications.ts`)
 
-- Uses `expo-notifications` with granular per-category toggles
-- 7 scheduled daily notifications: morning (8:00), breakfast (8:30), hydration (11:00, 15:00), lunch (13:00), dinner (19:00), evening (21:00)
-- Controlled by `Reminders` object from `ProfileContext`
-- Android channel: `"default"` / `"LyfeOS Reminders"` (HIGH importance, vibration, `#FF6B35` LED)
+7 scheduled daily notifications controlled by `Reminders` toggles:
 
-### 4.11 Google AdMob Monetization
-**Files:** `utils/ads.ts`, `context/HabitsContext.tsx`, `app/_layout.tsx`
+| ID | Title | Time | Toggle |
+|---|---|---|---|
+| `morning` | Good Morning! | 08:00 | `morning` |
+| `breakfast` | Breakfast Time | 08:30 | `meal` |
+| `hydration1` | Hydration Check | 11:00 | `water` |
+| `lunch` | Lunch Reminder | 13:00 | `meal` |
+| `hydration2` | Hydration Check | 15:00 | `water` |
+| `dinner` | Dinner Time | 19:00 | `meal` |
+| `evening` | Evening Check-in | 21:00 | `evening` |
 
-- Ad SDK initialized 2 seconds after app launch (`initializeAds()` in `_layout.tsx`)
-- **Interstitial ads:** shown every 3rd habit completion (`maybeShowCompletionAd()`)
-- **Modal-open guard:** `setInterstitialBlocked(true)` prevents ad from firing mid-flow
-- **Banner and Rewarded ads:** utilities are wired up (`showRewardedAd()`) but not yet called from any screen
-- Ad unit IDs are hardcoded in `utils/ads.ts` (not environment variables — standard AdMob practice)
-- AdMob App ID: `ca-app-pub-7658674851177824~1838662014` (set in `app.json` plugin config)
+- Android channel: `"default"` / `"LyfeOS Reminders"` (HIGH importance, `#FF6B35` LED)
+
+### 9.9 Theming
+
+**Context:** `ThemeContext.tsx` + `hooks/useAppTheme.ts` + `constants/colors.ts`
+
+- Three modes: `"system" | "dark" | "light"` — persisted to `@lyfeos_theme_mode_v1`
+- Default on first launch: `"dark"`
+- `useAppTheme()` returns typed `DARK_TOKENS` or `LIGHT_TOKENS`
+- Brand accent: `#FF6B35` (orange) — same in both themes
 
 ---
 
-## 5. DATA MODELS / SCHEMA
+## 10. Data Models
 
-### FoodItem (Nutrition entry)
+### FoodItem
 ```typescript
 interface FoodItem {
-  id: string;             // Date.now() + random suffix
+  id: string;
   name: string;
   calories: number;
-  carbs?: number;         // grams
-  protein?: number;       // grams
-  fat?: number;           // grams
-  fiber?: number;         // grams
-  sugar?: number;         // grams
-  sodium?: number;        // mg
-  portionSize?: string;   // e.g. "1 serving"
+  carbs?: number;          // g
+  protein?: number;        // g
+  fat?: number;            // g
+  fiber?: number;          // g
+  sugar?: number;          // g
+  sodium?: number;         // mg
+  portionSize?: string;
   meal: "breakfast" | "lunch" | "dinner" | "snacks";
-  date: string;           // "YYYY-MM-DD"
-  // Micro-nutrients (all optional)
-  potassium?: number;     // mg
-  calcium?: number;       // mg
-  iron?: number;          // mg
-  magnesium?: number;     // mg
-  zinc?: number;          // mg
-  vitaminA?: number;      // mcg
-  vitaminC?: number;      // mg
-  vitaminD?: number;      // mcg
-  vitaminB12?: number;    // mcg
+  date: string;            // "YYYY-MM-DD"
+  potassium?: number;      // mg
+  calcium?: number;        // mg
+  iron?: number;           // mg
+  magnesium?: number;      // mg
+  zinc?: number;           // mg
+  vitaminA?: number;       // mcg
+  vitaminC?: number;       // mg
+  vitaminD?: number;       // mcg
+  vitaminB12?: number;     // mcg
 }
 ```
 
@@ -340,9 +641,9 @@ interface FoodItem {
 ```typescript
 interface DailyGoal {
   calories: number;   // kcal (default 2000)
-  carbs: number;      // g (default 250)
-  protein: number;    // g (default 150)
-  fat: number;        // g (default 65)
+  carbs: number;      // g   (default 250)
+  protein: number;    // g   (default 150)
+  fat: number;        // g   (default 65)
   water: number;      // glasses (default 8)
 }
 ```
@@ -351,7 +652,7 @@ interface DailyGoal {
 ```typescript
 interface WaterLog {
   id: string;
-  date: string;     // "YYYY-MM-DD"
+  date: string;       // "YYYY-MM-DD"
   glasses: number;
 }
 ```
@@ -363,12 +664,12 @@ interface Habit {
   name: string;
   type: "build" | "quit";
   trackMethod: "task" | "amount" | "time";
-  colorId: string;          // one of 8 colour IDs
+  colorId: string;
   emoji: string;
   targetAmount?: number;
   targetTimeSeconds?: number;
-  weekDays: number[];       // 0–6, 0 = Sunday
-  createdAt: string;        // ISO string
+  weekDays: number[];   // 0-6, 0 = Sunday
+  createdAt: string;    // ISO string
   description?: string;
 }
 ```
@@ -397,8 +698,8 @@ interface Todo {
   dueTime?: string;
   notes?: string;
   repeat?: "none" | "daily" | "weekly" | "monthly";
-  createdAt: string;  // ISO string
-  order: number;      // manual sort order
+  createdAt: string;
+  order: number;        // manual sort index
 }
 ```
 
@@ -406,10 +707,10 @@ interface Todo {
 ```typescript
 interface ActivityLog {
   id: string;
-  date: string;               // "YYYY-MM-DD"
+  date: string;                 // "YYYY-MM-DD"
   sport: string;
   emoji: string;
-  duration: number;           // minutes
+  duration: number;             // minutes
   intensity: "light" | "moderate" | "intense";
   caloriesBurned: number;
   hydrationNeededMl: number;
@@ -431,280 +732,353 @@ interface ActivityLog {
 interface HealthProfile {
   age: string;
   sex: "male" | "female" | "other" | "";
-  height: string;           // cm (metric) or ft'in" (imperial)
-  weight: string;           // kg or lb
+  height: string;         // cm (metric) or ft'in" (imperial)
+  weight: string;         // kg or lb
   activityLevel: "sedentary" | "lightly" | "moderately" | "very" | "";
   goal: "lose" | "maintain" | "muscle" | "fitness" | "";
 }
 ```
 
-### Firestore Structure
-```
-users/{uid}/
-  data/
-    habits   → { habits: Habit[], updatedAt: Timestamp }
-    todos    → { todos: Todo[], updatedAt: Timestamp }
-    calories → { calories: { foodItems: FoodItem[], waterLogs: WaterLog[], lastModified: number }, updatedAt: Timestamp }
+### ActivityAnalysis (returned by `analyzeActivity()`)
+```typescript
+interface ActivityAnalysis {
+  calories_burned: number;
+  hydration_needed_ml: number;
+  hydration_glasses: number;
+  protein_needed_g: number;
+  carbs_needed_g: number;
+  recovery_time_hours: number;
+  heart_rate_zone: string;
+  intensity_level: string;
+  health_benefits: string[];
+  tips: string[];
+  post_activity_meal: string;
+  sport_category: string;
+  summary?: string;       // AI-style summary sentence (offline-generated)
+}
 ```
 
-> **Note:** Calories sync uses a `lastModified` timestamp guard — the newer of local vs. cloud wins to prevent data loss on interrupted sync.
-
-### AsyncStorage Key Registry
-| Key | Data | Context |
-|---|---|---|
-| `@lyfeos_food_v2` | `FoodItem[]` | CaloriesContext |
-| `@lyfeos_water_v2` | `WaterLog[]` | CaloriesContext |
-| `@lyfeos_goal_v2` | `DailyGoal` | CaloriesContext |
-| `@lyfeos_goals_configured_v1` | `"true"/"false"` | CaloriesContext |
-| `@lyfeos_food_meta_v1` | `{ lastModified: number }` | CaloriesContext |
-| `@lyfeos_habits_v2` | `Habit[]` | HabitsContext |
-| `@lyfeos_habit_logs_v2` | `HabitLog[]` | HabitsContext |
-| `@lyfeos_version` | `"v2_empty"` | HabitsContext (data version gate) |
-| `@lyfeos_todos_v2` | `Todo[]` | TodosContext |
-| `@lyfeos_activity_logs_v1` | `ActivityLog[]` | ActivityContext |
-| `@lyfeos_steps_v1` | `StepsLog[]` | ActivityContext |
-| `@lyfeos_activity_banner_v1` | `PostActivityBanner \| null` | ActivityContext |
-| `@lyfeos_coach_insight_v1` | `WeeklyCoachInsight \| null` | ActivityContext |
-| `@lyfeos_profile_name_v1` | `string` | ProfileContext |
-| `@lyfeos_profile_join_v1` | ISO date string | ProfileContext |
-| `@lyfeos_profile_habitgoal_v1` | `string` (number) | ProfileContext |
-| `@lyfeos_profile_actgoal_v1` | `string` (number) | ProfileContext |
-| `@lyfeos_profile_health_v1` | `HealthProfile` | ProfileContext |
-| `@lyfeos_profile_reminders_v1` | `Reminders` | ProfileContext |
-| `@lyfeos_profile_prefs_v1` | `Partial<Preferences>` | ProfileContext |
-| `@lyfeos_theme_mode_v1` | `"system"\|"dark"\|"light"` | ThemeContext |
-| `@lyfeos_notifications_v1` | `NotifItem[]` | index.tsx (in-app inbox) |
-| `@lyfeos_notif_asked_v1` | flag string | index.tsx |
-| `@lyfeos_confetti_date_v1` | date string | index.tsx |
-| `hasSeenOnboarding` | `"true"` | _layout.tsx |
-| `legalConsent` | `{ accepted, version, timestamp }` | _layout.tsx / legal-consent.tsx |
-| `habitCompletionCount` | `string` (number) | HabitsContext (ad trigger counter) |
+### FoodAnalysisResult (returned by nutrition search)
+```typescript
+interface FoodAnalysisResult {
+  name: string;
+  servingDescription: string;
+  calories: number;
+  carbs: number;
+  protein: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  confidence: "high" | "medium" | "low";
+  noFoodDetected?: boolean;
+  cuisineType?: string;
+  dishNotes?: string;
+  source?: "local-db" | "gemini" | "usda" | "open-food-facts";
+  // Micro-nutrients (all optional, same fields as FoodItem)
+  potassium?: number; calcium?: number; iron?: number;
+  magnesium?: number; zinc?: number; vitaminA?: number;
+  vitaminC?: number; vitaminD?: number; vitaminB12?: number;
+}
+```
 
 ---
 
-## 6. STATE MANAGEMENT
+## 11. External APIs & Third-Party Services
 
-**Strategy:** React Context API only. No Redux, Zustand, MobX, or Jotai.
-
-### Provider hierarchy (in `app/_layout.tsx`)
-```
-SafeAreaProvider
-  └── ThemeProvider          ← theme mode + isDark
-      └── ErrorBoundary
-          └── QueryClientProvider   ← @tanstack/react-query (not heavily used — mostly for future)
-              └── AuthProvider      ← Firebase auth user + sign-in methods
-                  └── HabitsProvider
-                      └── TodosProvider
-                          └── CaloriesProvider
-                              └── ActivityProvider
-                                  └── ProfileProvider
-                                      └── GestureHandlerRootView
-                                          └── KeyboardProvider
-                                              └── RootLayoutNav   ← routing logic
-```
-
-### Data flow pattern (all contexts follow this)
-1. On mount: read from AsyncStorage → set local React state
-2. If authenticated non-guest: fetch from Firestore → merge with conflict resolution → update state + AsyncStorage
-3. On every mutation: update React state → write to AsyncStorage → write to Firestore (non-blocking, fire-and-forget)
-4. **Stale closure fix:** All mutating callbacks use `useRef` to always access the latest `user`/`isGuest` values without triggering re-renders
-
-### Auth-aware sync
-- `CaloriesContext` and `HabitsContext` subscribe to `useAuth()` — syncing only fires when `user && !isGuest`
-- Guest users get full local functionality, no cloud sync
-- On sign-in from guest: `migrateGuestDataToAccount()` uploads local data to Firestore
+| Service | Endpoint / SDK | What Is Sent | Key | Notes |
+|---|---|---|---|---|
+| **USDA FoodData Central** | `api.nal.usda.gov/fdc/v1/foods/search` | Food query string | `EXPO_PUBLIC_USDA_API_KEY` (falls back to `"DEMO_KEY"` — 30 req/hr/IP) | Primary nutrition source |
+| **Open Food Facts** | `world.openfoodfacts.org/api/v2/search` | Food query string + User-Agent | None | Fallback; no PII |
+| **Google AdMob** | `react-native-google-mobile-ads` SDK | Google Advertising ID, ad interactions | Ad unit IDs (hardcoded in `utils/ads.ts`) | See §13 |
+| **Meta (Facebook) SDK** | `react-native-fbsdk-next` SDK | Firebase UID, app events, device Ad ID | App ID + Client Token (hardcoded in `app.json`) | See §12 |
+| **Firebase Analytics** | `@react-native-firebase/analytics` | User ID, events, user properties | Auto (from `google-services.json`) | Active — not a stub |
+| **Expo Updates (EAS)** | `https://u.expo.dev/54f639f6-...` | Runtime version, update check | Auto | OTA updates |
+| **Gemini API** | `generativelanguage.googleapis.com` | (dev proxy only — activity prompt) | `GEMINI_API_KEY` (server-side only) | **Native Android client never calls this.** Dev/web only. |
 
 ---
 
-## 7. NAVIGATION STRUCTURE
+## 12. Analytics & Telemetry
 
-**Router:** Expo Router (file-based, Stack + Tabs)
+**File:** `utils/analytics.ts` (154 lines)
 
-```
-/ (root Stack)
-├── /index                   ← Minimal redirect screen (immediate, no UI)
-├── /onboarding              ← Shown on first launch (sets hasSeenOnboarding)
-├── /login                   ← Auth screen (shown if onboarding done but not logged in)
-├── /legal-consent           ← GDPR/legal gate shown after login, before app access
-└── /(tabs)                  ← Bottom tab group (all require auth + legal consent)
-    ├── /                    ← Home / Dashboard (index.tsx)
-    ├── /habits              ← Habit tracker
-    ├── /todos               ← Task list
-    ├── /calories            ← Nutrition tracker
-    └── /profile             ← Profile & settings
-```
+### Firebase Analytics — ACTIVE
 
-### Navigation guard logic (in `app/_layout.tsx` → `RootLayoutNav`)
-```
-User lands →
-  ├── isInitializing → wait (no redirect)
-  ├── Not logged in:
-  │   ├── hasSeenOnboarding = false → /onboarding
-  │   └── hasSeenOnboarding = true  → /login
-  └── Logged in (user or guest):
-      ├── legalConsentAccepted = false → /legal-consent
-      └── legalConsentAccepted = true  → /(tabs)
-```
-> Consent gate re-checks `CONSENT_VERSION = '1.0'` — bumping this version forces all existing users through the consent screen again.
+`@react-native-firebase/analytics` `^24.1.1` is installed and making real SDK calls.
 
-### Tab bar adaptive rendering
-- iOS with Liquid Glass available: uses `expo-router/unstable-native-tabs` (native iOS tab bar)
-- All other platforms: classic Expo Router `<Tabs>` with `BlurView` background on iOS
+| Function | SDK Call |
+|---|---|
+| `logScreen(screenName)` | `analytics().logScreenView({ screen_name, screen_class })` |
+| `logEvent(eventName, params)` | `analytics().logEvent(eventName, params)` |
+| `setAnalyticsUser(userId, props)` | `analytics().setUserId()` + `analytics().setUserProperty()` |
 
----
+### Meta (Facebook) App Events — ACTIVE IN PRODUCTION ONLY
 
-## 8. API KEYS & ENVIRONMENT VARIABLES
+`react-native-fbsdk-next` `13.4.3` is dynamically managed via `app.config.js`:
+- **Development (`APP_ENV=development`) & Preview (`APP_ENV=preview`):** Completely disabled and omitted from Expo config plugins. No Meta credentials, manifest metadata, or native SDK initialization.
+- **Production (`APP_ENV=production`):** Dynamically included in Expo plugins, reading `META_APP_ID` and `META_CLIENT_TOKEN` securely from environment variables.
+- **Runtime Guard:** All calls (`initializeMetaSDK`, `logEvent`, `setAnalyticsUser`) are guarded by `isMetaEnabled()`, ensuring no SDK calls occur outside of production builds.
 
-**Source of truth:** `.env.local` (gitignored). Template: `.env.example`.
+| Firebase Event | Meta Event |
+|---|---|
+| `login` | `fb_mobile_login` |
+| `sign_up` | `AppEventsLogger.AppEvents.CompletedRegistration` |
+| `habit_completed` | `HabitCompleted` |
+| `meal_logged` | `MealLogged` |
 
-| Variable | Used In | Purpose |
-|---|---|---|
-| `EXPO_PUBLIC_USDA_API_KEY` | `utils/nutritionSearch.ts` | USDA FoodData Central API key. Falls back to `"DEMO_KEY"` (30 req/hour per IP). Prefix `EXPO_PUBLIC_` makes it available in the React Native bundle. |
-| `GEMINI_API_KEY` | `metro.config.js`, `server/serve.js` | Google Gemini AI key. **Server-side only** — never bundled into the RN client. Used by the Metro dev proxy and the production Node.js server. |
-| `EXPO_PUBLIC_DOMAIN` | `eas.json` (production profile `env`) | Domain for the deployed web server. Set in `eas.json` production env, not `.env.local`. |
+`setAnalyticsUser(userId)` calls `AppEventsLogger.setUserID(userId)` in production only.
 
-> **Security note:** `GEMINI_API_KEY` is intentionally excluded from the React Native bundle by routing all Gemini calls through a server-side proxy (`metro.config.js` in dev, `server/serve.js` in production). Never move this to an `EXPO_PUBLIC_` variable.
+Meta SDK initialised via `initializeMetaSDK()` -> `Settings.initializeSDK()` (called from `app/_layout.tsx`, guarded by `isMetaEnabled()`).
 
-### Other credentials (not env vars)
-- `google-services.json` — Firebase Android config (stored in repo root, standard Firebase practice)
-- `@shivam.2k__lyfeos.jks` — Android signing keystore (stored in repo root — **ensure this never reaches a public repo**)
-- Google Sign-In `webClientId` is hardcoded in `context/AuthContext.tsx` (line 32) — consider moving to env var
+### Firebase Crashlytics — DEFERRED / INACTIVE
+
+`@react-native-firebase/crashlytics` is **not installed**. `logError()` and `setCrashlyticsUser()` are stub no-ops that only `console.warn` in dev mode.
 
 ---
 
-## 9. KNOWN ISSUES / TECH DEBT
+## 13. Monetization
 
-| # | Area | Issue | Location |
+**File:** `utils/ads.ts`
+
+| Ad Type | Unit ID | Status | Trigger |
 |---|---|---|---|
-| 1 | Food Scanner | Camera-based food image scan is **intentionally stubbed** — `analyzeFoodImage()` always throws `"Food Scan is coming soon."` | `utils/analyzeFoodImage.ts:48` |
-| 2 | Analytics | Firebase Analytics is now **active**. `@react-native-firebase/analytics` installed at v24.1.1; all analytics functions call the real SDK. Crashlytics functions remain no-ops. | `utils/analytics.ts` |
-| 3 | Analytics | `@react-native-firebase/crashlytics` is still **not installed**. `logError()` and `setCrashlyticsUser()` are safe no-ops until Crashlytics is added and a native rebuild is done. | `utils/analytics.ts` |
-| 4 | Rewarded Ads | `showRewardedAd()` utility is implemented but **never called from any screen** | `utils/ads.ts:68` |
-| 5 | Banner Ads | `BannerAd`, `BannerAdSize` are exported from `utils/ads.ts` but no banner has been placed in any screen yet | `utils/ads.ts:102` |
-| 6 | Habits cloud sync | `HabitsContext.logHabit()` passes stale `habits` array to `syncHabitsToCloud` — should use the state updater function's latest value | `context/HabitsContext.tsx:236` |
-| 7 | Guest migration | `handleGuestMigration` in `AuthContext` reads from AsyncStorage keys `"habits"`, `"todos"`, `"calories"` (raw, unprefixed) which differ from the actual versioned keys (`@lyfeos_habits_v2` etc.) — migration may silently migrate empty arrays | `context/AuthContext.tsx:47-53` |
-| 8 | Data version | `DATA_VERSION = "v2_empty"` in `HabitsContext` clears ALL legacy storage keys on first run with the new version. This is a one-shot migration guard — any future schema change needs a new version string | `context/HabitsContext.tsx:90-118` |
-| 9 | Apple Sign-In | `expo-apple-authentication` is **not in the current `package.json`** (was in the older vitaflow 0.1 project). Apple sign-in is removed from this version. | `context/AuthContext.tsx` (no Apple import) |
-| 10 | iOS not deployed | iOS build is configured (`supportsTablet: false`, `ios:{}` in `app.json`) but **no production iOS build has been submitted** to the App Store | `app.json:16-18` |
-| 11 | `sounds/` folder | `assets/sounds/` directory exists but is empty. Likely a placeholder for future habit completion sounds | `assets/sounds/` |
-| 12 | @tanstack/react-query | `QueryClientProvider` is set up in `_layout.tsx` but React Query is not actively used anywhere in the app. It appears to be scaffolded for future feature work | `app/_layout.tsx:34` |
-| 13 | Timezone streak bug (fixed) | Streak calculation previously used `new Date(dateStr)` which is UTC-based causing off-by-one errors in non-UTC timezones. Fixed with local date arithmetic using `localDateStr()` / `subtractDay()` / `addDay()` helpers | `context/HabitsContext.tsx:266-281` |
-| 14 | `.jks` keystore in repo | `@shivam.2k__lyfeos.jks` is committed to the repository. This is a security risk if the repo is ever made public | root |
-| 15 | webClientId hardcoded | Google Sign-In `webClientId` is a literal string in `AuthContext.tsx` rather than an env variable | `context/AuthContext.tsx:32` |
+| **Interstitial** | `ca-app-pub-7658674851177824/3997801355` | **Active** | Every 3rd habit completion (`habitCompletionCount` counter) |
+| **Banner** | `ca-app-pub-7658674851177824/9719730461` | Wired, unused | No screen shows a banner |
+| **Rewarded** | `ca-app-pub-7658674851177824/4491454519` | Wired, unused | `showRewardedAd()` implemented but never called |
+
+**AdMob App ID:** `ca-app-pub-7658674851177824~1838662014`
+
+**Ad personalization:** `requestNonPersonalizedAdsOnly: false` — personalized ads are enabled.
+
+**Modal guard:** `setInterstitialBlocked(true/false)` in `utils/ads.ts`. Any screen opening a form/modal **must** call this to prevent a delayed interstitial from interrupting the user.
+
+**Initialization:** `initializeAds()` called 2 seconds after app launch in `app/_layout.tsx`.
 
 ---
 
-## 10. BUILD & DEPLOYMENT
+## 14. Build & Deployment
 
 ### Prerequisites
-- Node.js ≥ 18, pnpm installed globally
-- EAS CLI (`npm i -g eas-cli`)
-- Logged into EAS: `eas login`
 
-### Development
 ```bash
-pnpm dev                    # Starts Metro on localhost:5000 with Gemini proxy
-pnpm android                # expo run:android (local native build)
+# Required tools
+node >= 18
+pnpm 9.15.4       # pinned in packageManager field
+npm i -g eas-cli  # >= 19.0.5
+eas login
 ```
 
-### EAS Build profiles (`eas.json`)
-| Profile | Output | Distribution | Notes |
-|---|---|---|---|
-| `development` | `.apk` (dev client) | Internal | For Expo Go / dev client testing |
-| `preview` | `.apk` | Internal | QA testing without Play Store |
-| `production` | `.aab` | Play Store → internal track | Auto-increments `versionCode`; sets `EXPO_PUBLIC_DOMAIN` |
-| `production-apk` | `.apk` | — | Same as production but `.apk` output (for sideloading) |
+### Development Commands
 
-### Production Android build command
 ```bash
-# Option 1: Via script (recommended — clears EAS temp dirs first)
+pnpm dev              # Expo start on localhost:5000 (includes Gemini dev proxy)
+pnpm android          # expo run:android (local native dev build)
+pnpm ios              # expo run:ios
+pnpm typecheck        # tsc --noEmit
+pnpm build            # Static Expo web export (node scripts/build.js)
+pnpm serve            # Start production web server (node server/serve.js)
+```
+
+### EAS Build Profiles (`eas.json`)
+
+| Profile | Output | Distribution | Key Settings |
+|---|---|---|---|
+| `development` | APK (dev client) | Internal | `developmentClient: true`, channel: development |
+| `preview` | APK | Internal | channel: preview |
+| `production` | `.aab` | Play Store internal track | Node 22.14.0, pnpm 9.15.4, `autoIncrement: true` |
+| `production-apk` | `.apk` | — | Extends production, APK format |
+
+### Production Build Commands
+
+```bash
+# Recommended — clears EAS temp dirs first
 bash build-android.sh
 
-# Option 2: Direct EAS
+# Direct EAS
 eas build --platform android --profile production --non-interactive
 
-# Option 3: APK for sideloading
+# APK for sideloading
 eas build --platform android --profile production-apk
 ```
 
-### Signing
-- Keystore file: `@shivam.2k__lyfeos.jks` (in project root)
-- EAS manages keystore upload — configure in `eas.json` `android.credentialsSource` if needed
+### Submit to Play Store
 
-### Submitting to Play Store
 ```bash
 eas submit --platform android --profile production
+# Submits to "internal" track (configured in eas.json)
 ```
-Submits to the `internal` track (configured in `eas.json` submit section).
 
-### Environment variables for production
-Set in EAS: `eas secret:create --scope project --name GEMINI_API_KEY --value "your_key"`
-Or in `eas.json` `production.env` for non-secret build-time vars.
+### OTA Updates
 
-### Static web server deployment
-```bash
-node scripts/build.js       # Builds static Expo web export to ./static-build/
-node server/serve.js        # Serves static build on port 3000 (reads GEMINI_API_KEY from .env)
-```
+- Policy: `runtimeVersion.policy: "appVersion"` — OTA update only applies to same app version
+- Update URL: `https://u.expo.dev/54f639f6-a140-4168-afdc-eb3bca56979e`
+- `EXPO_UPDATES_CHECK_ON_LAUNCH: ALWAYS` — checks on every launch
+
+### Custom Config Plugin
+
+`plugins/withKotlinVersion.js` — pins Kotlin Gradle plugin version to `2.1.20` in `build.gradle`. Required because React Native Firebase packages have Kotlin version conflicts. Configured in `app.json` plugins array with `{ "kotlinVersion": "2.1.20" }`.
 
 ---
 
-## 11. FUTURE ROADMAP HOOKS
+## 15. Environment Variables & Secrets
 
-Based on code placeholders and commented-out sections:
+| Variable | Location | Used By | Sensitivity |
+|---|---|---|---|
+| `EXPO_PUBLIC_USDA_API_KEY` | `.env.local` | `utils/nutritionSearch.ts` | **Low** — bundled in client; falls back to `"DEMO_KEY"` |
+| `GEMINI_API_KEY` | `.env.local` + EAS Secrets | `metro.config.js` (dev proxy), `server/serve.js` (web) | **High** — server-side only; **never** bundled into the APK |
+| `EXPO_PUBLIC_DOMAIN` | `eas.json` production env | `scripts/build.js` (web only) | **Low** — placeholder `"YOUR_DEPLOYED_DOMAIN_HERE"` in repo |
+
+### Hardcoded Credentials (compiled into binary)
+
+| Credential | Location | Risk Level |
+|---|---|---|
+| Firebase API key (`AIzaSy...`) | `google-services.json` | Low — client key; security via Firebase Rules |
+| Google OAuth web client ID | `google-services.json`, `AuthContext.tsx:39` | Low — public identifier |
+| AdMob App ID + Ad Unit IDs | `app.json`, `utils/ads.ts` | Low — required public identifiers |
+| Meta App ID (`1369488158633446`) | `app.json`, `strings.xml` | Low — public identifier |
+| Meta Client Token (`baa4ccd5f752...`) | `app.json:78`, `strings.xml` | Medium — compiled into binary |
+| Android Keystores (`.jks`) | Project root | **HIGH — never commit to public repo** |
+
+---
+
+## 16. Security Analysis
+
+### Risk Register
+
+| # | Risk | Severity | Status |
+|---|---|---|---|
+| 1 | **Sign-out data remanence** — `signOut()` does not clear AsyncStorage. Prior user's data stays on device and is potentially migrated to next user's cloud account via `handleGuestMigration()`. | **Critical** | Unresolved |
+| 2 | **Firebase Security Rules not in repo** — No `firestore.rules` in codebase. If remote rules are permissive, cross-user access is possible. | **High (unknown)** | Unresolved |
+| 3 | **Keystores in project root** — `@shivam.2k__lyfeos.jks` and `OLD_1.jks` in project root. In `.gitignore` but risk of accidental commit. | **High** | Unresolved |
+| 4 | **Plain-text local storage + ADB backup** — AsyncStorage unencrypted. `android:allowBackup="true"` allows `adb backup` extraction. | **Medium** | Unresolved |
+| 5 | **Meta UID leakage** — Firebase UID transmitted directly to `AppEventsLogger.setUserID()`. | **Medium** | Unresolved (by design) |
+| 6 | **No Firestore schema validation** — No Cloud Functions enforce document schemas; users could write arbitrary payloads. | **Medium** | Unresolved |
+| 7 | **Naive todo conflict resolution** — Cloud overwrites local todos on first sync; offline todos silently lost. | **Medium (data loss)** | Unresolved |
+| 8 | **Meta Client Token hardcoded** — Compiled into `strings.xml`; extractable via APK reverse engineering. | **Low–Medium** | Unresolved |
+| 9 | **Single Firebase project for dev + prod** — Both environments share `lyfe-os-2c7cd`. Dev data can pollute prod. | **Medium** | Unresolved |
+
+### Recommended Remediations (not yet implemented)
+
+1. Call `clearAllLyfeOSLocalData()` + `cancelAllNotifications()` inside `signOut()`
+2. Add `firestore.rules` to repo with `allow read, write: if request.auth.uid == userId;`
+3. Move `.jks` files out of project directory to offline secure storage
+4. Set `android:allowBackup="false"` in `app.json` android config
+5. Implement union-merge for todos (identical to habits merge strategy)
+6. Move Google Sign-In `webClientId` to an environment variable
+
+---
+
+## 17. Known Issues & Tech Debt
+
+| # | Area | Issue | File Reference |
+|---|---|---|---|
+| 1 | Auth | `signOut()` does not clear AsyncStorage — data leaks to next user via `handleGuestMigration()` | `context/AuthContext.tsx:148` |
+| 2 | Camera | Food image scan always throws `"Food Scan is coming soon."` — intentionally disabled | `utils/analyzeFoodImage.ts:48` |
+| 3 | Crashlytics | `logError()` and `setCrashlyticsUser()` are no-op stubs; package not installed | `utils/analytics.ts:130-152` |
+| 4 | Ads | `showRewardedAd()` and `BannerAd` are implemented but never called/placed in any screen | `utils/ads.ts:68, 102` |
+| 5 | Todos sync | Cloud blindly overwrites local todos on initial fetch — offline-created todos silently lost | `context/TodosContext.tsx` |
+| 6 | Avatar | Profile avatar held only in volatile component state — lost on reload; never persisted | `app/(tabs)/profile.tsx` |
+| 7 | Imperial units | `Preferences.units` stored but UI always displays metric values | `context/ProfileContext.tsx` |
+| 8 | kJ display | `Preferences.calorieDisplay` stored but UI hardcodes kcal | `context/ProfileContext.tsx` |
+| 9 | No prod isolation | Dev and production both connect to Firebase project `lyfe-os-2c7cd` | `google-services.json` |
+| 10 | React Query unused | `QueryClientProvider` scaffolded in `_layout.tsx` but no queries written | `app/_layout.tsx` |
+| 11 | Keystores in root | Production `.jks` files reside in project directory | `/` |
+| 12 | iOS not deployed | iOS config present but no App Store submission | `app.json:16-18` |
+| 13 | `assets/sounds/` empty | Directory exists; no audio files yet | `assets/sounds/` |
+| 14 | `EXPO_PUBLIC_DOMAIN` placeholder | Still `"YOUR_DEPLOYED_DOMAIN_HERE"` in `eas.json` | `eas.json:27` |
+| 15 | webClientId hardcoded | Google Sign-In client ID is a literal string instead of env var | `context/AuthContext.tsx:39` |
+| 16 | Activity not cloud-synced | All workout logs, steps, health profile are device-local; device replacement = permanent data loss with no user warning | `context/ActivityContext.tsx` |
+
+---
+
+## 18. Future Roadmap Hooks
 
 | Feature | Evidence | File |
 |---|---|---|
-| **Camera Food Scanner** | `analyzeFoodImage()` stub throws "coming soon" | `utils/analyzeFoodImage.ts` |
-| **Firebase Analytics** | ✅ **Active** — `@react-native-firebase/analytics` installed, real calls enabled | `utils/analytics.ts` |
-| **Firebase Crashlytics** | Full implementation written, commented out with TODO | `utils/analytics.ts` |
-| **Rewarded ads** | `showRewardedAd()` fully wired but never called from UI | `utils/ads.ts:68` |
-| **Banner ads** | `BannerAd` / `BannerAdSize` exported, no screen uses them | `utils/ads.ts:102` |
-| **iOS App Store release** | iOS config present in `app.json`; `expo-apple-authentication` removed | `app.json:16-18` |
-| **React Query usage** | `QueryClientProvider` scaffolded; no queries written yet | `app/_layout.tsx:34` |
-| **Habit completion sounds** | `assets/sounds/` folder is empty | `assets/sounds/` |
-| **Imperial units** | `Preferences.units: "metric" | "imperial"` stored but UI only shows metric values | `context/ProfileContext.tsx:28` |
-| **kJ calorie display** | `Preferences.calorieDisplay: "kcal" | "kj"` stored but UI hardcodes kcal | `context/ProfileContext.tsx:29` |
-| **Habit effects toggle** | `Preferences.habitEffectsEnabled` stored, consumed in `HabitTile` | `context/ProfileContext.tsx:30` |
-| **Weekly AI coach insight** | `WeeklyCoachInsight` model exists; generation call exists in `ActivityContext`, UI display on home screen | `context/ActivityContext.tsx:48-51` |
-| **Consent version bumping** | `CONSENT_VERSION = '1.0'` in legal-consent.tsx — architecture supports re-prompting on version bump | `app/legal-consent.tsx:18` |
-| **Gemini Vision / multimodal** | `metro.config.js` has a generic `/api/gemini` proxy endpoint (accepts arbitrary model + payload) ready for image analysis | `metro.config.js:43-62` |
+| Camera food scanner | `analyzeFoodImage()` stub; `expo-image-picker` installed; `/api/gemini` multimodal proxy ready | `utils/analyzeFoodImage.ts`, `metro.config.js` |
+| Firebase Crashlytics | Implementation commented out with TODO; only needs `@react-native-firebase/crashlytics` install + native rebuild | `utils/analytics.ts:130-152` |
+| Rewarded ads | `showRewardedAd()` fully implemented but never called | `utils/ads.ts:68` |
+| Banner ads | `BannerAd`, `BannerAdSize` exported; no screen places them | `utils/ads.ts:102` |
+| iOS App Store release | Config scaffolded in `app.json` | `app.json:16-18` |
+| Imperial units UI | `Preferences.units` stored and accessible | `context/ProfileContext.tsx` |
+| kJ calorie display UI | `Preferences.calorieDisplay` stored and accessible | `context/ProfileContext.tsx` |
+| Activity/health cloud sync | Clear gap; `cloudSync.ts` would need new sync functions + new Firestore documents | `utils/cloudSync.ts` |
+| Consent version bumping | Architecture supports re-prompting by bumping `CONSENT_VERSION` constant | `app/legal-consent.tsx:18` |
+| Gemini multimodal | Generic `/api/gemini` proxy accepts arbitrary model + payload | `metro.config.js:43-62` |
+| Habit completion sounds | `assets/sounds/` directory exists but is empty | `assets/sounds/` |
 
 ---
 
-## 13. IMPORTANT RULES FOR FUTURE CHANGES
+## 19. Documentation Maintenance
 
-1. **NEVER touch `components/ActivityTracker.tsx` without reading the full file.** It is 76 KB and contains complex canvas/chart drawing and animation logic.
-2. **Always test on Android.** iOS is not currently deployed.
-3. **Keep `PROJECT_KNOWLEDGE.md` updated** whenever new packages, env vars, or architecture decisions are added.
-4. **Analytics & Ads:**
-   - Firebase Analytics is active (`@react-native-firebase/analytics`).
-   - Meta App Events is active (`react-native-fbsdk-next` with Meta App ID `1369488158633446`).
-   - Google AdMob is active (`react-native-google-mobile-ads`).
-   - Before production EAS builds, ensure the real Meta Client Token (`META_CLIENT_TOKEN`) is supplied in `android/app/src/main/res/values/strings.xml` / `app.json`.
-   - `logError()` and `setCrashlyticsUser()` are still no-ops (Crashlytics not yet installed). A native rebuild is required whenever you install `@react-native-firebase/crashlytics` to activate those.
-5. **No AI imports in client code.** All Gemini calls MUST go through the backend proxy (`/api/gemini` or `/api/analyze-activity`).
+### This File Is a Living Document
+
+`PROJECT_KNOWLEDGE.md` must always describe the **actual current state** of the project, not aspirational or hypothetical behaviour. If this document and the code disagree, the code wins — update this file.
+
+### Mandatory Update Triggers
+
+Before completing any future development task, check whether `PROJECT_KNOWLEDGE.md` needs to be updated. If yes, update it before considering the task complete:
+
+1. Determine if the task changed anything documented here.
+2. If yes, update the relevant section(s).
+3. Add a concise entry to the [Change Log](#20-change-log).
+4. Verify documentation still matches the actual implementation.
+
+**You MUST update `PROJECT_KNOWLEDGE.md` when you:**
+
+- Add, remove, or modify a feature
+- Change architecture or data flow
+- Change database structure (Firestore schema or AsyncStorage key names/types)
+- Change Firebase services or configuration
+- Change authentication or authorization behaviour
+- Add, remove, or update an external API integration
+- Change dependencies or package versions
+- Change environment variables or build configuration
+- Fix a bug that changes documented behaviour
+- Make a security-related change
+- Rename or restructure files meaningfully
+
+### Resolving Documentation vs. Code Conflicts
+
+1. Inspect the actual implementation first.
+2. Determine the true current behaviour from the code.
+3. Update `PROJECT_KNOWLEDGE.md` to match.
+4. If the discrepancy appears intentional or ambiguous, mark it `[UNCERTAIN]` and ask the developer before changing either.
+
+### Related Documents
+
+| Document | Status |
+|---|---|
+| `PROJECT_KNOWLEDGE.md` | **The single source of truth and living documentation** for all LyfeOS development. |
+| `LYFEOS_BACKEND_DATA_ARCHITECTURE.md` | **Superseded** — all verified findings are incorporated into `PROJECT_KNOWLEDGE.md`. |
+| `README.md` | Separate developer quickstart. Keep build commands in sync. |
 
 ---
 
-## AI ENGINEER HANDOFF NOTES
+## 20. Change Log
 
-1. **All data is local-first.** Never assume Firestore is the source of truth. AsyncStorage holds the authoritative copy on the device. Cloud sync is opportunistic and conflict-resolved by timestamp.
+> Format: Date — Summary — Area affected — Migration/deployment implications
 
-2. **The Gemini API key must never enter the RN bundle.** Always route AI calls through the Metro proxy (`/api/analyze-activity` or `/api/gemini`) in dev, and through `server/serve.js` in production.
+---
 
-3. **`@tanstack/react-query` is a ghost dependency.** It's set up but unused. Don't rely on it without wiring it up to actual queries.
+### 2026-09-07 — Canonical Project Knowledge Consolidation
 
-4. **Analytics functions are now live.** `logEvent()`, `logScreen()`, `setAnalyticsUser()` all call the real `@react-native-firebase/analytics` SDK. `logError()` and `setCrashlyticsUser()` are still no-ops (Crashlytics not yet installed). A native rebuild is required whenever you install `@react-native-firebase/crashlytics` to activate those.
+**What:** Consolidated all verified audit findings, architecture details, data flows, models, security analysis, and living documentation protocols into `PROJECT_KNOWLEDGE.md` as the single source of truth.
 
-5. **Adding new persisted state:** Always add a new `@lyfeos_<domain>_v<N>` AsyncStorage key. If you change a data schema, bump the version in the key name AND add a migration in the corresponding Context's `useEffect` initializer.
+**Verified corrections & updates in current state:**
 
-6. **Interstitial ad guard:** If you add a new modal or bottom sheet, call `setInterstitialBlocked(true)` from `utils/ads.ts` when it opens and `setInterstitialBlocked(false)` when it closes to prevent the 3rd-habit-completion ad from interrupting the user.
+| Area | Verified State in `PROJECT_KNOWLEDGE.md` |
+|---|---|
+| **Firebase Analytics** | **Active** — real SDK calls via `@react-native-firebase/analytics` `^24.1.1` (no longer a stub). |
+| **Meta (Facebook) SDK** | **Active** — `react-native-fbsdk-next` `13.4.3` dual-logs events and tracks user ID. |
+| **Guest Migration** | Uses correct versioned storage keys (`@lyfeos_habits_v2`, `@lyfeos_todos_v2`, etc.) and performs atomic batch merge with cloud data. |
+| **Activity Analysis Engine** | Confirmed 100% offline local MET scientific calculation in `utils/analyzeActivity.ts`. No mobile Gemini calls at runtime. |
+| **Babel Config** | Pinned to `babel-preset-expo` only; obsolete reanimated plugin reference removed. |
+| **Cloud Sync** | Detailed signatures and logic for `mergeHabits`, `mergeHabitLogs`, `migrateGuestDataToAccount`, and `deleteUserCloudData`. |
+| **Account Deletion** | 5-step transactional deletion sequence in `AuthContext.tsx` with re-auth verification. |
+| **Kotlin Config Plugin** | Documented `plugins/withKotlinVersion.js` pinning Kotlin to `2.1.20`. |
+| **Version** | Updated to `2.2.1` (Android `versionCode: 35`). |
 
-7. **Streak calculation is timezone-sensitive.** Use `getLocalDateString()` from `utils/date.ts` for all date operations — never use `new Date(isoString).toISOString().slice(0, 10)` which uses UTC.
+**Area affected:** All sections of `PROJECT_KNOWLEDGE.md`.
 
-8. **`HabitsProvider` renders `null` until data loads** (`if (!loaded) return null`). This prevents flash of empty habit list but means children don't render until AsyncStorage is read. This is intentional.
-
-9. **The tab bar adapts to platform.** On iOS with Liquid Glass, it uses native tabs. On Android and web, it uses Expo Router's `<Tabs>`. Don't rely on BlurView being present on Android.
-
-10. **Food camera scan is intentionally disabled.** The infrastructure (`expo-image-picker`, `analyzeFoodImage()` interface, `FoodAnalysisResult` type with `source: "gemini"`) is all in place. To enable: implement the body of `analyzeFoodImage()` in `utils/analyzeFoodImage.ts` to call the `/api/gemini` proxy with a multimodal payload including the base64 image.
+**Migration/deployment implications:** None — documentation consolidation only.
