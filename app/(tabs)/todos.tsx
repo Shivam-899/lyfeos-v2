@@ -627,26 +627,36 @@ export default function TodosScreen() {
 
   // Watch for "all today done" transition (incomplete -> 100% complete)
   const isInitialMount = useRef(true);
-  const prevAllDone = useRef(allTodayDone);
+  const prevDateRef = useRef(ts);
+  const prevDoneByDateRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      prevAllDone.current = allTodayDone;
+      prevDateRef.current = ts;
+      prevDoneByDateRef.current[ts] = allTodayDone;
       return;
     }
 
-    if (allTodayDone && !prevAllDone.current && todayTotal > 0) {
+    if (ts !== prevDateRef.current) {
+      prevDateRef.current = ts;
+      prevDoneByDateRef.current[ts] = allTodayDone;
+      return;
+    }
+
+    const wasDone = prevDoneByDateRef.current[ts] ?? allTodayDone;
+    if (allTodayDone && !wasDone && todayTotal > 0) {
       setShowCelebration(true);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const t = setTimeout(() => setShowCelebration(false), 2300);
+      prevDoneByDateRef.current[ts] = true;
       return () => {
         clearTimeout(t);
         setShowCelebration(false);
       };
     }
-    prevAllDone.current = allTodayDone;
-  }, [allTodayDone, todayTotal]);
+    prevDoneByDateRef.current[ts] = allTodayDone;
+  }, [allTodayDone, todayTotal, ts]);
 
   const listItems = buildItems(todos, view, priorityFilter);
   const noTodos = todos.length === 0;

@@ -229,27 +229,43 @@ export default function HabitsScreen() {
     return () => { if (showAddSheet) setInterstitialBlocked(false); };
   }, [showAddSheet]);
 
-  // Watch for "all done" transition on today (incomplete -> 100% complete)
+  // ── Watch for "all done" transition per date (incomplete -> 100% complete) ──
   const isInitialMount = useRef(true);
-  const prevAllDone = useRef(allDone);
+  const prevDateRef = useRef(dateStr);
+  const prevDoneByDateRef = useRef<Record<string, boolean>>({});
+
   useEffect(() => {
+    // 1. First render after mount: record baseline without firing celebration
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      prevAllDone.current = allDone;
+      prevDateRef.current = dateStr;
+      prevDoneByDateRef.current[dateStr] = allDone;
       return;
     }
 
-    if (isViewingToday && allDone && !prevAllDone.current) {
+    // 2. Date switched: record the selected date's baseline and do NOT trigger celebration
+    if (dateStr !== prevDateRef.current) {
+      prevDateRef.current = dateStr;
+      prevDoneByDateRef.current[dateStr] = allDone;
+      return;
+    }
+
+    // 3. User stayed on the same date and genuinely completed the final item
+    const wasDone = prevDoneByDateRef.current[dateStr] ?? allDone;
+    if (allDone && !wasDone && total > 0) {
       setShowCelebration(true);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const t = setTimeout(() => setShowCelebration(false), 2200);
+      prevDoneByDateRef.current[dateStr] = true;
       return () => {
         clearTimeout(t);
         setShowCelebration(false);
       };
     }
-    prevAllDone.current = allDone;
-  }, [allDone, isViewingToday]);
+
+    // 4. Update the completion record for this date
+    prevDoneByDateRef.current[dateStr] = allDone;
+  }, [allDone, dateStr, total]);
 
   // Filter by category
   const filteredHabits =
