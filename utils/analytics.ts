@@ -10,7 +10,9 @@
  */
 
 import analytics from "@react-native-firebase/analytics";
+import crashlytics from "@react-native-firebase/crashlytics";
 import { AppEventsLogger, Settings } from "react-native-fbsdk-next";
+import Constants from "expo-constants";
 
 // ── Meta SDK Initialization ───────────────────────────────────────────────────
 
@@ -32,6 +34,9 @@ export const logScreen = async (screenName: string): Promise<void> => {
       screen_name: screenName,
       screen_class: screenName,
     });
+    // Record breadcrumb and update current screen attribute in Crashlytics
+    crashlytics().log(`[Navigation] Screen: ${screenName}`);
+    await crashlytics().setAttribute("current_screen", screenName);
   } catch (e) {
     if (__DEV__) console.warn("[Analytics] logScreen failed:", e);
   }
@@ -123,31 +128,155 @@ export const setAnalyticsUser = async (
   }
 };
 
-// ── Crashlytics Error Logging ─────────────────────────────────────────────────
-// NOTE: @react-native-firebase/crashlytics is not yet installed.
-// logError() is a safe no-op stub until Crashlytics is activated.
+// ── Crashlytics Observability & Error Logging ─────────────────────────────────
 
-export const logError = (error: Error, context?: string): void => {
+const SENSITIVE_KEY_PATTERN = /password|token|secret|credential|auth|bearer|key|email|phone|card|authorization/i;
+
+/**
+ * Filter and sanitize custom attributes to ensure zero PII or credentials
+ * are transmitted to Firebase Crashlytics.
+ */
+export const sanitizeCrashlyticsAttributes = (
+  attributes?: Record<string, any>
+): Record<string, string> => {
+  if (!attributes) return {};
+  const sanitized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(attributes)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      continue; // Omit sensitive keys entirely
+    }
+    if (value === null || value === undefined) {
+      continue;
+    }
+    if (typeof value === "object") {
+      try {
+        const jsonStr = JSON.stringify(value);
+        sanitized[key] = jsonStr.slice(0, 500);
+      } catch {
+        sanitized[key] = "[Unserializable]";
+      }
+    } else {
+      sanitized[key] = String(value).slice(0, 500);
+    }
+  }
+  return sanitized;
+};
+
+/**
+ * Records non-fatal JavaScript errors to Firebase Crashlytics with
+ * context breadcrumbs and non-sensitive diagnostic metadata.
+ */
+export const logError = (
+  error: Error | unknown,
+  context?: string,
+  attributes?: Record<string, any>
+): void => {
   try {
-    if (__DEV__) console.warn(`[Crashlytics] ${context ?? ""}`, error);
-    // TODO: Activate after installing @react-native-firebase/crashlytics:
-    // crashlytics().recordError(error);
-    // if (context) crashlytics().log(context);
+    const normalizedError =
+      error instanceof Error
+        ? error
+        : new Error(
+            typeof error === "string"
+              ? error
+              : typeof error === "object" && error !== null && "message" in error
+              ? String((error as any).message)
+              : "Unknown application error"
+          );
+
+    if (__DEV__) {
+      console.warn(`[Crashlytics] ${context ?? "Error"}:`, normalizedError);
+    }
+
+    if (context) {
+      crashlytics().log(`[Context] ${context}`);
+      crashlytics().setAttribute("last_error_context", context.slice(0, 100));
+    }
+
+    if (attributes) {
+      const sanitized = sanitizeCrashlyticsAttributes(attributes);
+      if (Object.keys(sanitized).length > 0) {
+        crashlytics().setAttributes(sanitized);
+      }
+    }
+
+    crashlytics().recordError(normalizedError);
   } catch (e) {
     if (__DEV__) console.warn("[Crashlytics] logError failed:", e);
   }
 };
 
-// ── Crashlytics User Identification ──────────────────────────────────────────
-// NOTE: Stub — activate after installing @react-native-firebase/crashlytics.
+/**
+ * Adds an in-session breadcrumb to the Crashlytics session log.
+ */
+export const logCrashlyticsBreadcrumb = (message: string): void => {
+  try {
+    crashlytics().log(message.slice(0, 1000));
+  } catch (e) {
+    if (__DEV__) console.warn("[Crashlytics] logBreadcrumb failed:", e);
+  }
+};
 
+/**
+ * Sets a custom Crashlytics attribute with sanitization.
+ */
+export const setCrashlyticsAttribute = async (
+  key: string,
+  value: string
+): Promise<void> => {
+  try {
+    if (SENSITIVE_KEY_PATTERN.test(key)) return;
+    await crashlytics().setAttribute(key, String(value).slice(0, 500));
+  } catch (e) {
+    if (__DEV__) console.warn("[Crashlytics] setAttribute failed:", e);
+  }
+};
+
+/**
+ * Initializes release and environment metadata in Crashlytics.
+ */
+export const initializeCrashlyticsMetadata = async (): Promise<void> => {
+  try {
+    const appEnv =
+      process.env.EXPO_PUBLIC_APP_ENV ||
+      process.env.APP_ENV ||
+      (__DEV__ ? "development" : "production");
+
+    await crashlytics().setAttributes({
+      app_version: Constants.expoConfig?.version || "2.2.2",
+      build_env: appEnv,
+      platform: "android",
+    });
+    if (__DEV__) console.log("[Crashlytics] Metadata initialized:", appEnv);
+  } catch (e) {
+    if (__DEV__) console.warn("[Crashlytics] Metadata init failed:", e);
+  }
+};
+
+/**
+ * Associates an authenticated user UID with Crashlytics without exposing PII.
+ */
 export const setCrashlyticsUser = async (userId: string): Promise<void> => {
   try {
     if (__DEV__) console.log(`[Crashlytics] User: ${userId}`);
-    // TODO: Activate after installing @react-native-firebase/crashlytics:
-    // await crashlytics().setUserId(userId);
+    await crashlytics().setUserId(userId || "");
   } catch (e) {
     if (__DEV__) console.warn("[Crashlytics] setCrashlyticsUser failed:", e);
   }
+};
+
+/**
+ * Controlled, TEST-ONLY fatal crash trigger for verifying Crashlytics reporting.
+ * Guarded against unintended execution in production.
+ */
+export const triggerCrashlyticsTestCrash = async (confirmKey?: string): Promise<void> => {
+  if (!__DEV__ && confirmKey !== "CONFIRM_TEST_CRASH") {
+    console.warn("[Crashlytics] Test crash blocked in non-development environment.");
+    return;
+  }
+  console.log("[Crashlytics] Triggering controlled test crash...");
+  // Explicitly enable Crashlytics collection so debug builds also record the crash
+  await crashlytics().setCrashlyticsCollectionEnabled(true);
+  crashlytics().log("Controlled test crash triggered by developer verification");
+  crashlytics().crash();
 };
 

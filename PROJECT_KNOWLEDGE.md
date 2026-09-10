@@ -6,7 +6,7 @@
 > See [§19 Documentation Maintenance](#19-documentation-maintenance) for the update protocol.
 >
 > **Last audited:** 2026-09-10  
-> **App version at audit:** `2.2.1` (Android `versionCode: 35`)
+> **App version at audit:** `2.2.2` (Android versionCode is automatically managed by Expo/EAS.)
 
 ---
 
@@ -44,7 +44,7 @@
 | **Expo slug** | `lyfeos` |
 | **EAS Project ID** | `54f639f6-a140-4168-afdc-eb3bca56979e` |
 | **Developer account** | `shivam.2k` (EAS) / **Orbits Lab** (Google Play Store) |
-| **Current version** | `2.2.1` (Android versionCode `35`) |
+| **Current version** | `2.2.2` (Android versionCode is automatically managed by Expo/EAS.) |
 | **Platform status** | Android — **Live on Google Play** (internal track → production). iOS config present but not deployed. |
 | **Firebase project** | `lyfe-os-2c7cd` |
 
@@ -109,7 +109,9 @@ The app is **local-first**. AsyncStorage is the primary source of truth during r
 | Firebase Auth | `@react-native-firebase/auth` | `^24.1.1` | **Active** |
 | Firebase Firestore | `@react-native-firebase/firestore` | `^24.1.1` | **Active** |
 | Firebase Analytics | `@react-native-firebase/analytics` | `^24.1.1` | **Active** (real native SDK, not a stub) |
-| Firebase Crashlytics | *(not installed)* | — | **Deferred** — `logError()` and `setCrashlyticsUser()` are safe stubs |
+| Firebase Crashlytics | `@react-native-firebase/crashlytics` | `^24.1.1` | **Active** (fatal + non-fatal error capture, sanitized attributes, ErrorBoundary & global handler) |
+| Firebase Performance | `@react-native-firebase/perf` | `^24.1.1` | **Active** (app startup, HTTP network, custom traces via `utils/perf.ts`) |
+| Firebase App Check | *(not installed)* | — | **Not Active / Unenforced** (Must remain in monitoring mode in Console) |
 | Google Sign-In | `@react-native-google-signin/google-signin` | `^16.1.2` | **Active** |
 | Google AdMob | `react-native-google-mobile-ads` | `^16.3.3` | **Active** |
 | Meta (Facebook) SDK | `react-native-fbsdk-next` | `13.4.3` | **Active** |
@@ -847,9 +849,57 @@ interface FoodAnalysisResult {
 
 Meta SDK initialised via `initializeMetaSDK()` → `Settings.initializeSDK()` (called from `app/_layout.tsx` on auth state change — no `isMetaEnabled()` guard).
 
-### Firebase Crashlytics — DEFERRED / INACTIVE
+### Firebase Observability & Production Monitoring — ACTIVE
 
-`@react-native-firebase/crashlytics` is **not installed**. `logError()` and `setCrashlyticsUser()` are stub no-ops that only `console.warn` in dev mode.
+LyfeOS implements enterprise-grade Firebase Observability covering Crashlytics, Performance Monitoring, Release Monitoring, and an App Check audit.
+
+#### 1. Firebase Crashlytics — ACTIVE
+- **SDK:** `@react-native-firebase/crashlytics` `^24.1.1`
+- **Gradle Plugin:** `com.google.firebase:firebase-crashlytics-gradle:3.0.3` in `android/build.gradle` and `apply plugin: 'com.google.firebase.crashlytics'` in `android/app/build.gradle`.
+- **Config Plugin:** `"@react-native-firebase/crashlytics"` in `app.json`.
+- **Error Capture Layer:**
+  - **Non-fatal error logging:** `logError(error, context?, attributes?)` in `utils/analytics.ts`. Normalizes errors, logs context breadcrumbs (`crashlytics().log()`), sets sanitized custom attributes (`crashlytics().setAttributes()`), and records via `crashlytics().recordError()`.
+  - **Global JS unhandled error handler:** Integrated in `app/_layout.tsx` via `ErrorUtils.setGlobalHandler` to capture fatal and non-fatal unhandled JS exceptions before delegating to the runtime handler.
+  - **React render crashes:** Wired via `ErrorBoundary` in `app/_layout.tsx` (`onError={(error, stack) => logError(error, 'ErrorBoundary_ReactRenderCrash', ...)}`).
+  - **Breadcrumbs & Screen Tracking:** `logScreen(screenName)` records `[Navigation] Screen: {screenName}` breadcrumbs and sets `current_screen` attribute.
+  - **User Association:** `setCrashlyticsUser(userId)` associates authenticated user UIDs with Crashlytics sessions.
+  - **Environment Metadata:** `initializeCrashlyticsMetadata()` sets `app_version` (`2.2.2`), `build_env`, and `platform`.
+  - **Test Crash Mechanism:** Controlled, debug-only `triggerCrashlyticsTestCrash(confirmKey?)` in `utils/analytics.ts`. Guarded to never trigger automatically or run in non-dev builds without explicit confirmation key.
+
+#### 2. Firebase Performance Monitoring — ACTIVE
+- **SDK:** `@react-native-firebase/perf` `^24.1.1`
+- **Gradle Plugin:** `com.google.firebase:perf-plugin:1.4.2` in `android/build.gradle` and `apply plugin: 'com.google.firebase.firebase-perf'` in `android/app/build.gradle`.
+- **Config Plugin:** `"@react-native-firebase/perf"` in `app.json`.
+- **Automated Traces:**
+  - App startup trace (`_app_start`) collected automatically by native SDK.
+  - Network request performance (HTTP duration, payload size, success rates) instrumented automatically via OkHttp bytecode transforms.
+- **Custom Trace Helper (`utils/perf.ts`):**
+  - `startTrace(traceName, initialAttributes?)`: returns `{ stop, putAttribute, putMetric }`.
+  - `measureTrace(traceName, operation, attributes?)`: measures duration of asynchronous workflows (e.g. background cloud sync, authentication, Gemini food analysis) with automatic error tagging and trace completion.
+  - Built-in attribute sanitization (keys stripped of PII/credentials, alphanumeric characters only, lengths constrained).
+
+#### 3. Release Monitoring & Symbolication — ACTIVE
+- **ProGuard / R8 Rules:** Added to `android/app/proguard-rules.pro`:
+  ```proguard
+  # Firebase Crashlytics & Release Monitoring
+  -keepattributes SourceFile,LineNumberTable
+  -keep public class * extends java.lang.Exception
+  ```
+- **Mapping File Upload:** The Crashlytics Gradle plugin automatically registers tasks `:app:injectCrashlyticsMappingFileIdRelease` and `:app:uploadCrashlyticsMappingFileRelease`. During release builds (`assembleRelease` / `bundleRelease`), ProGuard mapping files are automatically associated with the build for human-readable stack traces in Firebase Console.
+- **Version Alignment:** `versionName: "2.2.2"`. Android versionCode is automatically managed by Expo/EAS.
+
+#### 4. App Check Posture — AUDITED / UNENFORCED (SAFE)
+- **Status:** Not currently installed in client code.
+- **CRITICAL OPERATIONAL RULE:** Do **NOT** enable enforcement for Firestore or Firebase Authentication in Firebase Console. Doing so without client App Check tokens will immediately break all user operations.
+- **App Check Migration Path (when scheduled):**
+  1. Register debug provider for local builds and obtain SHA-256 for release keystore.
+  2. Register Play Integrity provider in Google Cloud Console & Firebase Console.
+  3. Install `@react-native-firebase/app-check@24.1.1` and initialize before other Firebase services.
+  4. Keep in "Monitoring" mode for at least 14 days before considering enforcement.
+
+#### 5. Privacy & Security Rules for Telemetry
+- **Never Logged:** Passwords, auth tokens, refresh tokens, Firebase ID tokens, API keys, private health/medical notes, meal photos, full JSON payloads.
+- **Attribute Sanitizer:** `SENSITIVE_KEY_PATTERN` in `utils/analytics.ts` and `utils/perf.ts` strips any key matching `/password|token|secret|credential|auth|bearer|key|email|phone|card|authorization/i`. Strings capped at 500 chars.
 
 ---
 
@@ -1013,7 +1063,7 @@ eas submit --platform android --profile production
 | Feature | Evidence | File |
 |---|---|---|
 | Camera food scanner | `analyzeFoodImage()` stub; `expo-image-picker` installed; `/api/gemini` multimodal proxy ready | `utils/analyzeFoodImage.ts`, `metro.config.js` |
-| Firebase Crashlytics | Implementation commented out with TODO; only needs `@react-native-firebase/crashlytics` install + native rebuild | `utils/analytics.ts:130-152` |
+| Firebase Crashlytics | Fully implemented & active via @react-native-firebase/crashlytics, app/_layout.tsx, and native Gradle | utils/analytics.ts, app/_layout.tsx |
 | Rewarded ads | `showRewardedAd()` fully implemented but never called | `utils/ads.ts:68` |
 | Banner ads | `BannerAd`, `BannerAdSize` exported; no screen places them | `utils/ads.ts:102` |
 | iOS App Store release | Config scaffolded in `app.json` | `app.json:16-18` |
@@ -1076,6 +1126,39 @@ Before completing any future development task, check whether `PROJECT_KNOWLEDGE.
 
 > Format: Date — Summary — Area affected — Migration/deployment implications
 
+### 2026-09-10 — Version 2.2.2 Production Release Preparation
+
+**What:** Prepared LyfeOS for version 2.2.2 production release:
+- User-facing app version bumped from `2.2.1` to `2.2.2` in `app.json`.
+- Dynamic app version resolution integrated in `utils/analytics.ts` (`Constants.expoConfig?.version || "2.2.2"`).
+- Confirmed Android `versionCode` is not hardcoded and is strictly auto-managed by Expo/EAS (`appVersionSource: "remote"`, `autoIncrement: true`).
+- Firebase Crashlytics, Performance Monitoring, and symbolication mapping fully verified.
+- Targeted EAS build profile: `production` (Android AAB).
+
+**Area affected:** `app.json`, `utils/analytics.ts`, `PROJECT_KNOWLEDGE.md`, `LYFEOS_BACKEND_DATA_ARCHITECTURE.md`.
+
+**Migration/deployment implications:** Production AAB build via EAS.
+
+---
+
+### 2026-09-10 — Fix Logout Pre-Sync Serialization Failure (`deletedAt: undefined`)
+
+**What:** Resolved critical logout blocker where `signOut()` aborted with generic dialog `"Sync failed — could not log out"`:
+- **Root Cause:** In `utils/cloudSync.ts` -> `normalizeTodo()`, active (non-deleted) todos were assigned `deletedAt: undefined`. When `syncAllUserDataBeforeLogout()` executed `mergeTodos()` and called `batch.set(dataColRef.doc('todos'), ...)`, the `@react-native-firebase/firestore` native serializer rejected the undefined value with `Error: Unsupported field value: undefined`.
+- **Fix:** Updated `normalizeTodo()` to omit `deletedAt` entirely whenever `raw.deletedAt` is not a valid number (`delete normalized.deletedAt`). Valid numeric tombstones (`typeof raw.deletedAt === 'number' && !Number.isNaN(raw.deletedAt)`) remain fully supported and preserved.
+- **Regression Tests Performed:**
+  - Active todo with `deletedAt: undefined` -> `deletedAt` property is completely omitted.
+  - Active todo without `deletedAt` -> `deletedAt` property is completely omitted.
+  - Valid tombstone with numeric timestamp (e.g. `1750000000000`) -> `deletedAt` preserved.
+  - Invalid `deletedAt` values (`null`, `""`, `"123"`, `NaN`, `false`, etc.) -> `deletedAt` property omitted.
+  - Merge todos test -> verified no undefined fields in merged output and simulated Firestore serializer acceptance.
+- **Security & Data Isolation:** Fully preserved. `syncAllUserDataBeforeLogout(currentUser.uid)` continues to use the authenticated user's UID, local data clearing remains safely guarded behind successful cloud sync, and Firebase Security Rules were not altered.
+- **Build & Verification Status:** TypeScript typecheck (`tsc --noEmit`) verified 0 errors.
+
+**Area affected:** `utils/cloudSync.ts`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; active todos no longer contain forbidden undefined values when saved to Firestore.
+
 ---
 
 ### 2026-09-10 — P1-1 Todos Cloud Sync Conflict & Data-Loss Remediation
@@ -1113,7 +1196,7 @@ Before completing any future development task, check whether `PROJECT_KNOWLEDGE.
 | **Cloud Sync** | Detailed signatures and logic for `mergeHabits`, `mergeHabitLogs`, `migrateGuestDataToAccount`, and `deleteUserCloudData`. |
 | **Account Deletion** | 5-step transactional deletion sequence in `AuthContext.tsx` with re-auth verification. |
 | **Kotlin Config Plugin** | Documented `plugins/withKotlinVersion.js` pinning Kotlin to `2.1.20`. |
-| **Version** | Updated to `2.2.1` (Android `versionCode: 35`). |
+| **Version** | Updated to `2.2.1` (Android versionCode is automatically managed by Expo/EAS). |
 
 **Area affected:** All sections of `PROJECT_KNOWLEDGE.md`.
 

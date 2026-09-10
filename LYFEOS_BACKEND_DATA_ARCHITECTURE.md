@@ -3,7 +3,7 @@
 **Audit Target:** LyfeOS Production Android App Codebase  
 **Application ID:** `com.lyfeos.app`  
 **EAS Project ID:** `54f639f6-a140-4168-afdc-eb3bca56979e`  
-**Current App Version:** `2.2.1` (`versionCode: 35`)  
+**Current App Version:** `2.2.2` (Android versionCode is automatically managed by Expo/EAS.)  
 **Audit Date:** September 2026  
 **Audit Scope:** Complete Read-Only Codebase & Configuration Audit  
 
@@ -42,7 +42,7 @@ Cloud synchronization is implemented as a **secondary, unidirectional and opport
 ### Backend, Cloud & Third-Party Services
 * **Authentication:** `@react-native-firebase/auth` `^24.1.1` (Email/Password, Google Sign-In, Anonymous Guest)
 * **Cloud Database:** `@react-native-firebase/firestore` `^24.1.1`
-* **Analytics & Telemetry:** `@react-native-firebase/analytics` `^24.1.1`, `react-native-fbsdk-next` `13.4.3` (Meta App Events)
+* **Observability & Telemetry:** `@react-native-firebase/crashlytics` `^24.1.1`, `@react-native-firebase/perf` `^24.1.1`, `@react-native-firebase/analytics` `^24.1.1`, `react-native-fbsdk-next` `13.4.3` (Meta App Events)
 * **Monetization:** `react-native-google-mobile-ads` `^16.3.3` (Google AdMob)
 * **External Nutrition APIs:** USDA FoodData Central REST API (`api.nal.usda.gov`), Open Food Facts REST API (`world.openfoodfacts.org`)
 * **Build & Updates:** EAS Build, Expo Updates (`https://u.expo.dev/54f639f6-a140-4168-afdc-eb3bca56979e`)
@@ -108,10 +108,12 @@ flowchart TD
 | **Firebase Authentication** | **Active** | `@react-native-firebase/auth` `^24.1.1` | `[CONFIRMED]` `context/AuthContext.tsx:2` |
 | **Cloud Firestore** | **Active** | `@react-native-firebase/firestore` `^24.1.1` | `[CONFIRMED]` `utils/cloudSync.ts:1`, `app/legal-consent.tsx:16` |
 | **Firebase Analytics** | **Active** | `@react-native-firebase/analytics` `^24.1.1` | `[CONFIRMED]` `utils/analytics.ts:12` |
-| **Firebase Storage** | **Not Used** | None (`@react-native-firebase/storage` not in `package.json`) | `[CONFIRMED]` Verified via `package.json:62-82` |
-| **Realtime Database** | **Not Used** | None (`@react-native-firebase/database` not in `package.json`) | `[CONFIRMED]` Verified via `package.json:62-82` |
+| **Crashlytics** | **Active** | `@react-native-firebase/crashlytics` `^24.1.1` | `[CONFIRMED]` `utils/analytics.ts:13`, `app/_layout.tsx:144` |
+| **Performance Monitoring** | **Active** | `@react-native-firebase/perf` `^24.1.1` | `[CONFIRMED]` `utils/perf.ts:10` |
+| **App Check** | **Audited / Unenforced** | None (client SDK not installed) | `[CONFIRMED]` Must remain unenforced in Console |
+| **Firebase Storage** | **Not Used** | None (`@react-native-firebase/storage` not in `package.json`) | `[CONFIRMED]` Verified via `package.json:62-85` |
+| **Realtime Database** | **Not Used** | None (`@react-native-firebase/database` not in `package.json`) | `[CONFIRMED]` Verified via `package.json:62-85` |
 | **Cloud Functions** | **Not Used** | None (`@react-native-firebase/functions` not in `package.json`) | `[NOT FOUND]` No functions folder or package exists |
-| **Crashlytics** | **Deferred / Inactive** | Stubs only in `utils/analytics.ts` (calls are safe no-ops) | `[CONFIRMED]` `utils/analytics.ts:8, 126-152` |
 
 ---
 

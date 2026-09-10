@@ -285,12 +285,19 @@ export function normalizeTodo(raw: any): any {
         ? raw.updatedAt
         : validCreatedAtTs;
 
-    return {
+    const normalized: any = {
         ...raw,
         createdAt: raw.createdAt || new Date(validCreatedAtTs).toISOString(),
         updatedAt,
-        deletedAt: typeof raw.deletedAt === 'number' && !isNaN(raw.deletedAt) ? raw.deletedAt : undefined,
     };
+
+    if (typeof raw.deletedAt === 'number' && !Number.isNaN(raw.deletedAt)) {
+        normalized.deletedAt = raw.deletedAt;
+    } else {
+        delete normalized.deletedAt;
+    }
+
+    return normalized;
 }
 
 export const mergeTodos = (localTodos: any[] = [], cloudTodos: any[] = []): any[] => {

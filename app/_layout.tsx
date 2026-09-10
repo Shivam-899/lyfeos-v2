@@ -28,7 +28,13 @@ SplashScreen.preventAutoHideAsync().catch(() => { });
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSegments } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setAnalyticsUser, setCrashlyticsUser, initializeMetaSDK } from "@/utils/analytics";
+import {
+  setAnalyticsUser,
+  setCrashlyticsUser,
+  initializeMetaSDK,
+  logError,
+  initializeCrashlyticsMetadata,
+} from "@/utils/analytics";
 
 const queryClient = new QueryClient();
 
@@ -137,10 +143,27 @@ export default function RootLayout() {
   // to prevent flashing the index screen
 
   useEffect(() => {
-    // Initialize Meta (Facebook) SDK
+    // 1. Initialize Crashlytics metadata & environment
+    initializeCrashlyticsMetadata().catch(() => {});
+
+    // 2. Register global JS unhandled exception handler
+    const globalErrorUtils = (global as any).ErrorUtils;
+    if (globalErrorUtils && typeof globalErrorUtils.getGlobalHandler === "function") {
+      const originalHandler = globalErrorUtils.getGlobalHandler();
+      globalErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+        logError(error, isFatal ? "Fatal_GlobalJSException" : "GlobalJSException", {
+          isFatal: String(isFatal ?? false),
+        });
+        if (originalHandler) {
+          originalHandler(error, isFatal);
+        }
+      });
+    }
+
+    // 3. Initialize Meta (Facebook) SDK
     initializeMetaSDK().catch(() => {});
 
-    // Initialize Google Mobile Ads SDK immediately without arbitrary delay
+    // 4. Initialize Google Mobile Ads SDK immediately without arbitrary delay
     initializeAds().catch((e) => {
       console.log('AdMob init failed silently:', e);
     });
@@ -151,7 +174,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ErrorBoundary>
+        <ErrorBoundary
+          onError={(error, componentStack) => {
+            logError(error, "ErrorBoundary_ReactRenderCrash", {
+              componentStack: componentStack.slice(0, 500),
+            });
+          }}
+        >
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <HabitsProvider>
