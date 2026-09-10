@@ -117,7 +117,7 @@ export const setAnalyticsUser = async (
   }
 
   try {
-    AppEventsLogger.setUserID(userId);
+    AppEventsLogger.setUserID(userId || null);
   } catch (e) {
     if (__DEV__) console.warn("[Meta] setUserID failed:", e);
   }
