@@ -12,27 +12,9 @@
 import analytics from "@react-native-firebase/analytics";
 import { AppEventsLogger, Settings } from "react-native-fbsdk-next";
 
-// ── Meta SDK Production Guard ─────────────────────────────────────────────────
-
-/**
- * Returns true only in production environments.
- * Meta SDK is completely disabled in development builds (__DEV__) and preview builds.
- */
-export const isMetaEnabled = (): boolean => {
-  if (__DEV__) return false;
-  if (process.env.EXPO_PUBLIC_APP_ENV && process.env.EXPO_PUBLIC_APP_ENV !== "production") {
-    return false;
-  }
-  return true;
-};
-
 // ── Meta SDK Initialization ───────────────────────────────────────────────────
 
 export const initializeMetaSDK = async (): Promise<void> => {
-  if (!isMetaEnabled()) {
-    if (__DEV__) console.log("[Meta] SDK initialization skipped (disabled in development/preview)");
-    return;
-  }
   try {
     Settings.initializeSDK();
     if (__DEV__) console.log("[Meta] SDK initialized successfully");
@@ -83,38 +65,36 @@ export const logEvent = async (
     if (__DEV__) console.warn("[Analytics] logEvent failed:", e);
   }
 
-  // 2. Meta (Facebook) App Events (Dual logging for attribution & key actions - Production only)
-  if (isMetaEnabled()) {
-    try {
-      const metaParams = formatMetaParams(params);
-      if (eventName === "login") {
-        if (metaParams) {
-          AppEventsLogger.logEvent("fb_mobile_login", metaParams);
-        } else {
-          AppEventsLogger.logEvent("fb_mobile_login");
-        }
-      } else if (eventName === "sign_up") {
-        const regParams: Record<string, string | number> = {
-          fb_registration_method: String(params?.method ?? "email"),
-          ...(metaParams ?? {}),
-        };
-        AppEventsLogger.logEvent(AppEventsLogger.AppEvents.CompletedRegistration, regParams);
-      } else if (eventName === "habit_completed") {
-        if (metaParams) {
-          AppEventsLogger.logEvent("HabitCompleted", metaParams);
-        } else {
-          AppEventsLogger.logEvent("HabitCompleted");
-        }
-      } else if (eventName === "meal_logged") {
-        if (metaParams) {
-          AppEventsLogger.logEvent("MealLogged", metaParams);
-        } else {
-          AppEventsLogger.logEvent("MealLogged");
-        }
+  // 2. Meta (Facebook) App Events (Dual logging for attribution & key actions)
+  try {
+    const metaParams = formatMetaParams(params);
+    if (eventName === "login") {
+      if (metaParams) {
+        AppEventsLogger.logEvent("fb_mobile_login", metaParams);
+      } else {
+        AppEventsLogger.logEvent("fb_mobile_login");
       }
-    } catch (e) {
-      if (__DEV__) console.warn("[Meta] logEvent failed:", e);
+    } else if (eventName === "sign_up") {
+      const regParams: Record<string, string | number> = {
+        fb_registration_method: String(params?.method ?? "email"),
+        ...(metaParams ?? {}),
+      };
+      AppEventsLogger.logEvent(AppEventsLogger.AppEvents.CompletedRegistration, regParams);
+    } else if (eventName === "habit_completed") {
+      if (metaParams) {
+        AppEventsLogger.logEvent("HabitCompleted", metaParams);
+      } else {
+        AppEventsLogger.logEvent("HabitCompleted");
+      }
+    } else if (eventName === "meal_logged") {
+      if (metaParams) {
+        AppEventsLogger.logEvent("MealLogged", metaParams);
+      } else {
+        AppEventsLogger.logEvent("MealLogged");
+      }
     }
+  } catch (e) {
+    if (__DEV__) console.warn("[Meta] logEvent failed:", e);
   }
 };
 
@@ -136,12 +116,10 @@ export const setAnalyticsUser = async (
     if (__DEV__) console.warn("[Analytics] setAnalyticsUser failed:", e);
   }
 
-  if (isMetaEnabled()) {
-    try {
-      AppEventsLogger.setUserID(userId || null);
-    } catch (e) {
-      if (__DEV__) console.warn("[Meta] setUserID failed:", e);
-    }
+  try {
+    AppEventsLogger.setUserID(userId);
+  } catch (e) {
+    if (__DEV__) console.warn("[Meta] setUserID failed:", e);
   }
 };
 

@@ -40,7 +40,7 @@ export const syncTodosToCloud = async (uid: string, todos: any[]) => {
 export const fetchTodosFromCloud = async (uid: string): Promise<any[] | null> => {
     try {
         const doc = await getUserDoc(uid).collection('data').doc('todos').get();
-        return doc.exists() ? doc.data()?.todos ?? null : null;
+        return doc.exists() ? (doc.data()?.todos ?? []) : null;
     } catch (e) { logError(e as Error, 'fetchTodosFromCloud'); return null; }
 };
 
@@ -168,9 +168,17 @@ export const syncAllUserDataBeforeLogout = async (uid: string): Promise<void> =>
         updatedAt: firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    // 2. Todos
+    // 2. Todos (Conflict-aware merge with cloud before pre-logout batch commit)
+    // If the document does not exist yet, doc.exists() returns [] (valid). If fetch fails due to network/auth error, it returns null.
+    // In that case, we must abort logout rather than overwriting cloud data with stale local state.
+    const cloudTodos = await fetchTodosFromCloud(uid);
+    if (cloudTodos === null) {
+        throw new Error("Pre-logout sync failed: unable to fetch cloud todos for conflict resolution.");
+    }
+    const finalTodos = mergeTodos(todos, cloudTodos);
+    await setStoredJson('@lyfeos_todos_v2', finalTodos);
     batch.set(dataColRef.doc('todos'), {
-        todos,
+        todos: finalTodos,
         updatedAt: firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
@@ -256,6 +264,137 @@ export const mergeHabitLogs = (localLogs: any[], cloudLogs: any[]): any[] => {
     return Array.from(logMap.values());
 };
 
+// ─── TODO MERGE & NORMALIZATION HELPERS ───
+export const TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export function normalizeTodo(raw: any): any {
+    if (!raw || typeof raw !== 'object') {
+        const now = Date.now();
+        return {
+            id: now.toString(),
+            title: '',
+            completed: false,
+            createdAt: new Date(now).toISOString(),
+            order: 0,
+            updatedAt: now,
+        };
+    }
+    const createdAtTs = raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now();
+    const validCreatedAtTs = isNaN(createdAtTs) ? Date.now() : createdAtTs;
+    const updatedAt = typeof raw.updatedAt === 'number' && !isNaN(raw.updatedAt)
+        ? raw.updatedAt
+        : validCreatedAtTs;
+
+    return {
+        ...raw,
+        createdAt: raw.createdAt || new Date(validCreatedAtTs).toISOString(),
+        updatedAt,
+        deletedAt: typeof raw.deletedAt === 'number' && !isNaN(raw.deletedAt) ? raw.deletedAt : undefined,
+    };
+}
+
+export const mergeTodos = (localTodos: any[] = [], cloudTodos: any[] = []): any[] => {
+    const now = Date.now();
+    const purgeCutoff = now - TOMBSTONE_RETENTION_MS;
+
+    const normalizedLocal = (localTodos || []).map(normalizeTodo);
+    const normalizedCloud = (cloudTodos || []).map(normalizeTodo);
+
+    const todoMap = new Map<string, any>();
+
+    // Helper to resolve conflict between two versions of the same Todo ID
+    const resolveConflict = (existing: any, incoming: any): any => {
+        if (incoming.updatedAt > existing.updatedAt) {
+            return incoming;
+        }
+        if (existing.updatedAt > incoming.updatedAt) {
+            return existing;
+        }
+        // updatedAt ties: DELETE WINS
+        if (incoming.deletedAt && !existing.deletedAt) {
+            return incoming;
+        }
+        if (existing.deletedAt && !incoming.deletedAt) {
+            return existing;
+        }
+        // Both active or both deleted with identical timestamp: cloud takes deterministic precedence
+        return incoming;
+    };
+
+    for (const item of normalizedCloud) {
+        if (!item?.id) continue;
+        // Purge tombstones older than 30 days
+        if (item.deletedAt && item.deletedAt < purgeCutoff) continue;
+        todoMap.set(item.id, item);
+    }
+
+    for (const item of normalizedLocal) {
+        if (!item?.id) continue;
+        // Purge tombstones older than 30 days
+        if (item.deletedAt && item.deletedAt < purgeCutoff) continue;
+        const existing = todoMap.get(item.id);
+        if (!existing) {
+            todoMap.set(item.id, item);
+        } else {
+            todoMap.set(item.id, resolveConflict(existing, item));
+        }
+    }
+
+    const allItems = Array.from(todoMap.values());
+
+    // ── Recurring task deduplication ──────────────────────────────────────────
+    // If two uncompleted recurring items have the same seriesId or title+dueDate+repeat,
+    // they represent the same future recurrence generated independently on multiple devices.
+    const activeRecurring = allItems.filter(
+        (t) => !t.deletedAt && !t.completed && t.repeat && t.repeat !== 'none' && t.dueDate
+    );
+
+    if (activeRecurring.length > 1) {
+        const seenRecurring = new Map<string, any>();
+        for (const item of activeRecurring) {
+            const seriesKey = item.seriesId
+                ? `${item.seriesId}_${item.dueDate}`
+                : `${(item.title || '').trim().toLowerCase()}_${item.dueDate}_${item.repeat}`;
+
+            const existing = seenRecurring.get(seriesKey);
+            if (!existing) {
+                seenRecurring.set(seriesKey, item);
+            } else {
+                if (item.updatedAt > existing.updatedAt) {
+                    existing.deletedAt = now;
+                    existing.updatedAt = now;
+                    seenRecurring.set(seriesKey, item);
+                } else {
+                    item.deletedAt = now;
+                    item.updatedAt = now;
+                }
+            }
+        }
+    }
+
+    // ── Order Normalization ───────────────────────────────────────────────────
+    // Active items retain relative order, sorted by order ascending and tie-broken by createdAt and id
+    const activeItems = allItems.filter((t) => !t.deletedAt);
+    const tombstones = allItems.filter((t) => t.deletedAt);
+
+    activeItems.sort((a, b) => {
+        const orderA = typeof a.order === 'number' ? a.order : 0;
+        const orderB = typeof b.order === 'number' ? b.order : 0;
+        if (orderA !== orderB) return orderA - orderB;
+        const cA = a.createdAt || '';
+        const cB = b.createdAt || '';
+        if (cA !== cB) return cA.localeCompare(cB);
+        return (a.id || '').localeCompare(b.id || '');
+    });
+
+    const reorderedActive = activeItems.map((t, idx) => ({
+        ...t,
+        order: idx,
+    }));
+
+    return [...reorderedActive, ...tombstones];
+};
+
 // ─── GUEST MIGRATION ───
 export interface GuestMigrationPayload {
     habits: any[];
@@ -302,11 +441,7 @@ export const migrateGuestDataToAccount = async (
         if (todosDoc.exists()) {
             const cloudData = todosDoc.data();
             const cloudTodos: any[] = Array.isArray(cloudData?.todos) ? cloudData.todos : [];
-
-            const cloudTodoIds = new Set(cloudTodos.map((t: any) => t.id));
-            const guestTodosToAdd = guestData.todos.filter((t: any) => !cloudTodoIds.has(t.id));
-            const combinedTodos = [...cloudTodos, ...guestTodosToAdd];
-            mergedTodos = combinedTodos.map((t: any, idx: number) => ({ ...t, order: idx }));
+            mergedTodos = mergeTodos(guestData.todos, cloudTodos);
         }
 
         // 3. Merge Calories & Water Logs

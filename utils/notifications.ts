@@ -25,20 +25,35 @@ Notifications.setNotificationHandler({
 
 // ── Permissions ───────────────────────────────────────────────────────────────
 
+/**
+ * Checks whether notification permission is currently granted at the OS level.
+ * Pure query — does not prompt the user or trigger any dialogs.
+ */
+export const hasNotificationPermission = async (): Promise<boolean> => {
+  try {
+    if (Platform.OS === "web") return false;
+    const settings = await Notifications.getPermissionsAsync();
+    return Boolean(settings.granted || settings.status === "granted");
+  } catch (e) {
+    logError(e as Error, "hasNotificationPermission");
+    return false;
+  }
+};
+
 export const requestNotificationPermissions = async (): Promise<boolean> => {
   try {
     // Notifications only work on native (Android/iOS), not web
     if (Platform.OS === "web") return false;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    const settings = await Notifications.getPermissionsAsync();
+    let isGranted = Boolean(settings.granted || settings.status === "granted");
 
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    if (!isGranted) {
+      const requestResult = await Notifications.requestPermissionsAsync();
+      isGranted = Boolean(requestResult.granted || requestResult.status === "granted");
     }
 
-    if (Platform.OS === "android") {
+    if (Platform.OS === "android" && isGranted) {
       await Notifications.setNotificationChannelAsync("default", {
         name: "LyfeOS Reminders",
         importance: Notifications.AndroidImportance.HIGH,
@@ -47,7 +62,7 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
       });
     }
 
-    return finalStatus === "granted";
+    return isGranted;
   } catch (e) {
     logError(e as Error, "requestNotificationPermissions");
     return false;
@@ -356,7 +371,7 @@ async function loadStoredNotificationContext(): Promise<SmartNotificationContext
       userName: userName || undefined,
       habits,
       habitLogs,
-      todos,
+      todos: (todos || []).filter((t: any) => !t.deletedAt),
       foodItems,
       waterLogs,
       dailyGoal,

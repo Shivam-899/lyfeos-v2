@@ -5,7 +5,7 @@
 > This file is the **single source of truth and living documentation** for any developer or AI assistant working on the LyfeOS codebase. It reflects the **actual current state** of the project and must be updated as part of every meaningful change.
 > See [§19 Documentation Maintenance](#19-documentation-maintenance) for the update protocol.
 >
-> **Last audited:** 2026-09-07  
+> **Last audited:** 2026-09-10  
 > **App version at audit:** `2.2.1` (Android `versionCode: 35`)
 
 ---
@@ -450,8 +450,11 @@ All keys are defined in `utils/storage.ts` — `LYFEOS_STORAGE_KEYS` array. `cle
 
 ### Storage Security
 
-- AsyncStorage stores all data as **unencrypted plain text** (SQLite files at `/data/data/com.lyfeos.app/databases/RKStorage`)
-- `android:allowBackup="true"` in the manifest — data can be fully extracted via `adb backup` on a debug-enabled device
+- AsyncStorage stores all data as **unencrypted plain text** (SQLite files at `/data/data/com.lyfeos.app/databases/RKStorage`).
+- **Android Auto Backup & Device-to-Device (D2D) Migration are intentionally disabled** via `android:allowBackup="false"` in both `app.json` and `android/app/src/main/AndroidManifest.xml`.
+- **Security & Privacy Rationale:** LyfeOS stores sensitive personal data locally (biometrics, health profiles, nutrition logs, workouts, habits, personal tasks). Disabling OS-level backup prevents unencrypted local data exposure, cross-account contamination on restored/shared devices, and resurrection of deleted data after account deletion.
+- **Restoration Architecture:** Local app data is never restored through Android OS backup or D2D transfer. Authenticated data restoration across devices is strictly handled via the existing Firestore cloud synchronization/hydration architecture upon login.
+- **Local Data Lifecycle:** Logout (`signOut`) and account deletion (`deleteAccountAndData`) remain responsible for actively clearing local device storage (`clearAllLyfeOSLocalData()`).
 
 ---
 
@@ -531,7 +534,7 @@ All keys are defined in `utils/storage.ts` — `LYFEOS_STORAGE_KEYS` array. `cle
 - Category: `Work | Personal | Shopping | Health | Other`
 - Optional: due date, due time, notes, repeat (`none | daily | weekly | monthly`)
 - Drag-to-reorder via `reorderTodos(fromIdx, toIdx)`; order persisted as `order: number`
-- Cloud sync on every mutation
+- **Conflict-aware cloud sync:** Bidirectional merge via `mergeTodos()` in `utils/cloudSync.ts`. Each todo tracks `updatedAt: number` and optional `deletedAt?: number` (soft-delete tombstone). Highest `updatedAt` wins; delete wins on timestamp ties. Tombstones are retained for 30 days (`TOMBSTONE_RETENTION_MS`) and purged automatically. Recurring task occurrences are deduplicated by `seriesId` or `title + dueDate + repeat`. UI exposes only active items (`!t.deletedAt`).
 
 ### 9.4 Sports / Activity Tracker (`components/ActivityTracker.tsx`, ~80 KB)
 
@@ -700,6 +703,9 @@ interface Todo {
   repeat?: "none" | "daily" | "weekly" | "monthly";
   createdAt: string;
   order: number;        // manual sort index
+  updatedAt: number;    // timestamp ms for conflict resolution
+  deletedAt?: number;   // soft-delete tombstone timestamp ms
+  seriesId?: string;    // recurrence group ID for deduplication
 }
 ```
 
@@ -812,12 +818,23 @@ interface FoodAnalysisResult {
 | `logEvent(eventName, params)` | `analytics().logEvent(eventName, params)` |
 | `setAnalyticsUser(userId, props)` | `analytics().setUserId()` + `analytics().setUserProperty()` |
 
-### Meta (Facebook) App Events — ACTIVE IN PRODUCTION ONLY
+### Meta (Facebook) App Events — ACTIVE IN ALL ENVIRONMENTS
 
-`react-native-fbsdk-next` `13.4.3` is dynamically managed via `app.config.js`:
-- **Development (`APP_ENV=development`) & Preview (`APP_ENV=preview`):** Completely disabled and omitted from Expo config plugins. No Meta credentials, manifest metadata, or native SDK initialization.
-- **Production (`APP_ENV=production`):** Dynamically included in Expo plugins, reading `META_APP_ID` and `META_CLIENT_TOKEN` securely from environment variables.
-- **Runtime Guard:** All calls (`initializeMetaSDK`, `logEvent`, `setAnalyticsUser`) are guarded by `isMetaEnabled()`, ensuring no SDK calls occur outside of production builds.
+`react-native-fbsdk-next` `13.4.3` is unconditionally active across all build environments.
+
+**`app.config.js` behaviour (as of 2026-09-10 fix):**
+- The previous `if (isProduction)` gate has been **removed**.
+- The plugin is always injected regardless of `APP_ENV`.
+- Credentials are read from env vars with hardcoded fallback: `process.env.META_APP_ID || '1369488158633446'`.
+- The `react-native-fbsdk-next` entry already present in `app.json` is **replaced** (not duplicated) by `app.config.js` at build time so env-var-driven values always win.
+- `isMetaEnabled()` helper has been **removed** from `utils/analytics.ts`.
+
+**`strings.xml`** always contains the three required Android resources:
+```xml
+<string name="facebook_app_id">1369488158633446</string>
+<string name="facebook_client_token">baa4ccd5f7520f7b478c91e706c11ba4</string>
+<string name="fb_login_protocol_scheme">fb1369488158633446</string>
+```
 
 | Firebase Event | Meta Event |
 |---|---|
@@ -826,9 +843,9 @@ interface FoodAnalysisResult {
 | `habit_completed` | `HabitCompleted` |
 | `meal_logged` | `MealLogged` |
 
-`setAnalyticsUser(userId)` calls `AppEventsLogger.setUserID(userId)` in production only.
+`setAnalyticsUser(userId)` calls `AppEventsLogger.setUserID(userId)` unconditionally (no null coercion, no environment gate).
 
-Meta SDK initialised via `initializeMetaSDK()` -> `Settings.initializeSDK()` (called from `app/_layout.tsx`, guarded by `isMetaEnabled()`).
+Meta SDK initialised via `initializeMetaSDK()` → `Settings.initializeSDK()` (called from `app/_layout.tsx` on auth state change — no `isMetaEnabled()` guard).
 
 ### Firebase Crashlytics — DEFERRED / INACTIVE
 
@@ -950,7 +967,7 @@ eas submit --platform android --profile production
 | 1 | **Sign-out data remanence** — `signOut()` does not clear AsyncStorage. Prior user's data stays on device and is potentially migrated to next user's cloud account via `handleGuestMigration()`. | **Critical** | Unresolved |
 | 2 | **Firebase Security Rules not in repo** — No `firestore.rules` in codebase. If remote rules are permissive, cross-user access is possible. | **High (unknown)** | Unresolved |
 | 3 | **Keystores in project root** — `@shivam.2k__lyfeos.jks` and `OLD_1.jks` in project root. In `.gitignore` but risk of accidental commit. | **High** | Unresolved |
-| 4 | **Plain-text local storage + ADB backup** — AsyncStorage unencrypted. `android:allowBackup="true"` allows `adb backup` extraction. | **Medium** | Unresolved |
+| 4 | **Plain-text local storage + OS backup exposure** — AsyncStorage unencrypted. `android:allowBackup="false"` is now explicitly configured in `app.json` and `AndroidManifest.xml` to prevent OS-level backup/D2D data leakage. | **Medium** | **Resolved** |
 | 5 | **Meta UID leakage** — Firebase UID transmitted directly to `AppEventsLogger.setUserID()`. | **Medium** | Unresolved (by design) |
 | 6 | **No Firestore schema validation** — No Cloud Functions enforce document schemas; users could write arbitrary payloads. | **Medium** | Unresolved |
 | 7 | **Naive todo conflict resolution** — Cloud overwrites local todos on first sync; offline todos silently lost. | **Medium (data loss)** | Unresolved |
@@ -962,7 +979,7 @@ eas submit --platform android --profile production
 1. Call `clearAllLyfeOSLocalData()` + `cancelAllNotifications()` inside `signOut()`
 2. Add `firestore.rules` to repo with `allow read, write: if request.auth.uid == userId;`
 3. Move `.jks` files out of project directory to offline secure storage
-4. Set `android:allowBackup="false"` in `app.json` android config
+4. [DONE] Set `android:allowBackup="false"` in `app.json` android config and `AndroidManifest.xml`
 5. Implement union-merge for todos (identical to habits merge strategy)
 6. Move Google Sign-In `webClientId` to an environment variable
 
@@ -1061,7 +1078,26 @@ Before completing any future development task, check whether `PROJECT_KNOWLEDGE.
 
 ---
 
+### 2026-09-10 — P1-1 Todos Cloud Sync Conflict & Data-Loss Remediation
+
+**What:** Remediated P1 Todos cloud overwrite/data-loss issue. Replaced naive cloud overwrite on initial load and whole-array replacement with a conflict-aware synchronization strategy:
+- Added `updatedAt: number` and `deletedAt?: number` (soft delete tombstones) to `Todo` interface.
+- Implemented `mergeTodos(localTodos, cloudTodos)` with timestamp-based conflict resolution (highest `updatedAt` wins, delete-wins on ties).
+- Added automatic 30-day tombstone retention and pruning (`TOMBSTONE_RETENTION_MS`).
+- Added recurring task deduplication across devices by `seriesId` / `title + dueDate + repeat`.
+- Migrated legacy todos seamlessly via `normalizeTodo()` (derives `updatedAt` from `createdAt`).
+- Updated `TodosContext` internal state to hold raw todos (active + tombstones) while exposing only active todos to UI.
+- Integrated `mergeTodos` into `syncAllUserDataBeforeLogout` and `migrateGuestDataToAccount`.
+- Updated `utils/notifications.ts` to filter out tombstones when loading notification context.
+
+**Area affected:** `context/TodosContext.tsx`, `utils/cloudSync.ts`, `utils/notifications.ts`, `PROJECT_KNOWLEDGE.md`, `LYFEOS_BACKEND_DATA_ARCHITECTURE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; legacy todos missing `updatedAt` are automatically normalized without data loss or schema breaks.
+
+---
+
 ### 2026-09-07 — Canonical Project Knowledge Consolidation
+
 
 **What:** Consolidated all verified audit findings, architecture details, data flows, models, security analysis, and living documentation protocols into `PROJECT_KNOWLEDGE.md` as the single source of truth.
 
@@ -1070,7 +1106,7 @@ Before completing any future development task, check whether `PROJECT_KNOWLEDGE.
 | Area | Verified State in `PROJECT_KNOWLEDGE.md` |
 |---|---|
 | **Firebase Analytics** | **Active** — real SDK calls via `@react-native-firebase/analytics` `^24.1.1` (no longer a stub). |
-| **Meta (Facebook) SDK** | **Active** — `react-native-fbsdk-next` `13.4.3` dual-logs events and tracks user ID. |
+| **Meta (Facebook) SDK** | **Active (all environments)** — `react-native-fbsdk-next` `13.4.3` dual-logs events and tracks user ID. `isMetaEnabled()` removed; no environment gate. `app.config.js` injects plugin unconditionally with env-var-or-hardcoded credentials. |
 | **Guest Migration** | Uses correct versioned storage keys (`@lyfeos_habits_v2`, `@lyfeos_todos_v2`, etc.) and performs atomic batch merge with cloud data. |
 | **Activity Analysis Engine** | Confirmed 100% offline local MET scientific calculation in `utils/analyzeActivity.ts`. No mobile Gemini calls at runtime. |
 | **Babel Config** | Pinned to `babel-preset-expo` only; obsolete reanimated plugin reference removed. |

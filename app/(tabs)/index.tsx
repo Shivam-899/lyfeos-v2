@@ -4,7 +4,11 @@ import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { logScreen, logError } from "@/utils/analytics";
 import { AD_UNIT_IDS, showInterstitialAd } from "@/utils/ads";
-import { requestNotificationPermissions, scheduleDailyNotifications } from "@/utils/notifications";
+import {
+  hasNotificationPermission,
+  requestNotificationPermissions,
+  scheduleDailyNotifications,
+} from "@/utils/notifications";
 import React, {
   useCallback,
   useEffect,
@@ -889,33 +893,6 @@ export default function HomeScreen() {
     showDailyAd();
   }, []);
 
-  // ── Setup notifications on mount ──────────────────────────────────────────
-  // Fix #2: Only touch the OS permission layer if the user has already gone
-  // through the custom priming modal (NOTIF_ASKED_KEY is set). If not set,
-  // we leave it alone so the modal can fire the OS dialog at the right time.
-  useEffect(() => {
-    if (Platform.OS === "web") return;
-    const setupNotifications = async () => {
-      try {
-        const asked = await AsyncStorage.getItem(NOTIF_ASKED_KEY);
-        if (!asked) return; // new user — let the priming modal handle it
-
-        // Existing user: silently refresh schedule if permission is already granted.
-        // Read reminders from AsyncStorage directly to avoid stale context closure.
-        const granted = await requestNotificationPermissions();
-        if (granted) {
-          const raw = await AsyncStorage.getItem("@lyfeos_profile_reminders_v1");
-          const reminders = raw
-            ? JSON.parse(raw)
-            : { morning: true, meal: true, water: true, evening: true };
-          await scheduleDailyNotifications(reminders);
-        }
-      } catch (e) {
-        logError(e as Error, "setupNotifications");
-      }
-    };
-    setupNotifications();
-  }, []);
 
   // ── Change 4: Load notifications from AsyncStorage ────────────────────────
   useEffect(() => {
@@ -960,20 +937,51 @@ export default function HomeScreen() {
     }
   }, [overallPct, today]);
 
-  // ── Change 4: Show notification permission prompt once (native only) ───────
+  // ── Notification Initialization & Permission Onboarding Flow ───────────────
   useEffect(() => {
     if (Platform.OS === "web") return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
 
-    (async () => {
+    const initializeNotifications = async () => {
       try {
+        // Step 1: Check actual OS notification permission status (source of truth)
+        const isGranted = await hasNotificationPermission();
+        if (cancelled) return;
+
+        if (isGranted) {
+          // Permission is already granted at device level:
+          // Never show the in-app permission prompt
+          setNotifPermSheetOpen(false);
+
+          // Clean up any stale prompt-asked key since permission is already active
+          await AsyncStorage.removeItem(NOTIF_ASKED_KEY).catch(() => {});
+
+          // Continue normal notification initialization silently
+          const raw = await AsyncStorage.getItem("@lyfeos_profile_reminders_v1");
+          const reminders = raw
+            ? JSON.parse(raw)
+            : { morning: true, meal: true, water: true, evening: true };
+          await scheduleDailyNotifications(reminders);
+          return;
+        }
+
+        // Step 2: Permission is NOT granted at OS level:
+        // Follow existing notification permission onboarding flow
         const asked = await AsyncStorage.getItem(NOTIF_ASKED_KEY);
         if (!asked && !cancelled) {
-          timer = setTimeout(() => setNotifPermSheetOpen(true), 2500);
+          timer = setTimeout(() => {
+            if (!cancelled) {
+              setNotifPermSheetOpen(true);
+            }
+          }, 2500);
         }
-      } catch { }
-    })();
+      } catch (e) {
+        logError(e as Error, "initializeNotifications");
+      }
+    };
+
+    initializeNotifications();
 
     return () => {
       cancelled = true;
@@ -1005,7 +1013,6 @@ export default function HomeScreen() {
   async function handleAllowNotifications() {
     setNotifPermSheetOpen(false);
     try {
-      await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true");
       if (Platform.OS === "web") return;
 
       // Fix #3: For new users, default all four sub-toggles to ON so the
@@ -1024,6 +1031,8 @@ export default function HomeScreen() {
 
       const granted = await requestNotificationPermissions();
       if (granted) {
+        // OS permission granted: ensure prompt key is cleared and schedule reminders
+        await AsyncStorage.removeItem(NOTIF_ASKED_KEY).catch(() => {});
         await scheduleDailyNotifications(remindersToSchedule);
 
         // Add in-app notification confirming push is enabled
@@ -1042,6 +1051,9 @@ export default function HomeScreen() {
           );
           return next;
         });
+      } else {
+        // User denied OS permission dialog: record asked so we don't prompt repeatedly this session
+        await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true").catch(() => {});
       }
     } catch (e) {
       logError(e as Error, "handleAllowNotifications");
@@ -1051,7 +1063,7 @@ export default function HomeScreen() {
   async function handleLaterNotifications() {
     setNotifPermSheetOpen(false);
     try {
-      await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true");
+      await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true").catch(() => {});
     } catch { }
   }
 

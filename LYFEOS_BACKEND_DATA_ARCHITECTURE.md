@@ -303,11 +303,13 @@ users/                         (Collection)
 
 ### 9.2 Encryption & Storage Security Evaluation
 * `[CONFIRMED]` **No Encryption at Rest:** AsyncStorage stores all values in unencrypted plain text within SQLite database files located in the private application folder (`/data/data/com.lyfeos.app/databases/RKStorage`).
-* `[CONFIRMED]` **Android Backup Vulnerability:** In `android/app/src/main/AndroidManifest.xml:20`, the manifest declares:
+* `[CONFIRMED]` **Intentional Disablement of Android Backup & D2D Migration:** In both `app.json` (`expo.android.allowBackup: false`) and `android/app/src/main/AndroidManifest.xml:20`, LyfeOS explicitly declares:
   ```xml
-  android:allowBackup="true"
+  android:allowBackup="false"
   ```
-  Because `android:allowBackup` is enabled and no `<data-extraction-rules>` or `<full-backup-content>` exclusions are defined, anyone with physical access and ADB debugging enabled can extract the unencrypted database via `adb backup`.
+  * **Security & Privacy Rationale:** LyfeOS stores sensitive personal data locally (biometrics, health profiles, nutrition logs, workouts, habits, personal tasks). Disabling OS-level backup prevents unencrypted local database exposure, cross-account contamination on restored/shared devices, and resurrection of deleted data after account deletion.
+  * **Restoration Architecture:** Local app data is never restored through Android OS backup or D2D transfer. Authenticated data restoration across devices is strictly handled via the existing Firestore cloud synchronization/hydration architecture upon login.
+  * **Local Data Lifecycle:** Logout (`signOut`) and account deletion (`deleteAccountAndData`) remain responsible for actively clearing local device storage (`clearAllLyfeOSLocalData()`).
 
 ---
 
@@ -325,10 +327,14 @@ users/                         (Collection)
 * Cloud and local habit arrays are combined. Habits with matching IDs or matching normalized names are deduplicated.
 * For habit logs, logs sharing the same `habitId_date` key are merged, keeping `completed = true` if either was completed, and taking the maximum `amount` or `timeSeconds`.
 
-#### To-dos (`context/TodosContext.tsx:61-66`)
-* **Policy:** **Naive Cloud Overwrite.**
-* `[CONFIRMED]` If `cloudTodos && cloudTodos.length > 0`, the cloud array **blindly replaces** the local array.
-* **Risk:** Any todo created locally while offline will be permanently overwritten and lost upon reconnecting and fetching cloud data.
+#### To-dos (`context/TodosContext.tsx`, `utils/cloudSync.ts`)
+* **Policy:** **Conflict-Aware Bidirectional Merge with Soft-Delete Tombstones (Highest updatedAt Wins, Delete-Wins on Ties).**
+* `[CONFIRMED]` Both local and cloud lists are merged via `mergeTodos()`. Each todo includes `updatedAt: number` and optional `deletedAt?: number`.
+* If a todo exists in both local and cloud, the newer `updatedAt` wins. On exact timestamp ties, deletion wins (`deletedAt` preserved).
+* Soft-deleted tombstones are retained for 30 days (`TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000`) to propagate deletions to offline devices upon reconnection, after which they are purged.
+* Recurring occurrences are deduplicated across devices using `seriesId` / `title + dueDate + repeat`.
+* UI exposes only active items (`!t.deletedAt`).
+* Pre-logout sync and guest migration both execute `mergeTodos` before saving.
 
 #### Nutrition & Calories (`context/CaloriesContext.tsx:143-182`)
 * **Policy:** **Timestamp-Guarded Last-Write-Wins.**
@@ -454,7 +460,7 @@ sequenceDiagram
 ## 16. Security Risks
 
 1. **Unversioned Cloud Security Rules (`[UNKNOWN]` / High Risk):** Firestore rules are not maintained in the codebase. If the remote database has permissive read/write rules, any external party could compromise all user data.
-2. **Plain-Text Local Storage & ADB Extraction (`[CONFIRMED]` / Medium Risk):** AsyncStorage data is unencrypted, and `android:allowBackup="true"` allows full extraction over USB debugging.
+2. **Plain-Text Local Storage (`[CONFIRMED]` / Low-to-Medium Risk):** AsyncStorage data is unencrypted on the filesystem. Android Auto Backup and D2D migration have been explicitly disabled (`android:allowBackup="false"`) in `app.json` and `AndroidManifest.xml` to eliminate OS-level backup extraction.
 3. **Local Keystore Placement (`[CONFIRMED]` / High Risk):** Production keystores `@shivam.2k__lyfeos.jks` and `@shivam.2k__lyfeos_OLD_1.jks` sit directly in the root workspace.
 4. **Hardcoded Meta Client Token (`[CONFIRMED]` / Low-to-Medium Risk):** Hardcoded in `app.json` line 78 and `strings.xml`.
 
@@ -465,7 +471,7 @@ sequenceDiagram
 1. **Logout Data Remanence (`[CONFIRMED]` / Critical Privacy Risk):** User data is not cleared on `signOut()`. On shared devices, a subsequent user will see the previous user's data, which `handleGuestMigration()` will then upload to the new user's cloud account.
 2. **Third-Party UID Leakage to Meta (`[CONFIRMED]` / High Privacy Risk):** `utils/analytics.ts:120` passes the user's raw Firebase UID to Meta App Events via `AppEventsLogger.setUserID(userId)`.
 3. **Partial Cloud Sync Data Loss (`[CONFIRMED]` / High Data Loss Risk):** Fitness activities, health profiles, and steps are purely local. Device replacement leads to permanent data loss without user warning.
-4. **Naive Cloud Overwrite for To-dos (`[CONFIRMED]` / Medium Data Loss Risk):** In `TodosContext.tsx:61-66`, fetching cloud todos blindly overwrites local todos without a merge strategy, discarding offline creations.
+4. **~~Naive Cloud Overwrite for To-dos~~ (`[REMEDIATED]`):** Previously in `TodosContext.tsx:61-66`, fetching cloud todos blindly overwrote local todos without a merge strategy. Remediated on 2026-09-10: Implemented `mergeTodos()` with per-todo `updatedAt`, soft-delete tombstones (`deletedAt`), 30-day retention, recurring occurrence deduplication, and delete-wins conflict resolution.
 
 ---
 
@@ -484,7 +490,7 @@ sequenceDiagram
      }
    }
    ```
-4. **Disable Insecure ADB Backups:** Add `android:allowBackup="false"` to `app.json` android configuration.
+4. **[RESOLVED] Disable Insecure OS Backups:** `android:allowBackup="false"` is configured in `app.json` android configuration and `AndroidManifest.xml`.
 5. **Relocate Production Keystores:** Move `.jks` files out of the project repository into secure offline/secret storage.
 6. **Harmonize To-do Conflict Resolution:** Update `TodosContext.tsx` to adopt union-merge semantics identical to `HabitsContext.tsx`.
 
