@@ -9,6 +9,8 @@ import {
   requestNotificationPermissions,
   requestScheduleRefresh,
   getMasterNotificationsEnabled,
+  openNotificationSettings,
+  checkTimezoneChangeAndRefresh,
 } from "@/utils/notifications";
 import React, {
   useCallback,
@@ -18,6 +20,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
   AppState,
   Dimensions,
   FlatList,
@@ -1002,35 +1005,138 @@ export default function HomeScreen() {
     };
   }, [user, isGuest, isProfileLoaded]);
 
-  // ── Handle push notification tap → navigate to relevant screen ───────────
-  useEffect(() => {
-    if (Platform.OS === "web") return;
-    let sub: { remove: () => void } | null = null;
-    try {
-      sub = Notifications.addNotificationResponseReceivedListener(
-        (resp) => {
-          const route = resp.notification.request.content.data
-            ?.route as string | undefined;
-          if (route) router.push(route as any);
-        },
-      );
-    } catch (e) {
-      console.warn("[LyfeOS] Notification listener failed:", e);
-    }
-    return () => {
-      if (sub) sub.remove();
-    };
-  }, []);
+  // ── Helper to map and upsert in-app notifications ──────────────────────────
+  const upsertInboxNotification = useCallback(
+    (
+      title?: string | null,
+      body?: string | null,
+      data?: Record<string, any> | null,
+      identifier?: string,
+      markRead = false
+    ) => {
+      if (!title && !body) return;
+      const notifId = data?.id || identifier || `notif_${Date.now()}`;
+      const todayStr = getLocalDateString();
+      const inboxId =
+        notifId.startsWith("welcome_") || notifId.startsWith("notif_perm_")
+          ? notifId
+          : `${notifId}_${todayStr}`;
 
-  // ── Refresh notification schedule when app returns to foreground ───────────
+      let type: NotifType = "info";
+      if (notifId.includes("streak") || (title && title.toLowerCase().includes("streak"))) {
+        type = "streak";
+      } else if (notifId.startsWith("meal_") || notifId.startsWith("water_")) {
+        type = "nutrition";
+      } else if (notifId.startsWith("habit_") || notifId.startsWith("morning_")) {
+        type = "habit";
+      } else if (notifId.startsWith("activity_")) {
+        type = "activity";
+      }
+
+      const item: NotifItem = {
+        id: inboxId,
+        type,
+        title: title || "LyfeOS Reminder",
+        body: body || "",
+        timestamp: Date.now(),
+        read: markRead,
+      };
+
+      setNotifications((prev) => {
+        const existingIdx = prev.findIndex((n) => n.id === inboxId);
+        let next: NotifItem[];
+        if (existingIdx >= 0) {
+          next = [...prev];
+          next[existingIdx] = {
+            ...next[existingIdx],
+            title: item.title,
+            body: item.body,
+            read: markRead ? true : next[existingIdx].read,
+            timestamp: Date.now(),
+          };
+        } else {
+          next = [item, ...prev].slice(0, 30);
+        }
+        AsyncStorage.setItem(NOTIF_STORE_KEY, JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+    },
+    []
+  );
+
+  // ── Listen for OS notifications: foreground delivery and tap responses ───
   useEffect(() => {
     if (Platform.OS === "web") return;
+    let receivedSub: { remove: () => void } | null = null;
+    let responseSub: { remove: () => void } | null = null;
+
+    try {
+      receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+        try {
+          const content = notification.request.content;
+          upsertInboxNotification(
+            content.title,
+            content.body,
+            content.data,
+            notification.request.identifier,
+            false
+          );
+        } catch (e) {
+          logError(e as Error, "notificationReceivedListener");
+        }
+      });
+
+      responseSub = Notifications.addNotificationResponseReceivedListener((resp) => {
+        try {
+          const content = resp.notification.request.content;
+          upsertInboxNotification(
+            content.title,
+            content.body,
+            content.data,
+            resp.notification.request.identifier,
+            true // mark as read on tap
+          );
+
+          const route = content.data?.route as string | undefined;
+          if (route) router.push(route as any);
+        } catch (e) {
+          logError(e as Error, "notificationResponseReceivedListener");
+        }
+      });
+    } catch (e) {
+      console.warn("[LyfeOS] Notification listeners setup failed:", e);
+    }
+
+    return () => {
+      if (receivedSub) receivedSub.remove();
+      if (responseSub) responseSub.remove();
+    };
+  }, [upsertInboxNotification, router]);
+
+  // ── Refresh notification schedule on foreground & timezone changes ────────
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    // Check timezone on initial mount
+    checkTimezoneChangeAndRefresh().catch(() => {});
+
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
-        requestScheduleRefresh({
-          reason: "app_foreground",
-          userId: user?.uid,
-        });
+        checkTimezoneChangeAndRefresh()
+          .then((changed) => {
+            if (!changed) {
+              requestScheduleRefresh({
+                reason: "app_foreground",
+                userId: user?.uid,
+              });
+            }
+          })
+          .catch(() => {
+            requestScheduleRefresh({
+              reason: "app_foreground",
+              userId: user?.uid,
+            });
+          });
       }
     });
     return () => {
@@ -1058,8 +1164,8 @@ export default function HomeScreen() {
         ? JSON.parse(existingReminders)
         : newUserReminders;
 
-      const granted = await requestNotificationPermissions();
-      if (granted) {
+      const permResult = await requestNotificationPermissions();
+      if (permResult.granted) {
         // OS permission granted: ensure prompt key is cleared and schedule reminders
         await AsyncStorage.removeItem(NOTIF_ASKED_KEY).catch(() => {});
         await requestScheduleRefresh({
@@ -1078,15 +1184,30 @@ export default function HomeScreen() {
           read: false,
         };
         setNotifications((prev) => {
-          const next = [notif, ...prev].slice(0, 20);
-          AsyncStorage.setItem(NOTIF_STORE_KEY, JSON.stringify(next)).catch(
-            () => { },
-          );
+          const next = [notif, ...prev].slice(0, 30);
+          AsyncStorage.setItem(NOTIF_STORE_KEY, JSON.stringify(next)).catch(() => {});
           return next;
         });
       } else {
-        // User denied OS permission dialog: record asked so we don't prompt repeatedly this session
-        await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true").catch(() => {});
+        if (!permResult.canAskAgain) {
+          // Permanently blocked - offer to open settings
+          Alert.alert(
+            "Notifications Blocked",
+            "Notifications are blocked in your device Settings. Open Settings to enable habit, meal, and water reminders.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => {
+                  openNotificationSettings().catch(() => {});
+                },
+              },
+            ]
+          );
+        } else {
+          // User denied OS permission dialog: record asked so we don't prompt repeatedly this session
+          await AsyncStorage.setItem(NOTIF_ASKED_KEY, "true").catch(() => {});
+        }
       }
     } catch (e) {
       logError(e as Error, "handleAllowNotifications");

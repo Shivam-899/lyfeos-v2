@@ -6,7 +6,7 @@
  */
 
 import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logError } from "./analytics";
 import { getLocalDateString } from "./date";
@@ -23,9 +23,10 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// ── Master Notification Toggle Storage ───────────────────────────────────────
+// ── Master Notification Toggle & Timezone Storage ─────────────────────────────
 export const NOTIF_ENABLED_KEY = "@lyfeos_notif_enabled_v1";
 export const LEGACY_NOTIF_ENABLED_KEY = "notificationsEnabled";
+export const LAST_TIMEZONE_KEY = "@lyfeos_last_timezone_v1";
 
 /**
  * Reads the master notification toggle.
@@ -76,48 +77,196 @@ export const setMasterNotificationsEnabled = async (enabled: boolean): Promise<v
   }
 };
 
-// ── Permissions ───────────────────────────────────────────────────────────────
+// ── Permissions & Channel Health ──────────────────────────────────────────────
+
+export interface NotificationPermissionResult {
+  granted: boolean;
+  canAskAgain: boolean;
+  status: Notifications.PermissionStatus | "granted" | "denied" | "undetermined";
+}
 
 /**
- * Checks whether notification permission is currently granted at the OS level.
+ * Checks whether the default Android notification channel exists and is not blocked by user settings.
+ * Returns true on non-Android platforms.
+ */
+export const isAndroidChannelHealthy = async (channelId: string = "default"): Promise<boolean> => {
+  try {
+    if (Platform.OS !== "android") return true;
+    const channel = await Notifications.getNotificationChannelAsync(channelId);
+    if (!channel) {
+      // Channel not yet registered; will be created on scheduling
+      return true;
+    }
+    // If importance is NONE (0), notifications are blocked for this channel in System Settings
+    if (channel.importance === Notifications.AndroidImportance.NONE) {
+      return false;
+    }
+    return true;
+  } catch (e) {
+    logError(e as Error, "isAndroidChannelHealthy");
+    return true;
+  }
+};
+
+/**
+ * Ensures the default Android notification channel is registered with the system.
+ */
+export const ensureNotificationChannel = async (): Promise<void> => {
+  try {
+    if (Platform.OS !== "android") return;
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "LyfeOS Reminders",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#FF6B35",
+    });
+  } catch (e) {
+    logError(e as Error, "ensureNotificationChannel");
+  }
+};
+
+/**
+ * Checks whether notification permission is currently granted at the OS level and channel is unblocked.
  * Pure query — does not prompt the user or trigger any dialogs.
  */
 export const hasNotificationPermission = async (): Promise<boolean> => {
   try {
     if (Platform.OS === "web") return false;
     const settings = await Notifications.getPermissionsAsync();
-    return Boolean(settings.granted || settings.status === "granted");
+    const isGranted = Boolean(settings.granted || settings.status === "granted");
+    if (!isGranted) return false;
+
+    // On Android, verify the target channel is not blocked
+    if (Platform.OS === "android") {
+      const channelHealthy = await isAndroidChannelHealthy("default");
+      if (!channelHealthy) return false;
+    }
+
+    return true;
   } catch (e) {
     logError(e as Error, "hasNotificationPermission");
     return false;
   }
 };
 
-export const requestNotificationPermissions = async (): Promise<boolean> => {
+/**
+ * Returns detailed permission status including canAskAgain and channel health.
+ */
+export const getDetailedNotificationPermissions = async (): Promise<NotificationPermissionResult> => {
   try {
-    // Notifications only work on native (Android/iOS), not web
-    if (Platform.OS === "web") return false;
+    if (Platform.OS === "web") {
+      return { granted: false, canAskAgain: false, status: "denied" };
+    }
+    const settings = await Notifications.getPermissionsAsync();
+    let isGranted = Boolean(settings.granted || settings.status === "granted");
+    const canAskAgain = settings.canAskAgain ?? true;
+
+    if (isGranted && Platform.OS === "android") {
+      const channelHealthy = await isAndroidChannelHealthy("default");
+      if (!channelHealthy) {
+        isGranted = false;
+      }
+    }
+
+    return {
+      granted: isGranted,
+      canAskAgain,
+      status: settings.status || (isGranted ? "granted" : "denied"),
+    };
+  } catch (e) {
+    logError(e as Error, "getDetailedNotificationPermissions");
+    return { granted: false, canAskAgain: false, status: "denied" };
+  }
+};
+
+/**
+ * Requests OS notification permissions.
+ * Explicitly distinguishes between granted, denied, and permanently blocked (canAskAgain === false).
+ */
+export const requestNotificationPermissions = async (): Promise<NotificationPermissionResult> => {
+  try {
+    if (Platform.OS === "web") {
+      return { granted: false, canAskAgain: false, status: "denied" };
+    }
 
     const settings = await Notifications.getPermissionsAsync();
     let isGranted = Boolean(settings.granted || settings.status === "granted");
+    let canAskAgain = settings.canAskAgain ?? true;
+    let status = settings.status;
 
     if (!isGranted) {
+      // If the OS cannot show the dialog anymore, return immediately so caller can show Settings fallback
+      if (!canAskAgain) {
+        return { granted: false, canAskAgain: false, status: status || "denied" };
+      }
+
       const requestResult = await Notifications.requestPermissionsAsync();
       isGranted = Boolean(requestResult.granted || requestResult.status === "granted");
+      canAskAgain = requestResult.canAskAgain ?? true;
+      status = requestResult.status;
     }
 
     if (Platform.OS === "android" && isGranted) {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "LyfeOS Reminders",
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF6B35",
-      });
+      await ensureNotificationChannel();
+      const channelHealthy = await isAndroidChannelHealthy("default");
+      if (!channelHealthy) {
+        isGranted = false;
+      }
     }
 
-    return isGranted;
+    return {
+      granted: isGranted,
+      canAskAgain,
+      status: status || (isGranted ? "granted" : "denied"),
+    };
   } catch (e) {
     logError(e as Error, "requestNotificationPermissions");
+    return { granted: false, canAskAgain: false, status: "denied" };
+  }
+};
+
+/**
+ * Opens system application settings for LyfeOS so user can manually re-enable notifications.
+ */
+export const openNotificationSettings = async (): Promise<boolean> => {
+  try {
+    if (Platform.OS === "web") return false;
+    await Linking.openSettings();
+    return true;
+  } catch (e) {
+    logError(e as Error, "openNotificationSettings");
+    return false;
+  }
+};
+
+/**
+ * Compares current device timezone against last stored timezone.
+ * If changed, updates cache and triggers a schedule refresh.
+ */
+export const checkTimezoneChangeAndRefresh = async (): Promise<boolean> => {
+  try {
+    if (Platform.OS === "web") return false;
+    const currentTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!currentTimezone) return false;
+
+    const storedTimezone = await AsyncStorage.getItem(LAST_TIMEZONE_KEY);
+    if (!storedTimezone) {
+      await AsyncStorage.setItem(LAST_TIMEZONE_KEY, currentTimezone);
+      return false;
+    }
+
+    if (storedTimezone !== currentTimezone) {
+      console.log(
+        `[Notifications] timezone changed: ${storedTimezone} -> ${currentTimezone} — refreshing schedule`
+      );
+      await AsyncStorage.setItem(LAST_TIMEZONE_KEY, currentTimezone);
+      await requestScheduleRefresh({ reason: "timezone_change" });
+      return true;
+    }
+
+    return false;
+  } catch (e) {
+    logError(e as Error, "checkTimezoneChangeAndRefresh");
     return false;
   }
 };
@@ -539,14 +688,15 @@ export const scheduleDailyNotifications = async (
     // 5. Cancel obsolete scheduled notifications
     await cancelAllNotifications();
 
-    // 6. Ensure Android channel is registered
+    // 6. Ensure Android channel is registered and healthy
     if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "LyfeOS Reminders",
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF6B35",
-      });
+      await ensureNotificationChannel();
+      const channelHealthy = await isAndroidChannelHealthy("default");
+      if (!channelHealthy) {
+        console.log("[Notifications] Android channel 'default' is blocked — cancelling schedule");
+        await cancelAllNotifications();
+        return;
+      }
     }
 
     // 7. Schedule current valid notifications with explicit channelId

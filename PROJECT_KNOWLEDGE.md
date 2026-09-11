@@ -449,6 +449,7 @@ All keys are defined in `utils/storage.ts` — `LYFEOS_STORAGE_KEYS` array. `cle
 | `lastActivityLogDate` / `activityLogCount` / `activityBonusLogs` | strings | |
 | `@lyfeos_notif_enabled_v1` | `"true"\|"false"` | Canonical master notification toggle |
 | `notificationsEnabled` | `"true"\|"false"` | Legacy master toggle key (migrated to canonical key, retained for logout purge) |
+| `@lyfeos_last_timezone_v1` | `string` | Last recorded device timezone (IANA identifier, e.g. "Asia/Kolkata") for invalidating and rescheduling notifications |
 
 > **Rule for new keys:** Always use `@lyfeos_<domain>_v<N>` prefix. Add to `LYFEOS_STORAGE_KEYS` in `utils/storage.ts`. If the schema changes, bump the version in the key name and add a migration in the Context's `useEffect` initializer.
 
@@ -633,12 +634,30 @@ Up to 9 candidate smart reminders evaluated, capped at a maximum of 8 daily noti
 
 - **Evergreen Action-Oriented Copy:** Repeating daily alarms never bake transient single-day progress counters (e.g. `"You're at 2/8 glasses"`) into alarms. Notification text is actionable and universally accurate across days.
 - **Rate Reminder:** Idempotent one-shot reminder scheduled for eligible users (7+ days active, 5+ logged days) at 19:00 with a 30-day cooldown (`@lyfeos_rate_reminder_v1`).
-- **Android Channel:** All scheduled notifications explicitly specify `channelId: "default"`, registered as `"LyfeOS Reminders"` with `HIGH` importance.
+- **Android Channel & Channel Health:** All scheduled notifications explicitly specify `channelId: "default"`, registered as `"LyfeOS Reminders"` with `HIGH` importance. `isAndroidChannelHealthy("default")` inspects channel importance via `getNotificationChannelAsync("default")`; if importance is `AndroidImportance.NONE (0)` (muted by user in System Settings), `hasNotificationPermission()` evaluates to `false` and `scheduleDailyNotifications` aborts and cancels alarms.
 
-#### Centralized Debounced Coordinator
+#### Real OS Permission UI Synchronization (`app/(tabs)/profile.tsx`)
+- **Continuous Focus Reconciliation:** Profile tab uses `useFocusEffect` to continuously reconcile stored toggle state with real OS permission (`hasNotificationPermission()`) whenever user returns from Settings or switches tabs.
+- **Visual Accuracy When Blocked:** If notification permissions are disabled at the OS level or the Android channel is muted:
+  - Master Daily Reminders switch visually displays `OFF` (`notificationsEnabled && osPermissionGranted`).
+  - Status text displays `BLOCKED` in red.
+  - Subtext displays `"System notifications disabled in Settings"`.
+  - Prominently displays a touchable warning banner: `"Notifications are blocked. Tap to open Settings."`
+  - Granular reminder sub-toggles are disabled and dimmed (`opacity: 0.4`).
+- **Toggle Handler & Native Settings Fallback:** Turning ON the toggle checks permissions via `requestNotificationPermissions()`. If permission is denied and permanently blocked (`canAskAgain === false`), alerts the user with `"Notifications are blocked"` and offers an `"Open Settings"` button invoking `openNotificationSettings()` (`Linking.openSettings()`). Stored user preference is preserved and not clobbered.
+
+#### Centralized Debounced Coordinator & Timezone Resilience
 - `requestScheduleRefresh(options)`: Coalesces rapid calls (tab changes, data mutations, app foregrounding) with a 400ms debounce window.
 - **Race Condition Protection:** `app/(tabs)/index.tsx` guards initialization: if an authenticated non-guest user is logging in, scheduler waits until `ProfileContext` completes cloud profile hydration (`isProfileLoaded === true`) before scheduling.
 - **Foreground Refresh:** An `AppState` listener in `app/(tabs)/index.tsx` refreshes the schedule when the app returns from background.
+- **Timezone Change Resilience:** `checkTimezoneChangeAndRefresh()` verifies `Intl.DateTimeFormat().resolvedOptions().timeZone` against `@lyfeos_last_timezone_v1` on app mount and on every foreground transition in `app/(tabs)/index.tsx`. When a timezone change is detected, cache is updated and `requestScheduleRefresh({ reason: "timezone_change" })` reschedules repeating alarms to match local clock time.
+
+#### In-App Notification Inbox (`@lyfeos_notifications_v1`)
+Synchronized with OS push alarms in `app/(tabs)/index.tsx`:
+- **Foreground Delivery:** `Notifications.addNotificationReceivedListener` captures notifications received while the app is open and calls `upsertInboxNotification()`, inserting an unread item with category mapping (`streak`, `nutrition`, `habit`, `activity`, `info`).
+- **Notification Taps:** `Notifications.addNotificationResponseReceivedListener` marks tapped notifications as `read: true`, upserts into the inbox, and routes user to the target screen (`route`).
+- **Deduplication:** Uses deterministic IDs `${notifId}_${todayStr}` so foreground receipt and tray taps on the same day update in place without duplicate entries.
+- **Bounded Storage:** Inbox is strictly capped at 30 items (`.slice(0, 30)`), safely preserving initial onboarding/welcome notifications.
 
 ### 9.9 Theming
 
@@ -1097,6 +1116,9 @@ eas submit --platform android --profile production
 | 14 | `EXPO_PUBLIC_DOMAIN` placeholder | Still `"YOUR_DEPLOYED_DOMAIN_HERE"` in `eas.json` | `eas.json:27` |
 | 15 | webClientId hardcoded | Google Sign-In client ID is a literal string instead of env var | `context/AuthContext.tsx:39` |
 | 16 | Activity not cloud-synced | All workout logs, steps, health profile are device-local; device replacement = permanent data loss with no user warning | `context/ActivityContext.tsx` |
+| 17 | Notifications P3: Rate reminder persistence | Rate reminder cooldown (`@lyfeos_rate_reminder_v1`) stored locally; clearing app data allows re-prompt before 30-day cooldown | `utils/notifications.ts` |
+| 18 | Notifications P3: Pre-permission priming | App requests native permission dialog immediately on user action without an in-app educational pre-prompt | `app/(tabs)/index.tsx`, `app/(tabs)/profile.tsx` |
+| 19 | Notification device runtime boundaries | Deep OEM battery optimizations / background killer policies (Xiaomi MIUI, Huawei, Samsung deep sleep) cannot be bypassed without user whitelisting | System/OS level |
 
 ---
 
@@ -1167,6 +1189,51 @@ Before completing any future development task, check whether `PROJECT_KNOWLEDGE.
 ## 20. Change Log
 
 > Format: Date — Summary — Area affected — Migration/deployment implications
+
+### 2026-09-11 — P1-8 Notification / Permission State Consistency Remediation (Phase 2: P2 State Reconciliation)
+
+**What:** Remediated all 5 confirmed P2 findings from the P1-8 Notification / Permission State Consistency Audit:
+- **P1-8-04 [P2] Profile UI ↔ Real OS Permission State Reconciliation:**
+  - In `app/(tabs)/profile.tsx`, integrated continuous permission checking via `useFocusEffect` and `hasNotificationPermission()`.
+  - When system notification permission is absent or revoked, or the Android channel is muted:
+    - Master Daily Reminders switch displays `OFF` (`notificationsEnabled && osPermissionGranted`).
+    - Status indicator displays `BLOCKED` in red.
+    - Subtext displays `"System notifications disabled in Settings"`.
+    - Warning banner `"Notifications are blocked. Tap to open Settings."` renders prominently.
+    - Granular reminder sub-toggles are disabled and dimmed (`opacity: 0.4`).
+- **P1-8-05 [P2] Permanently Denied Permission Settings Fallback:**
+  - Extended `requestNotificationPermissions()` and `getDetailedNotificationPermissions()` in `utils/notifications.ts` to return `NotificationPermissionResult` with `granted`, `canAskAgain`, and `status`.
+  - Added `openNotificationSettings()` wrapping `Linking.openSettings()`.
+  - When permission is permanently denied (`canAskAgain === false`), `handleNotificationsToggle` in `app/(tabs)/profile.tsx` and `handleAllowNotifications` in `app/(tabs)/index.tsx` present an actionable alert with `"Open Settings"`. Stored user preference is preserved and not clobbered.
+- **P1-8-06 [P2] Android Notification Channel Health Check:**
+  - Implemented `isAndroidChannelHealthy("default")` and `ensureNotificationChannel()` in `utils/notifications.ts`.
+  - Detects if the default channel has been muted or disabled in Android system settings (`importance === AndroidImportance.NONE / 0`).
+  - Integrated channel health checks into `hasNotificationPermission()`, `requestNotificationPermissions()`, and step 6 of `scheduleDailyNotifications()`. If channel is muted, active schedules are cancelled and scheduling aborts.
+- **P1-8-07 [P2] Device Timezone Change Resilience:**
+  - Added `@lyfeos_last_timezone_v1` in `LYFEOS_STORAGE_KEYS` (`utils/storage.ts`).
+  - Implemented `checkTimezoneChangeAndRefresh()` in `utils/notifications.ts` utilizing `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+  - Initialized on app mount and on every `AppState` active transition in `app/(tabs)/index.tsx`.
+  - Detects timezone shifts (e.g. travel across time zones), updates cached timezone, and invokes `requestScheduleRefresh({ reason: "timezone_change" })` to reschedule repeating daily alarms without race conditions or timer churn.
+- **P1-8-08 [P2] OS Notifications ↔ In-App Bell / Inbox Integration:**
+  - In `app/(tabs)/index.tsx`, added `upsertInboxNotification()` helper mapping title, body, and payload data to `NotifItem` with category resolution (`streak`, `nutrition`, `habit`, `activity`, `info`).
+  - Added foreground push delivery listener via `Notifications.addNotificationReceivedListener` writing unread items to `@lyfeos_notifications_v1`.
+  - Extended notification tap response listener via `Notifications.addNotificationResponseReceivedListener` to mark item as read, persist to inbox, and route to target screen.
+  - Deduplicated inbox items by `${notifId}_${todayStr}` to coalesce foreground receipt and status-bar taps into a single daily inbox record. Bounded inbox storage to 30 items without displacing existing welcome messages.
+- **Verification:**
+  - Automated test suite `scripts/test-notification-remediation.js` extended to 29 tests (all 29 passing: Tests 1-10 Phase 1 + Tests 11-29 Phase 2).
+  - Regression test suites: Habits sync (12/12 pass), Nutrition sync (12/12 pass), Activity sync (16/16 pass), Nutrition migration (5/5 pass), Profile sync (10/10 pass).
+  - TypeScript typecheck verified with 0 errors (`pnpm typecheck`).
+  - Strict guardrail verification: `git diff context/TodosContext.tsx` is completely empty (0 lines changed).
+- **Remaining P3 Findings & Physical Device Boundaries:**
+  - `P1-8-09 [P3]` Rate reminder persistence across app data clear / cloud profile remains deferred to future profile sync iteration.
+  - `P1-8-10 [P3]` In-app pre-permission priming UX prior to system permission dialog remains deferred to UX phase.
+  - Physical device runtime verification boundaries (OEM battery optimizations, manufacturer background killer policies) remain documented in Section 17.
+
+**Area affected:** `utils/storage.ts`, `utils/notifications.ts`, `app/(tabs)/profile.tsx`, `app/(tabs)/index.tsx`, `scripts/test-notification-remediation.js`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; no destructive migrations or schema breaks.
+
+---
 
 ### 2026-09-11 — P1-8 Notification / Permission State Consistency Remediation (Phase 1: P0/P1 Core Correctness)
 

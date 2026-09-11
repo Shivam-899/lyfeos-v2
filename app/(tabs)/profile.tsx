@@ -6,13 +6,16 @@ import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
 import * as StoreReview from "expo-store-review";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logScreen, logError } from "@/utils/analytics";
 import {
   cancelAllNotifications,
   getMasterNotificationsEnabled,
   setMasterNotificationsEnabled,
   requestScheduleRefresh,
+  hasNotificationPermission,
+  requestNotificationPermissions,
+  openNotificationSettings,
 } from "@/utils/notifications";
 import Svg, { Circle } from "react-native-svg";
 import { AD_UNIT_IDS } from "@/utils/ads";
@@ -37,7 +40,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { clearAllLyfeOSLocalData } from "@/utils/storage";
 
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCalories } from "@/context/CaloriesContext";
 import { useActivity } from "@/context/ActivityContext";
 import { useHabits } from "@/context/HabitsContext";
@@ -468,21 +471,60 @@ export default function ProfileScreen() {
     }
   }, [migrationDone, user, isGuest]);
 
-  // ── Notifications enabled state (persisted via canonical key) ──────────────
+  // ── Notifications enabled state & OS permission reconciliation ─────────────
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [osPermissionGranted, setOsPermissionGranted] = useState(true);
 
-  // Screen tracking + load notification preference on mount
+  const reconcileNotificationState = useCallback(async () => {
+    try {
+      const [masterPref, permStatus] = await Promise.all([
+        getMasterNotificationsEnabled(),
+        hasNotificationPermission(),
+      ]);
+      setNotificationsEnabled(masterPref);
+      setOsPermissionGranted(permStatus);
+    } catch { }
+  }, []);
+
+  // Screen tracking + initial load
   useEffect(() => {
     logScreen("Profile");
-    getMasterNotificationsEnabled()
-      .then((val) => {
-        setNotificationsEnabled(val);
-      })
-      .catch(() => { });
-  }, []);
+    reconcileNotificationState();
+  }, [reconcileNotificationState]);
+
+  // Reconcile on focus when user returns from Settings or another tab
+  useFocusEffect(
+    useCallback(() => {
+      reconcileNotificationState();
+    }, [reconcileNotificationState])
+  );
 
   // Handler for the master notifications toggle
   const handleNotificationsToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const permResult = await requestNotificationPermissions();
+      if (!permResult.granted) {
+        setOsPermissionGranted(false);
+        if (!permResult.canAskAgain) {
+          Alert.alert(
+            "Notifications are blocked",
+            "Notifications are disabled in device Settings. Open Settings to enable reminders for habits, meals, and hydration.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => {
+                  openNotificationSettings().catch(() => {});
+                },
+              },
+            ]
+          );
+        }
+        return;
+      }
+      setOsPermissionGranted(true);
+    }
+
     setNotificationsEnabled(enabled);
     try {
       await setMasterNotificationsEnabled(enabled);
@@ -503,7 +545,7 @@ export default function ProfileScreen() {
   const handleReminderToggle = async (key: keyof typeof reminders, value: boolean) => {
     const updated = { ...reminders, [key]: value };
     await setReminders(updated);
-    if (notificationsEnabled) {
+    if (notificationsEnabled && osPermissionGranted) {
       await requestScheduleRefresh({
         reason: "profile_reminder_toggle",
         reminders: updated,
@@ -1182,14 +1224,32 @@ export default function ProfileScreen() {
         <SectionCard title="Reminders" icon="notifications">
           {/* Master Daily Reminders toggle */}
           <SettingRow icon="notifications" iconColor={ACCENT} iconBg={ACCENT + "25"} label="Daily Reminders"
-            sub={notificationsEnabled ? "Reminders are active" : "All reminders paused"}
+            sub={
+              !osPermissionGranted
+                ? "System notifications disabled in Settings"
+                : notificationsEnabled
+                  ? "Reminders are active"
+                  : "All reminders paused"
+            }
             right={
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: notificationsEnabled ? GREEN : MUTED }}>
-                  {notificationsEnabled ? "ON" : "OFF"}
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: !osPermissionGranted
+                    ? RED
+                    : notificationsEnabled
+                      ? GREEN
+                      : MUTED
+                }}>
+                  {!osPermissionGranted
+                    ? "BLOCKED"
+                    : notificationsEnabled
+                      ? "ON"
+                      : "OFF"}
                 </Text>
                 <Switch
-                  value={notificationsEnabled}
+                  value={notificationsEnabled && osPermissionGranted}
                   onValueChange={handleNotificationsToggle}
                   trackColor={{ false: BORDER, true: ACCENT }}
                   thumbColor="#ffffff"
@@ -1197,22 +1257,60 @@ export default function ProfileScreen() {
               </View>
             }
           />
+          {!osPermissionGranted && (
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                marginHorizontal: 12,
+                marginBottom: 8,
+                borderRadius: 10,
+                backgroundColor: RED + "15",
+                borderWidth: 1,
+                borderColor: RED + "30",
+              }}
+              onPress={() => openNotificationSettings().catch(() => {})}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                <Ionicons name="warning-outline" size={18} color={RED} />
+                <Text style={{ fontSize: 12, color: RED, fontWeight: "500", flex: 1 }}>
+                  Notifications are blocked. Tap to open Settings.
+                </Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={RED} />
+            </TouchableOpacity>
+          )}
           {[
             { key: "morning" as keyof typeof reminders, icon: "sunny", iconColor: YELLOW, iconBg: YELLOW + "25", label: "Morning Reminder", sub: "Daily habit check-in · 8:00 AM" },
             { key: "meal" as keyof typeof reminders, icon: "restaurant", iconColor: ACCENT, iconBg: ACCENT + "25", label: "Meal Reminder", sub: "Log your meals on time" },
             { key: "water" as keyof typeof reminders, icon: "water", iconColor: BLUE, iconBg: BLUE + "25", label: "Water Reminder", sub: "Stay hydrated every 2 hours" },
             { key: "evening" as keyof typeof reminders, icon: "moon", iconColor: PURPLE, iconBg: PURPLE + "25", label: "Evening Check-in", sub: "End-of-day summary · 9:00 PM" },
-          ].map((row, i, arr) => (
-            <SettingRow key={row.key} icon={row.icon} iconColor={row.iconColor} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
-              right={
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: reminders[row.key] ? GREEN : MUTED }}>{reminders[row.key] ? "ON" : "OFF"}</Text>
-                  <Switch value={reminders[row.key]} onValueChange={v => handleReminderToggle(row.key, v)}
-                    trackColor={{ false: BORDER, true: ACCENT }} thumbColor="#ffffff" />
-                </View>
-              }
-            />
-          ))}
+          ].map((row, i, arr) => {
+            const isRowActive = notificationsEnabled && osPermissionGranted;
+            return (
+              <View key={row.key} style={{ opacity: isRowActive ? 1 : 0.4 }}>
+                <SettingRow icon={row.icon} iconColor={row.iconColor} iconBg={row.iconBg} label={row.label} sub={row.sub} last={i === arr.length - 1}
+                  right={
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: (isRowActive && reminders[row.key]) ? GREEN : MUTED }}>
+                        {(isRowActive && reminders[row.key]) ? "ON" : "OFF"}
+                      </Text>
+                      <Switch
+                        value={reminders[row.key]}
+                        disabled={!isRowActive}
+                        onValueChange={v => handleReminderToggle(row.key, v)}
+                        trackColor={{ false: BORDER, true: ACCENT }}
+                        thumbColor="#ffffff"
+                      />
+                    </View>
+                  }
+                />
+              </View>
+            );
+          })}
         </SectionCard>
 
         {/* ── Preferences ───────────────────────────────────────────── */}

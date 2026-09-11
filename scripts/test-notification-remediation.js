@@ -49,8 +49,9 @@ function createMockStorage(initial = {}) {
 
 // ─── OS Notification Engine Mock ──────────────────────────────────────────────
 
-function createMockNotificationEngine({ hasPermission = true } = {}) {
+function createMockNotificationEngine({ hasPermission = true, canAskAgain = true } = {}) {
   let permissionGranted = hasPermission;
+  let askAgainAllowed = canAskAgain;
   let scheduledNotifications = [];
   let cancelAllCount = 0;
   let channels = new Map();
@@ -59,18 +60,31 @@ function createMockNotificationEngine({ hasPermission = true } = {}) {
     getPermissionsAsync: async () => ({
       granted: permissionGranted,
       status: permissionGranted ? "granted" : "denied",
-      canAskAgain: !permissionGranted,
+      canAskAgain: askAgainAllowed,
     }),
     requestPermissionsAsync: async () => ({
       granted: permissionGranted,
       status: permissionGranted ? "granted" : "denied",
-      canAskAgain: !permissionGranted,
+      canAskAgain: askAgainAllowed,
     }),
-    setPermission(granted) {
+    setPermission(granted, canAsk = true) {
       permissionGranted = granted;
+      askAgainAllowed = canAsk;
     },
     setNotificationChannelAsync: async (id, config) => {
-      channels.set(id, config);
+      if (channels.has(id)) {
+        const prev = channels.get(id);
+        channels.set(id, { ...config, importance: prev.importance !== undefined ? prev.importance : config.importance });
+      } else {
+        channels.set(id, config);
+      }
+    },
+    getNotificationChannelAsync: async (id) => {
+      return channels.get(id) || null;
+    },
+    setChannelImportance: (id, importance) => {
+      const ch = channels.get(id) || { name: "LyfeOS Reminders", importance: 4 };
+      channels.set(id, { ...ch, importance });
     },
     scheduleNotificationAsync: async (request) => {
       scheduledNotifications.push(request);
@@ -113,6 +127,177 @@ async function setMasterNotificationsEnabled(storage, engine, enabled) {
   if (!enabled) {
     await engine.cancelAllScheduledNotificationsAsync();
   }
+}
+
+// ─── Phase 2 Implementation Helpers ──────────────────────────────────────────
+
+async function isAndroidChannelHealthy(engine, channelId = "default") {
+  const channel = await engine.getNotificationChannelAsync(channelId);
+  if (!channel) return true;
+  if (channel.importance === 0) return false;
+  return true;
+}
+
+async function hasNotificationPermission(engine) {
+  const perm = await engine.getPermissionsAsync();
+  const isGranted = Boolean(perm.granted || perm.status === "granted");
+  if (!isGranted) return false;
+  const channelHealthy = await isAndroidChannelHealthy(engine, "default");
+  if (!channelHealthy) return false;
+  return true;
+}
+
+async function getDetailedNotificationPermissions(engine) {
+  const perm = await engine.getPermissionsAsync();
+  let isGranted = Boolean(perm.granted || perm.status === "granted");
+  const canAskAgain = perm.canAskAgain ?? true;
+  if (isGranted) {
+    const channelHealthy = await isAndroidChannelHealthy(engine, "default");
+    if (!channelHealthy) isGranted = false;
+  }
+  return {
+    granted: isGranted,
+    canAskAgain,
+    status: perm.status || (isGranted ? "granted" : "denied"),
+  };
+}
+
+async function requestNotificationPermissions(engine) {
+  const settings = await engine.getPermissionsAsync();
+  let isGranted = Boolean(settings.granted || settings.status === "granted");
+  let canAskAgain = settings.canAskAgain ?? true;
+  let status = settings.status;
+
+  if (!isGranted) {
+    if (!canAskAgain) {
+      return { granted: false, canAskAgain: false, status: status || "denied" };
+    }
+    const requestResult = await engine.requestPermissionsAsync();
+    isGranted = Boolean(requestResult.granted || requestResult.status === "granted");
+    canAskAgain = requestResult.canAskAgain ?? true;
+    status = requestResult.status;
+  }
+
+  if (isGranted) {
+    await engine.setNotificationChannelAsync("default", {
+      name: "LyfeOS Reminders",
+      importance: 4,
+    });
+    const channelHealthy = await isAndroidChannelHealthy(engine, "default");
+    if (!channelHealthy) {
+      isGranted = false;
+    }
+  }
+
+  return {
+    granted: isGranted,
+    canAskAgain,
+    status: status || (isGranted ? "granted" : "denied"),
+  };
+}
+
+let settingsOpenedCount = 0;
+async function openNotificationSettings() {
+  settingsOpenedCount++;
+  return true;
+}
+
+const LAST_TIMEZONE_KEY = "@lyfeos_last_timezone_v1";
+
+async function checkTimezoneChangeAndRefresh(storage, coordinator, currentTz) {
+  const currentTimezone = currentTz;
+  if (!currentTimezone) return false;
+
+  const storedTimezone = await storage.getItem(LAST_TIMEZONE_KEY);
+  if (!storedTimezone) {
+    await storage.setItem(LAST_TIMEZONE_KEY, currentTimezone);
+    return false;
+  }
+
+  if (storedTimezone !== currentTimezone) {
+    await storage.setItem(LAST_TIMEZONE_KEY, currentTimezone);
+    await coordinator.requestScheduleRefresh({ reason: "timezone_change" });
+    return true;
+  }
+
+  return false;
+}
+
+const NOTIF_STORE_KEY = "@lyfeos_notifications_v1";
+
+async function upsertInboxNotification(
+  storage,
+  currentNotifications,
+  title,
+  body,
+  data,
+  identifier,
+  markRead = false,
+  todayStr = "2026-09-11"
+) {
+  if (!title && !body) return currentNotifications;
+  const notifId = data?.id || identifier || `notif_${Date.now()}`;
+  const inboxId =
+    notifId.startsWith("welcome_") || notifId.startsWith("notif_perm_")
+      ? notifId
+      : `${notifId}_${todayStr}`;
+
+  let type = "info";
+  if (notifId.includes("streak") || (title && title.toLowerCase().includes("streak"))) {
+    type = "streak";
+  } else if (notifId.startsWith("meal_") || notifId.startsWith("water_")) {
+    type = "nutrition";
+  } else if (notifId.startsWith("habit_") || notifId.startsWith("morning_")) {
+    type = "habit";
+  } else if (notifId.startsWith("activity_")) {
+    type = "activity";
+  }
+
+  const item = {
+    id: inboxId,
+    type,
+    title: title || "LyfeOS Reminder",
+    body: body || "",
+    timestamp: Date.now(),
+    read: markRead,
+  };
+
+  const existingIdx = currentNotifications.findIndex((n) => n.id === inboxId);
+  let next;
+  if (existingIdx >= 0) {
+    next = [...currentNotifications];
+    next[existingIdx] = {
+      ...next[existingIdx],
+      title: item.title,
+      body: item.body,
+      read: markRead ? true : next[existingIdx].read,
+      timestamp: Date.now(),
+    };
+  } else {
+    next = [item, ...currentNotifications].slice(0, 30);
+  }
+  await storage.setItem(NOTIF_STORE_KEY, JSON.stringify(next));
+  return next;
+}
+
+async function reconcileProfileNotificationState(storage, engine) {
+  const [masterPref, permStatus] = await Promise.all([
+    getMasterNotificationsEnabled(storage),
+    hasNotificationPermission(engine),
+  ]);
+  return {
+    notificationsEnabled: masterPref,
+    osPermissionGranted: permStatus,
+    displayStatus: !permStatus ? "BLOCKED" : masterPref ? "ON" : "OFF",
+    displaySubtext: !permStatus
+      ? "System notifications disabled in Settings"
+      : masterPref
+      ? "Reminders are active"
+      : "All reminders paused",
+    switchValue: masterPref && permStatus,
+    showBlockedBanner: !permStatus,
+    subTogglesActive: masterPref && permStatus,
+  };
 }
 
 function buildSmartNotificationSchedule(reminders, context = {}) {
@@ -256,8 +441,8 @@ async function scheduleDailyNotifications(storage, engine, reminders, context, u
   }
 
   // 2. Verify OS permission
-  const perm = await engine.getPermissionsAsync();
-  if (!perm.granted) {
+  const hasPerm = await hasNotificationPermission(engine);
+  if (!hasPerm) {
     await engine.cancelAllScheduledNotificationsAsync();
     return [];
   }
@@ -280,6 +465,11 @@ async function scheduleDailyNotifications(storage, engine, reminders, context, u
     name: "LyfeOS Reminders",
     importance: 4, // HIGH
   });
+  const channelHealthy = await isAndroidChannelHealthy(engine, "default");
+  if (!channelHealthy) {
+    await engine.cancelAllScheduledNotificationsAsync();
+    return [];
+  }
 
   // 7. Schedule valid notifications
   for (const notif of scheduledList) {
@@ -536,4 +726,356 @@ test("TEST 10: Current reminder state is used when schedule is refreshed", async
   assert.strictEqual(ids.includes("evening_check"), false, "evening_check removed");
   assert.strictEqual(ids.includes("nightly_review"), false, "nightly_review removed");
   assert.strictEqual(ids.includes("wind_down"), false, "wind_down removed");
+});
+
+// ─── Phase 2 Test Suite ───────────────────────────────────────────────────────
+
+test("TEST 11: Profile UI: Master ON + OS ON -> reminders active, switch ON, sub-toggles enabled", async () => {
+  const storage = createMockStorage({ [NOTIF_ENABLED_KEY]: "true" });
+  const engine = createMockNotificationEngine({ hasPermission: true });
+
+  const state = await reconcileProfileNotificationState(storage, engine);
+  assert.strictEqual(state.notificationsEnabled, true);
+  assert.strictEqual(state.osPermissionGranted, true);
+  assert.strictEqual(state.displayStatus, "ON");
+  assert.strictEqual(state.displaySubtext, "Reminders are active");
+  assert.strictEqual(state.switchValue, true);
+  assert.strictEqual(state.showBlockedBanner, false);
+  assert.strictEqual(state.subTogglesActive, true);
+});
+
+test("TEST 12: Profile UI: Master ON + OS OFF -> status BLOCKED, switch OFF, blocked banner shown, sub-toggles disabled", async () => {
+  const storage = createMockStorage({ [NOTIF_ENABLED_KEY]: "true" });
+  const engine = createMockNotificationEngine({ hasPermission: false });
+
+  const state = await reconcileProfileNotificationState(storage, engine);
+  assert.strictEqual(state.notificationsEnabled, true, "Master toggle preference preserved in storage");
+  assert.strictEqual(state.osPermissionGranted, false, "OS permission correctly detected as revoked");
+  assert.strictEqual(state.displayStatus, "BLOCKED");
+  assert.strictEqual(state.displaySubtext, "System notifications disabled in Settings");
+  assert.strictEqual(state.switchValue, false, "Visual switch remains OFF when blocked");
+  assert.strictEqual(state.showBlockedBanner, true, "Shows 'Notifications are blocked. Tap to open Settings.' banner");
+  assert.strictEqual(state.subTogglesActive, false, "Sub-toggles disabled and greyed out");
+});
+
+test("TEST 13: Profile UI: Master OFF + OS ON -> status OFF, reminders paused, switch OFF, no blocked banner", async () => {
+  const storage = createMockStorage({ [NOTIF_ENABLED_KEY]: "false" });
+  const engine = createMockNotificationEngine({ hasPermission: true });
+
+  const state = await reconcileProfileNotificationState(storage, engine);
+  assert.strictEqual(state.notificationsEnabled, false);
+  assert.strictEqual(state.osPermissionGranted, true);
+  assert.strictEqual(state.displayStatus, "OFF");
+  assert.strictEqual(state.displaySubtext, "All reminders paused");
+  assert.strictEqual(state.switchValue, false);
+  assert.strictEqual(state.showBlockedBanner, false);
+  assert.strictEqual(state.subTogglesActive, false);
+});
+
+test("TEST 14: Profile UI: Master OFF + OS OFF -> status BLOCKED, blocked banner shown", async () => {
+  const storage = createMockStorage({ [NOTIF_ENABLED_KEY]: "false" });
+  const engine = createMockNotificationEngine({ hasPermission: false });
+
+  const state = await reconcileProfileNotificationState(storage, engine);
+  assert.strictEqual(state.notificationsEnabled, false);
+  assert.strictEqual(state.osPermissionGranted, false);
+  assert.strictEqual(state.displayStatus, "BLOCKED");
+  assert.strictEqual(state.showBlockedBanner, true);
+  assert.strictEqual(state.switchValue, false);
+  assert.strictEqual(state.subTogglesActive, false);
+});
+
+test("TEST 15: Permission: Denied with canAskAgain=true returns canAskAgain=true without Settings fallback", async () => {
+  const engine = createMockNotificationEngine({ hasPermission: false, canAskAgain: true });
+
+  const result = await requestNotificationPermissions(engine);
+  assert.strictEqual(result.granted, false);
+  assert.strictEqual(result.canAskAgain, true);
+  assert.strictEqual(result.status, "denied");
+});
+
+test("TEST 16: Permission: Denied with canAskAgain=false returns canAskAgain=false triggering Settings fallback", async () => {
+  const engine = createMockNotificationEngine({ hasPermission: false, canAskAgain: false });
+
+  const result = await requestNotificationPermissions(engine);
+  assert.strictEqual(result.granted, false);
+  assert.strictEqual(result.canAskAgain, false);
+  assert.strictEqual(result.status, "denied");
+
+  // Verify openNotificationSettings opens settings
+  const opened = await openNotificationSettings();
+  assert.strictEqual(opened, true);
+  assert.strictEqual(settingsOpenedCount > 0, true);
+});
+
+test("TEST 17: Channel: isAndroidChannelHealthy returns true when channel is registered with HIGH importance", async () => {
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  await engine.setNotificationChannelAsync("default", { name: "LyfeOS Reminders", importance: 4 });
+
+  const isHealthy = await isAndroidChannelHealthy(engine, "default");
+  assert.strictEqual(isHealthy, true);
+});
+
+test("TEST 18: Channel: isAndroidChannelHealthy returns false when channel importance is NONE (0)", async () => {
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  engine.setChannelImportance("default", 0); // User muted channel in system settings
+
+  const isHealthy = await isAndroidChannelHealthy(engine, "default");
+  assert.strictEqual(isHealthy, false);
+});
+
+test("TEST 19: Channel: hasNotificationPermission returns false when channel is blocked even if OS permission is granted", async () => {
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  engine.setChannelImportance("default", 0);
+
+  const hasPerm = await hasNotificationPermission(engine);
+  assert.strictEqual(hasPerm, false, "Channel mute overrides OS permission");
+
+  const detailed = await getDetailedNotificationPermissions(engine);
+  assert.strictEqual(detailed.granted, false);
+});
+
+test("TEST 20: Channel: Scheduler aborts and cancels alarms when Android channel is blocked", async () => {
+  const storage = createMockStorage({ [NOTIF_ENABLED_KEY]: "true" });
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  engine.setChannelImportance("default", 0); // Blocked channel
+
+  const scheduled = await scheduleDailyNotifications(storage, engine);
+  assert.strictEqual(scheduled.length, 0, "No notifications scheduled on blocked channel");
+  assert.strictEqual(engine.getScheduledNotifications().length, 0);
+  assert.strictEqual(engine.getCancelAllCount() > 0, true, "Cancels existing notifications");
+});
+
+test("TEST 21: Timezone: Initial launch saves current timezone without triggering refresh", async () => {
+  const storage = createMockStorage();
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  const coordinator = createCoordinator(storage, engine);
+
+  const changed = await checkTimezoneChangeAndRefresh(storage, coordinator, "Asia/Kolkata");
+  assert.strictEqual(changed, false, "Initial seeding returns false (no extra refresh)");
+  assert.strictEqual(storage.getRaw(LAST_TIMEZONE_KEY), "Asia/Kolkata", "Saved initial timezone");
+});
+
+test("TEST 22: Timezone: Unchanged timezone does not trigger refresh", async () => {
+  const storage = createMockStorage({ [LAST_TIMEZONE_KEY]: "Asia/Kolkata" });
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  const coordinator = createCoordinator(storage, engine);
+
+  const changed = await checkTimezoneChangeAndRefresh(storage, coordinator, "Asia/Kolkata");
+  assert.strictEqual(changed, false, "No refresh when timezone has not changed");
+  assert.strictEqual(storage.getRaw(LAST_TIMEZONE_KEY), "Asia/Kolkata");
+});
+
+test("TEST 23: Timezone: Changed timezone updates cache and triggers schedule refresh", async () => {
+  const storage = createMockStorage({ [LAST_TIMEZONE_KEY]: "America/New_York", [NOTIF_ENABLED_KEY]: "true" });
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  const coordinator = createCoordinator(storage, engine);
+
+  const changed = await checkTimezoneChangeAndRefresh(storage, coordinator, "Asia/Kolkata");
+  assert.strictEqual(changed, true, "Detects timezone change");
+  assert.strictEqual(storage.getRaw(LAST_TIMEZONE_KEY), "Asia/Kolkata", "Cache updated to new timezone");
+
+  // Wait for debounced coordinator refresh to settle
+  await new Promise((r) => setTimeout(r, 60));
+  assert.strictEqual(engine.getScheduledNotifications().length, MAX_DAILY_NOTIFICATIONS, "Schedule refreshed for new timezone");
+});
+
+test("TEST 24: Timezone: Rapid timezone and foreground triggers are coalesced cleanly", async () => {
+  const storage = createMockStorage({ [LAST_TIMEZONE_KEY]: "UTC", [NOTIF_ENABLED_KEY]: "true" });
+  const engine = createMockNotificationEngine({ hasPermission: true });
+  const coordinator = createCoordinator(storage, engine);
+
+  const p1 = checkTimezoneChangeAndRefresh(storage, coordinator, "Asia/Kolkata");
+  const p2 = coordinator.requestScheduleRefresh({ reason: "app_foreground" });
+  const p3 = coordinator.requestScheduleRefresh({ reason: "app_foreground" });
+
+  await Promise.all([p1, p2, p3]);
+  await new Promise((r) => setTimeout(r, 60));
+
+  assert.strictEqual(engine.getScheduledNotifications().length, MAX_DAILY_NOTIFICATIONS);
+  const uniqueIds = new Set(engine.getScheduledNotifications().map((n) => n.content.data.id));
+  assert.strictEqual(uniqueIds.size, engine.getScheduledNotifications().length, "No duplicate alarms");
+});
+
+test("TEST 25: Inbox: Foreground notification adds unread item with correct category mapping", async () => {
+  const storage = createMockStorage();
+  let notifications = [];
+
+  // 1. Nutrition notification
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "🥗 Lunch Reminder",
+    "Time to recharge!",
+    { id: "meal_lunch", route: "/(tabs)/calories" },
+    "req_1",
+    false,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 1);
+  assert.strictEqual(notifications[0].type, "nutrition");
+  assert.strictEqual(notifications[0].read, false);
+  assert.strictEqual(notifications[0].id, "meal_lunch_2026-09-11");
+
+  // 2. Habit notification
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "🌅 Good Morning!",
+    "Start your day right",
+    { id: "morning_start", route: "/(tabs)/habits" },
+    "req_2",
+    false,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 2);
+  assert.strictEqual(notifications[0].type, "habit");
+
+  // 3. Activity notification
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "🏃 Workout & Movement",
+    "Time for your workout",
+    { id: "activity_evening", route: "/(tabs)/habits" },
+    "req_3",
+    false,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 3);
+  assert.strictEqual(notifications[0].type, "activity");
+
+  // 4. Streak notification
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "🔥 Streak at Risk!",
+    "Protect your streak",
+    { id: "streak_check", route: "/(tabs)/habits" },
+    "req_4",
+    false,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 4);
+  assert.strictEqual(notifications[0].type, "streak");
+});
+
+test("TEST 26: Inbox: Notification tap marks item as read and resolves target route", async () => {
+  const storage = createMockStorage();
+  let notifications = [
+    {
+      id: "meal_lunch_2026-09-11",
+      type: "nutrition",
+      title: "🥗 Lunch Reminder",
+      body: "Time to recharge!",
+      timestamp: Date.now() - 1000,
+      read: false,
+    },
+  ];
+
+  // User taps notification -> markRead: true
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "🥗 Lunch Reminder",
+    "Time to recharge!",
+    { id: "meal_lunch", route: "/(tabs)/calories" },
+    "req_1",
+    true,
+    "2026-09-11"
+  );
+
+  assert.strictEqual(notifications.length, 1, "No duplicate item created on tap");
+  assert.strictEqual(notifications[0].read, true, "Marked as read");
+  assert.strictEqual(notifications[0].id, "meal_lunch_2026-09-11");
+  const stored = JSON.parse(storage.getRaw(NOTIF_STORE_KEY));
+  assert.strictEqual(stored[0].read, true, "Persisted to storage as read");
+});
+
+test("TEST 27: Inbox: Receiving in foreground and subsequently tapping same notification does not duplicate", async () => {
+  const storage = createMockStorage();
+  let notifications = [];
+
+  // First delivered in foreground
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "💧 Hydration Check",
+    "Stay hydrated!",
+    { id: "water_midday", route: "/(tabs)/calories" },
+    "req_water_1",
+    false,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 1);
+  assert.strictEqual(notifications[0].read, false);
+
+  // Later user taps the notification banner in Android tray
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "💧 Hydration Check",
+    "Stay hydrated!",
+    { id: "water_midday", route: "/(tabs)/calories" },
+    "req_water_1",
+    true,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 1, "Must not create a duplicate row");
+  assert.strictEqual(notifications[0].read, true, "Updated in place to read");
+});
+
+test("TEST 28: Inbox: Notification with missing title/body or unknown category handled safely", async () => {
+  const storage = createMockStorage();
+  let notifications = [];
+
+  // Case A: Missing both title and body -> safely ignored
+  notifications = await upsertInboxNotification(storage, notifications, null, null, null, "req_empty");
+  assert.strictEqual(notifications.length, 0);
+
+  // Case B: Unknown category -> defaults to "info"
+  notifications = await upsertInboxNotification(
+    storage,
+    notifications,
+    "System Update",
+    "Welcome to LyfeOS 2.0",
+    { id: "system_update" },
+    "req_sys",
+    false,
+    "2026-09-11"
+  );
+  assert.strictEqual(notifications.length, 1);
+  assert.strictEqual(notifications[0].type, "info");
+});
+
+test("TEST 29: Inbox: Bounded to 30 items while preserving welcome notification", async () => {
+  const storage = createMockStorage();
+  let notifications = [
+    {
+      id: "welcome_1",
+      type: "info",
+      title: "Welcome to LyfeOS!",
+      body: "Start tracking today",
+      timestamp: Date.now() - 100000,
+      read: true,
+    },
+  ];
+
+  // Ingest 35 notifications
+  for (let i = 1; i <= 35; i++) {
+    notifications = await upsertInboxNotification(
+      storage,
+      notifications,
+      `Reminder ${i}`,
+      `Body ${i}`,
+      { id: `test_item_${i}` },
+      `req_${i}`,
+      false,
+      "2026-09-11"
+    );
+  }
+
+  assert.strictEqual(notifications.length, 30, "Strictly capped at 30 items");
+  const stored = JSON.parse(storage.getRaw(NOTIF_STORE_KEY));
+  assert.strictEqual(stored.length, 30);
 });
