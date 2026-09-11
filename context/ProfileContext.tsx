@@ -8,8 +8,15 @@ import React, {
 } from "react";
 
 import { getStoredJson, getStoredString, setStoredJson, setStoredString } from "@/utils/storage";
-import { fetchProfileFromCloud, syncProfileToCloud } from "@/utils/cloudSync";
+import {
+  fetchProfileFromCloud,
+  syncProfileToCloud,
+  mergeProfileData,
+  ProfileSyncData,
+  ProfileSectionTimestamps,
+} from "@/utils/cloudSync";
 import { logError } from "@/utils/analytics";
+import { requestScheduleRefresh } from "@/utils/notifications";
 import { useAuth } from "./AuthContext";
 
 export interface HealthProfile {
@@ -60,6 +67,7 @@ const KEY_ACT_G    = "@lyfeos_profile_actgoal_v1";
 const KEY_HEALTH   = "@lyfeos_profile_health_v1";
 const KEY_REMIND   = "@lyfeos_profile_reminders_v1";
 const KEY_PREFS    = "@lyfeos_profile_prefs_v1";
+const KEY_META     = "@lyfeos_profile_meta_v1";
 
 const DEFAULT_HEALTH: HealthProfile = { age: "", sex: "", height: "", weight: "", activityLevel: "", goal: "" };
 const DEFAULT_REMIND: Reminders = { morning: false, meal: false, water: false, evening: false };
@@ -82,7 +90,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [name, join, hg, ag, health, remind, prefs] = await Promise.all([
+      const [name, join, hg, ag, health, remind, prefs, meta] = await Promise.all([
         getStoredString(KEY_NAME),
         getStoredString(KEY_JOIN),
         getStoredString(KEY_HABIT_G),
@@ -90,15 +98,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         getStoredJson<HealthProfile>(KEY_HEALTH, DEFAULT_HEALTH),
         getStoredJson<Reminders>(KEY_REMIND, DEFAULT_REMIND),
         getStoredJson<Partial<Preferences>>(KEY_PREFS, {}),
+        getStoredJson<{ sectionTimestamps?: ProfileSectionTimestamps }>(KEY_META, {}),
       ]);
       setUserNameState(name || "LyfeOS User");
       // Bug 15 fix: always generate+save joinDate on first launch; never leave it as empty
-      if (join) {
-        setJoinDate(join);
+      let currentJoin = join;
+      if (currentJoin) {
+        setJoinDate(currentJoin);
       } else {
-        const now = new Date().toISOString();
-        setJoinDate(now);
-        await setStoredString(KEY_JOIN, now);
+        currentJoin = new Date().toISOString();
+        setJoinDate(currentJoin);
+        await setStoredString(KEY_JOIN, currentJoin);
       }
       setHabitGoalState(hg ? parseInt(hg) || 5 : 5);
       setActivityGoalState(ag ? parseInt(ag) || 30 : 30);
@@ -106,106 +116,161 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setRemindersState(remind);
       // Merge stored prefs with defaults to handle new fields (habitEffectsEnabled)
       setPreferencesState({ ...DEFAULT_PREFS, ...prefs });
-      setIsProfileLoaded(true);
 
       // ── Cloud restore on login for authenticated non-guest users ──────
       if (user && !user.isAnonymous) {
         try {
           const cloudProfile = await fetchProfileFromCloud(user.uid);
           if (cloudProfile) {
-            if (cloudProfile.userName && (!name || name === "LyfeOS User")) {
-              setUserNameState(cloudProfile.userName);
-              await setStoredString(KEY_NAME, cloudProfile.userName);
-            }
-            if (cloudProfile.joinDate) {
-              setJoinDate(cloudProfile.joinDate);
-              await setStoredString(KEY_JOIN, cloudProfile.joinDate);
-            }
-            if (cloudProfile.habitGoal !== undefined && !hg) {
-              setHabitGoalState(cloudProfile.habitGoal);
-              await setStoredString(KEY_HABIT_G, String(cloudProfile.habitGoal));
-            }
-            if (cloudProfile.activityGoal !== undefined && !ag) {
-              setActivityGoalState(cloudProfile.activityGoal);
-              await setStoredString(KEY_ACT_G, String(cloudProfile.activityGoal));
-            }
-            // If local health profile is default/empty, restore from cloud
-            const isLocalHealthEmpty = !health.age && !health.weight && !health.height && !health.activityLevel;
-            if (cloudProfile.healthProfile && isLocalHealthEmpty) {
-              setHealthProfileState(cloudProfile.healthProfile);
-              await setStoredJson(KEY_HEALTH, cloudProfile.healthProfile);
-            }
-            // If local reminders are default, restore from cloud
-            const isLocalRemindEmpty = !remind.morning && !remind.meal && !remind.water && !remind.evening;
-            if (cloudProfile.reminders && isLocalRemindEmpty) {
-              setRemindersState(cloudProfile.reminders);
-              await setStoredJson(KEY_REMIND, cloudProfile.reminders);
-            }
-            // Restore preferences if present
-            if (cloudProfile.preferences) {
-              const merged = { ...DEFAULT_PREFS, ...prefs, ...cloudProfile.preferences };
-              setPreferencesState(merged);
-              await setStoredJson(KEY_PREFS, merged);
-            }
+            const localProfile: ProfileSyncData = {
+              userName: name || "LyfeOS User",
+              joinDate: currentJoin,
+              habitGoal: hg ? parseInt(hg) || 5 : 5,
+              activityGoal: ag ? parseInt(ag) || 30 : 30,
+              healthProfile: health,
+              reminders: remind,
+              preferences: { ...DEFAULT_PREFS, ...prefs },
+              sectionTimestamps: meta?.sectionTimestamps || {},
+            };
+            const merged = mergeProfileData(localProfile, cloudProfile);
+
+            setUserNameState(merged.userName);
+            setJoinDate(merged.joinDate);
+            setHabitGoalState(merged.habitGoal);
+            setActivityGoalState(merged.activityGoal);
+            setHealthProfileState(merged.healthProfile);
+            setRemindersState(merged.reminders);
+            setPreferencesState(merged.preferences);
+
+            await Promise.all([
+              setStoredString(KEY_NAME, merged.userName),
+              setStoredString(KEY_JOIN, merged.joinDate),
+              setStoredString(KEY_HABIT_G, String(merged.habitGoal)),
+              setStoredString(KEY_ACT_G, String(merged.activityGoal)),
+              setStoredJson(KEY_HEALTH, merged.healthProfile),
+              setStoredJson(KEY_REMIND, merged.reminders),
+              setStoredJson(KEY_PREFS, merged.preferences),
+              setStoredJson(KEY_META, { sectionTimestamps: merged.sectionTimestamps }),
+            ]);
+
+            // Synchronize notification schedule with restored cloud preferences
+            await requestScheduleRefresh({
+              reason: "cloud_profile_restored",
+              userId: user.uid,
+              reminders: merged.reminders,
+            });
           }
         } catch (e) {
           logError(e as Error, "fetchProfileFromCloud_onMount");
         }
       }
+      setIsProfileLoaded(true);
     })();
   }, [user]);
 
+  const updateSectionTimestamp = async (section: keyof ProfileSectionTimestamps, ts: number) => {
+    try {
+      const meta = await getStoredJson<{ sectionTimestamps?: ProfileSectionTimestamps }>(KEY_META, {});
+      const nextTimestamps = { ...(meta?.sectionTimestamps || {}), [section]: ts };
+      await setStoredJson(KEY_META, { sectionTimestamps: nextTimestamps });
+    } catch (e) {
+      logError(e as Error, "updateSectionTimestamp");
+    }
+  };
+
   const setUserName = useCallback(async (name: string) => {
+    const now = Date.now();
     setUserNameState(name);
-    await setStoredString(KEY_NAME, name);
+    await Promise.all([
+      setStoredString(KEY_NAME, name),
+      updateSectionTimestamp("userName", now),
+    ]);
     const currentUser = userRef.current;
     if (currentUser && !currentUser.isAnonymous) {
-      syncProfileToCloud(currentUser.uid, { userName: name }).catch((e) => logError(e, "sync_userName"));
+      syncProfileToCloud(currentUser.uid, {
+        userName: name,
+        userNameUpdatedAt: now,
+      }).catch((e) => logError(e, "sync_userName"));
     }
   }, []);
 
   const setHabitGoal = useCallback(async (v: number) => {
+    const now = Date.now();
     setHabitGoalState(v);
-    await setStoredString(KEY_HABIT_G, String(v));
+    await Promise.all([
+      setStoredString(KEY_HABIT_G, String(v)),
+      updateSectionTimestamp("habitGoal", now),
+    ]);
     const currentUser = userRef.current;
     if (currentUser && !currentUser.isAnonymous) {
-      syncProfileToCloud(currentUser.uid, { habitGoal: v }).catch((e) => logError(e, "sync_habitGoal"));
+      syncProfileToCloud(currentUser.uid, {
+        habitGoal: v,
+        habitGoalUpdatedAt: now,
+      }).catch((e) => logError(e, "sync_habitGoal"));
     }
   }, []);
 
   const setActivityGoal = useCallback(async (v: number) => {
+    const now = Date.now();
     setActivityGoalState(v);
-    await setStoredString(KEY_ACT_G, String(v));
+    await Promise.all([
+      setStoredString(KEY_ACT_G, String(v)),
+      updateSectionTimestamp("activityGoal", now),
+    ]);
     const currentUser = userRef.current;
     if (currentUser && !currentUser.isAnonymous) {
-      syncProfileToCloud(currentUser.uid, { activityGoal: v }).catch((e) => logError(e, "sync_actGoal"));
+      syncProfileToCloud(currentUser.uid, {
+        activityGoal: v,
+        activityGoalUpdatedAt: now,
+      }).catch((e) => logError(e, "sync_actGoal"));
     }
   }, []);
 
   const setHealthProfile = useCallback(async (p: HealthProfile) => {
+    const now = Date.now();
     setHealthProfileState(p);
-    await setStoredJson(KEY_HEALTH, p);
+    await Promise.all([
+      setStoredJson(KEY_HEALTH, p),
+      updateSectionTimestamp("healthProfile", now),
+    ]);
     const currentUser = userRef.current;
     if (currentUser && !currentUser.isAnonymous) {
-      syncProfileToCloud(currentUser.uid, { healthProfile: p }).catch((e) => logError(e, "sync_healthProfile"));
+      syncProfileToCloud(currentUser.uid, {
+        healthProfile: p,
+        healthProfileUpdatedAt: now,
+      }).catch((e) => logError(e, "sync_healthProfile"));
     }
   }, []);
 
   const setReminders = useCallback(async (r: Reminders) => {
+    const now = Date.now();
     setRemindersState(r);
-    await setStoredJson(KEY_REMIND, r);
+    await Promise.all([
+      setStoredJson(KEY_REMIND, r),
+      updateSectionTimestamp("reminders", now),
+    ]);
     const currentUser = userRef.current;
     if (currentUser && !currentUser.isAnonymous) {
-      syncProfileToCloud(currentUser.uid, { reminders: r }).catch((e) => logError(e, "sync_reminders"));
+      syncProfileToCloud(currentUser.uid, {
+        reminders: r,
+        remindersUpdatedAt: now,
+      }).catch((e) => logError(e, "sync_reminders"));
     }
   }, []);
 
   const setPreferences = useCallback(async (p: Preferences) => {
+    const now = Date.now();
     setPreferencesState(p);
-    await setStoredJson(KEY_PREFS, p);
+    await Promise.all([
+      setStoredJson(KEY_PREFS, p),
+      updateSectionTimestamp("preferences", now),
+    ]);
     const currentUser = userRef.current;
     if (currentUser && !currentUser.isAnonymous) {
-      syncProfileToCloud(currentUser.uid, { preferences: p }).catch((e) => logError(e, "sync_prefs"));
+      syncProfileToCloud(currentUser.uid, {
+        preferences: p,
+        preferencesUpdatedAt: now,
+      }).catch((e) => logError(e, "sync_prefs"));
     }
   }, []);
 

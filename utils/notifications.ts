@@ -23,6 +23,59 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// ── Master Notification Toggle Storage ───────────────────────────────────────
+export const NOTIF_ENABLED_KEY = "@lyfeos_notif_enabled_v1";
+export const LEGACY_NOTIF_ENABLED_KEY = "notificationsEnabled";
+
+/**
+ * Reads the master notification toggle.
+ * Performs a one-time migration from the legacy "notificationsEnabled" key if present.
+ * Defaults to true for fresh installations if neither key exists.
+ */
+export const getMasterNotificationsEnabled = async (): Promise<boolean> => {
+  try {
+    const canonical = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
+    if (canonical !== null) {
+      return canonical === "true";
+    }
+
+    // Check legacy key for migration
+    const legacy = await AsyncStorage.getItem(LEGACY_NOTIF_ENABLED_KEY);
+    if (legacy !== null) {
+      const isEnabled = legacy === "true";
+      // Migrate to canonical key
+      await AsyncStorage.setItem(NOTIF_ENABLED_KEY, String(isEnabled));
+      return isEnabled;
+    }
+
+    // Default to true for fresh installations (user has not explicitly disabled)
+    return true;
+  } catch (e) {
+    logError(e as Error, "getMasterNotificationsEnabled");
+    return true;
+  }
+};
+
+/**
+ * Updates the master notification toggle.
+ * Writes to both the canonical key and the legacy key for backward compatibility.
+ * When set to false, immediately cancels all scheduled OS notifications.
+ */
+export const setMasterNotificationsEnabled = async (enabled: boolean): Promise<void> => {
+  try {
+    await Promise.all([
+      AsyncStorage.setItem(NOTIF_ENABLED_KEY, String(enabled)),
+      AsyncStorage.setItem(LEGACY_NOTIF_ENABLED_KEY, String(enabled)),
+    ]);
+    if (!enabled) {
+      await cancelAllNotifications();
+      console.log("[Notifications] master toggle disabled — all notifications cancelled");
+    }
+  } catch (e) {
+    logError(e as Error, "setMasterNotificationsEnabled");
+  }
+};
+
 // ── Permissions ───────────────────────────────────────────────────────────────
 
 /**
@@ -186,7 +239,7 @@ export function buildSmartNotificationSchedule(
   if (reminders.morning) {
     let morningBody = "Start your day right — set your intentions and track your goals.";
     if (pendingHabits.length > 0 || pendingTodos.length > 0) {
-      morningBody = `You have ${pendingHabits.length} habit${pendingHabits.length === 1 ? "" : "s"}${pendingTodos.length > 0 ? ` and ${pendingTodos.length} task${pendingTodos.length === 1 ? "" : "s"}` : ""} scheduled today. Let's make it count!`;
+      morningBody = "You have scheduled habits and tasks today. Let's make it count!";
     } else if (habitsToday.length > 0 && pendingHabits.length === 0) {
       morningBody = "Great start! You've already completed today's morning habits.";
     }
@@ -203,8 +256,8 @@ export function buildSmartNotificationSchedule(
     });
   }
 
-  // 2. Breakfast Reminder (08:30) - Suppressed if already logged
-  if (reminders.meal && !breakfastLogged) {
+  // 2. Breakfast Reminder (08:30)
+  if (reminders.meal) {
     candidates.push({
       id: "meal_breakfast",
       title: "🥗 Breakfast Time",
@@ -217,15 +270,12 @@ export function buildSmartNotificationSchedule(
     });
   }
 
-  // 3. Mid-Morning Hydration & Habit Reminder (11:00) - Suppressed if water goal already met
-  if (reminders.water && !waterGoalMet) {
-    const waterBody = currentGlasses > 0
-      ? `You're at ${currentGlasses}/${targetWater} glasses. Take a quick water break to stay energized!`
-      : "Time for a fresh glass of water to keep your hydration on track.";
+  // 3. Mid-Morning Hydration & Habit Reminder (11:00)
+  if (reminders.water) {
     candidates.push({
       id: "water_midday",
       title: "💧 Hydration Check",
-      body: waterBody,
+      body: "Stay hydrated throughout your day. Take a quick water break to recharge!",
       hour: 11,
       minute: 0,
       toggle: "water",
@@ -234,8 +284,8 @@ export function buildSmartNotificationSchedule(
     });
   }
 
-  // 4. Lunch Reminder (13:00) - Suppressed if already logged
-  if (reminders.meal && !lunchLogged) {
+  // 4. Lunch Reminder (13:00)
+  if (reminders.meal) {
     candidates.push({
       id: "meal_lunch",
       title: "🍱 Lunch Reminder",
@@ -248,15 +298,12 @@ export function buildSmartNotificationSchedule(
     });
   }
 
-  // 5. Evening Activity / Sports Reminder (17:30) - Suppressed if activity goal met
-  if (reminders.evening && !activityGoalMet) {
-    const actBody = totalActivityMins > 0
-      ? `You've logged ${totalActivityMins} mins. ${targetActivityMins - totalActivityMins} mins left to hit your goal!`
-      : "Time for your workout, sports session, or a refreshing evening walk!";
+  // 5. Evening Activity / Sports Reminder (17:30)
+  if (reminders.evening) {
     candidates.push({
       id: "activity_evening",
       title: "🏃 Workout & Movement",
-      body: actBody,
+      body: "Time for your workout, sports session, or a refreshing evening walk!",
       hour: 17,
       minute: 30,
       toggle: "evening",
@@ -268,15 +315,14 @@ export function buildSmartNotificationSchedule(
   // 6. Evening Task & Habit Check + Streak Guard (19:30)
   if (reminders.evening) {
     let eveningTitle = "📋 Evening Check-In";
-    let eveningBody = "Review your progress and wrap up your daily goals.";
+    let eveningBody = "Review your progress and wrap up your daily goals before midnight.";
 
     if (habitsWithStreak.length > 0) {
-      const topStreak = habitsWithStreak[0];
-      eveningTitle = `🔥 Streak at Risk!`;
-      eveningBody = `Protect your ${topStreak.streak}-day streak on "${topStreak.title}". Complete it before midnight!`;
+      eveningTitle = "🔥 Streak at Risk!";
+      eveningBody = "Protect your active habit streaks — complete your daily habits before midnight!";
     } else if (pendingHabits.length > 0 || pendingTodos.length > 0) {
       eveningTitle = "📋 Finish Strong Today";
-      eveningBody = `You have ${pendingHabits.length} habit${pendingHabits.length === 1 ? "" : "s"}${pendingTodos.length > 0 ? ` and ${pendingTodos.length} task${pendingTodos.length === 1 ? "" : "s"}` : ""} left to complete.`;
+      eveningBody = "You have scheduled habits and tasks left to complete today. Let's finish strong!";
     } else if (habitsToday.length > 0) {
       eveningTitle = "🌟 All Habits & Tasks Done!";
       eveningBody = "You've crushed all your scheduled habits and tasks today. Great work!";
@@ -294,8 +340,8 @@ export function buildSmartNotificationSchedule(
     });
   }
 
-  // 7. Dinner Reminder (20:00) - Suppressed if already logged
-  if (reminders.meal && !dinnerLogged) {
+  // 7. Dinner Reminder (20:00)
+  if (reminders.meal) {
     candidates.push({
       id: "meal_dinner",
       title: "🍽️ Dinner Time",
@@ -369,13 +415,13 @@ async function loadStoredNotificationContext(): Promise<SmartNotificationContext
 
     return {
       userName: userName || undefined,
-      habits,
-      habitLogs,
+      habits: (habits || []).filter((h: any) => !h.deletedAt),
+      habitLogs: (habitLogs || []).filter((l: any) => !l.deletedAt),
       todos: (todos || []).filter((t: any) => !t.deletedAt),
-      foodItems,
-      waterLogs,
+      foodItems: (foodItems || []).filter((f: any) => !f.deletedAt),
+      waterLogs: (waterLogs || []).filter((w: any) => !w.deletedAt),
       dailyGoal,
-      activityLogs,
+      activityLogs: (activityLogs || []).filter((l: any) => !l.deletedAt),
       activityGoalMinutes: actGoalStr ? parseInt(actGoalStr) || 30 : 30,
     };
   } catch (e) {
@@ -385,32 +431,115 @@ async function loadStoredNotificationContext(): Promise<SmartNotificationContext
 
 // ── Main Scheduler ────────────────────────────────────────────────────────────
 
+export interface ScheduleRefreshOptions {
+  reason?: string;
+  userId?: string;
+  reminders?: ReminderToggles;
+  context?: SmartNotificationContext;
+}
+
+let activeSchedulingPromise: Promise<void> | null = null;
+let pendingRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
+let pendingRefreshOptions: ScheduleRefreshOptions | undefined;
+let pendingResolvers: Array<() => void> = [];
+
+/**
+ * Centralized, debounced notification refresh coordinator.
+ * Coalesces rapid calls (e.g. data updates, tab switches, foregrounding) into a single execution.
+ */
+export const requestScheduleRefresh = (options?: ScheduleRefreshOptions): Promise<void> => {
+  pendingRefreshOptions = { ...pendingRefreshOptions, ...options };
+
+  return new Promise((resolve) => {
+    pendingResolvers.push(resolve);
+
+    if (pendingRefreshTimeout) {
+      clearTimeout(pendingRefreshTimeout);
+    }
+
+    pendingRefreshTimeout = setTimeout(async () => {
+      pendingRefreshTimeout = null;
+      const opts = pendingRefreshOptions;
+      pendingRefreshOptions = undefined;
+      const resolvers = pendingResolvers;
+      pendingResolvers = [];
+
+      try {
+        if (activeSchedulingPromise) {
+          await activeSchedulingPromise;
+        }
+        activeSchedulingPromise = scheduleDailyNotifications(
+          opts?.reminders,
+          opts?.context,
+          opts?.userId,
+          opts?.reason
+        );
+        await activeSchedulingPromise;
+      } finally {
+        activeSchedulingPromise = null;
+        resolvers.forEach((r) => r());
+      }
+    }, 400);
+  });
+};
+
 export const scheduleDailyNotifications = async (
   reminders?: ReminderToggles,
-  context?: SmartNotificationContext
+  context?: SmartNotificationContext,
+  userId?: string,
+  reason?: string
 ): Promise<void> => {
   try {
     if (Platform.OS === "web") return;
 
-    // Check if master notifications toggle is explicitly disabled
-    const enabledRaw = await AsyncStorage.getItem("@lyfeos_notif_enabled_v1");
-    if (enabledRaw === "false") {
+    // 1. Verify master notification toggle
+    const isMasterEnabled = await getMasterNotificationsEnabled();
+    if (!isMasterEnabled) {
+      console.log("[Notifications] master toggle disabled — cancelling schedule");
       await cancelAllNotifications();
       return;
     }
 
-    const r: ReminderToggles = reminders ?? {
-      morning: true,
-      meal: true,
-      water: true,
-      evening: true,
-    };
+    // 2. Verify actual OS notification permission
+    const hasPermission = await hasNotificationPermission();
+    if (!hasPermission) {
+      console.log("[Notifications] permission unavailable — cancelling schedule");
+      await cancelAllNotifications();
+      return;
+    }
 
+    // Safe diagnostic logging
+    if (userId) {
+      const safeId = userId.length > 8 ? `${userId.slice(0, 4)}...${userId.slice(-4)}` : userId;
+      console.log(`[Notifications] scheduling for user ${safeId} (${reason || "standard"})`);
+    } else if (reason) {
+      console.log(`[Notifications] scheduling (${reason})`);
+    }
+
+    // 3. Read current reminder preferences
+    let r: ReminderToggles;
+    if (reminders) {
+      r = reminders;
+    } else {
+      const raw = await AsyncStorage.getItem("@lyfeos_profile_reminders_v1");
+      r = raw
+        ? JSON.parse(raw)
+        : {
+            morning: true,
+            meal: true,
+            water: true,
+            evening: true,
+          };
+    }
+
+    // 4. Build current notification schedule
     const ctx = context ?? (await loadStoredNotificationContext());
     const scheduledList = buildSmartNotificationSchedule(r, ctx);
 
+    // 5. Cancel obsolete scheduled notifications
     await cancelAllNotifications();
 
+    // 6. Ensure Android channel is registered
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "LyfeOS Reminders",
@@ -420,6 +549,7 @@ export const scheduleDailyNotifications = async (
       });
     }
 
+    // 7. Schedule current valid notifications with explicit channelId
     for (const notif of scheduledList) {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -432,12 +562,15 @@ export const scheduleDailyNotifications = async (
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: notif.hour,
           minute: notif.minute,
+          channelId: "default",
         },
       });
     }
 
-    // Schedule or re-register Rate LyfeOS reminder if user is eligible
+    // 8. Schedule or re-register Rate LyfeOS reminder if user is eligible
     await scheduleRateReminderIfEligible(ctx);
+
+    console.log(`[Notifications] schedule refreshed (${scheduledList.length} items)`);
   } catch (e) {
     logError(e as Error, "scheduleDailyNotifications");
   }

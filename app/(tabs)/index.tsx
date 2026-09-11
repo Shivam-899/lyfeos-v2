@@ -7,7 +7,8 @@ import { AD_UNIT_IDS, showInterstitialAd } from "@/utils/ads";
 import {
   hasNotificationPermission,
   requestNotificationPermissions,
-  scheduleDailyNotifications,
+  requestScheduleRefresh,
+  getMasterNotificationsEnabled,
 } from "@/utils/notifications";
 import React, {
   useCallback,
@@ -17,6 +18,7 @@ import React, {
   useState,
 } from "react";
 import {
+  AppState,
   Dimensions,
   FlatList,
   Modal,
@@ -34,6 +36,7 @@ import Svg, { Circle } from "react-native-svg";
 import { CircularProgress } from "@/components/CircularProgress";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
 import { useActivity } from "@/context/ActivityContext";
+import { useAuth } from "@/context/AuthContext";
 import { useCalories } from "@/context/CaloriesContext";
 import { HABIT_COLORS, useHabits } from "@/context/HabitsContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -795,6 +798,7 @@ export default function HomeScreen() {
   const { getDailyActivityCalories, getDailyActivityMinutes } = useActivity();
   // Change 1 & 4: pull userName, reminders, joinDate from profile
   const { userName, reminders, joinDate, isProfileLoaded } = useProfile();
+  const { user, isGuest } = useAuth();
 
   // State
   const [fabOpen, setFabOpen] = useState(false);
@@ -945,28 +949,37 @@ export default function HomeScreen() {
 
     const initializeNotifications = async () => {
       try {
-        // Step 1: Check actual OS notification permission status (source of truth)
+        // Step 1: Check master notification toggle first
+        const isMasterEnabled = await getMasterNotificationsEnabled();
+        if (!isMasterEnabled) {
+          console.log("[Notifications] master toggle disabled — skipping home initialization");
+          return;
+        }
+
+        // Step 2: Check actual OS notification permission status (source of truth)
         const isGranted = await hasNotificationPermission();
         if (cancelled) return;
 
         if (isGranted) {
           // Permission is already granted at device level:
-          // Never show the in-app permission prompt
           setNotifPermSheetOpen(false);
-
-          // Clean up any stale prompt-asked key since permission is already active
           await AsyncStorage.removeItem(NOTIF_ASKED_KEY).catch(() => {});
 
-          // Continue normal notification initialization silently
-          const raw = await AsyncStorage.getItem("@lyfeos_profile_reminders_v1");
-          const reminders = raw
-            ? JSON.parse(raw)
-            : { morning: true, meal: true, water: true, evening: true };
-          await scheduleDailyNotifications(reminders);
+          // If authenticated non-guest user and profile is not yet loaded,
+          // wait for ProfileContext cloud restore rather than scheduling default reminders
+          if (user && !isGuest && !isProfileLoaded) {
+            console.log("[Notifications] waiting for authenticated profile before scheduling");
+            return;
+          }
+
+          await requestScheduleRefresh({
+            reason: user && !isGuest ? "home_mount_auth" : "home_mount_guest",
+            userId: user?.uid,
+          });
           return;
         }
 
-        // Step 2: Permission is NOT granted at OS level:
+        // Step 3: Permission is NOT granted at OS level:
         // Follow existing notification permission onboarding flow
         const asked = await AsyncStorage.getItem(NOTIF_ASKED_KEY);
         if (!asked && !cancelled) {
@@ -987,9 +1000,9 @@ export default function HomeScreen() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [user, isGuest, isProfileLoaded]);
 
-  // ── Change 4: Handle push notification tap → navigate to relevant screen ──
+  // ── Handle push notification tap → navigate to relevant screen ───────────
   useEffect(() => {
     if (Platform.OS === "web") return;
     let sub: { remove: () => void } | null = null;
@@ -1009,13 +1022,29 @@ export default function HomeScreen() {
     };
   }, []);
 
+  // ── Refresh notification schedule when app returns to foreground ───────────
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        requestScheduleRefresh({
+          reason: "app_foreground",
+          userId: user?.uid,
+        });
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [user?.uid]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   async function handleAllowNotifications() {
     setNotifPermSheetOpen(false);
     try {
       if (Platform.OS === "web") return;
 
-      // Fix #3: For new users, default all four sub-toggles to ON so the
+      // For new users, default all four sub-toggles to ON so the
       // reminders promised by the priming modal are actually scheduled.
       // Only write the default if the key is absent — never overwrite an
       // existing user's saved preferences.
@@ -1033,7 +1062,11 @@ export default function HomeScreen() {
       if (granted) {
         // OS permission granted: ensure prompt key is cleared and schedule reminders
         await AsyncStorage.removeItem(NOTIF_ASKED_KEY).catch(() => {});
-        await scheduleDailyNotifications(remindersToSchedule);
+        await requestScheduleRefresh({
+          reason: "permission_granted",
+          reminders: remindersToSchedule,
+          userId: user?.uid,
+        });
 
         // Add in-app notification confirming push is enabled
         const notif: NotifItem = {

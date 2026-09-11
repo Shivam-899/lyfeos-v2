@@ -8,7 +8,12 @@ import * as WebBrowser from "expo-web-browser";
 import * as StoreReview from "expo-store-review";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { logScreen, logError } from "@/utils/analytics";
-import { cancelAllNotifications, scheduleDailyNotifications } from "@/utils/notifications";
+import {
+  cancelAllNotifications,
+  getMasterNotificationsEnabled,
+  setMasterNotificationsEnabled,
+  requestScheduleRefresh,
+} from "@/utils/notifications";
 import Svg, { Circle } from "react-native-svg";
 import { AD_UNIT_IDS } from "@/utils/ads";
 import {
@@ -463,16 +468,15 @@ export default function ProfileScreen() {
     }
   }, [migrationDone, user, isGuest]);
 
-  // ── Notifications enabled state (persisted) ────────────────────────────────
-  const NOTIF_ENABLED_KEY = "notificationsEnabled";
+  // ── Notifications enabled state (persisted via canonical key) ──────────────
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Screen tracking + load notification preference on mount
   useEffect(() => {
     logScreen("Profile");
-    AsyncStorage.getItem(NOTIF_ENABLED_KEY)
+    getMasterNotificationsEnabled()
       .then((val) => {
-        if (val !== null) setNotificationsEnabled(val === "true");
+        setNotificationsEnabled(val);
       })
       .catch(() => { });
   }, []);
@@ -481,27 +485,29 @@ export default function ProfileScreen() {
   const handleNotificationsToggle = async (enabled: boolean) => {
     setNotificationsEnabled(enabled);
     try {
-      await AsyncStorage.setItem(NOTIF_ENABLED_KEY, String(enabled));
+      await setMasterNotificationsEnabled(enabled);
       if (enabled) {
-        // Fix #3: pass current sub-toggle state so only the enabled
-        // notification types are scheduled
-        await scheduleDailyNotifications(reminders);
-      } else {
-        await cancelAllNotifications();
+        await requestScheduleRefresh({
+          reason: "profile_master_toggle_on",
+          reminders,
+        });
       }
     } catch (e) {
       logError(e as Error, "handleNotificationsToggle");
     }
   };
 
-  // Fix #3: Handler for individual reminder sub-toggles.
+  // Handler for individual reminder sub-toggles.
   // Persists the change and immediately re-schedules so it takes effect
   // without requiring a master-toggle cycle or app restart.
   const handleReminderToggle = async (key: keyof typeof reminders, value: boolean) => {
     const updated = { ...reminders, [key]: value };
     await setReminders(updated);
     if (notificationsEnabled) {
-      await scheduleDailyNotifications(updated);
+      await requestScheduleRefresh({
+        reason: "profile_reminder_toggle",
+        reminders: updated,
+      });
     }
   };
 
