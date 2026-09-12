@@ -197,9 +197,9 @@ users/                         (Collection)
 | **Nutrition Logs** | `id`, `name`, `calories`, `carbs`, `protein`, `fat`, `fiber`, `sugar`, `sodium`, `meal`, `date`, `portionSize`, micronutrients (potassium, calcium, iron, vitamins) | AsyncStorage (`@lyfeos_food_v2`) + Firestore (`users/{uid}/data/calories`) | `context/CaloriesContext.tsx` -> `addFoodItem()`, `deleteFoodItem()`, `utils/cloudSync.ts:48` |
 | **Water Intake** | `id`, `date`, `glasses` | AsyncStorage (`@lyfeos_water_v2`) + Firestore (`users/{uid}/data/calories`) | `context/CaloriesContext.tsx` -> `logWater()`, `utils/cloudSync.ts:48` |
 | **Nutrition Daily Goals** | `calories`, `carbs`, `protein`, `fat`, `water` | **Local AsyncStorage Only** (`@lyfeos_goal_v2`, `@lyfeos_goals_configured_v1`) | `context/CaloriesContext.tsx` -> `setDailyGoal()` |
-| **Sports & Activity Logs** | `id`, `date`, `sport`, `emoji`, `duration`, `intensity`, `caloriesBurned`, `hydrationNeededMl`, `hydrationGlasses`, `proteinNeededG`, `carbsNeededG`, `recoveryTimeHours`, `heartRateZone`, `healthBenefits`, `tips`, `postActivityMeal`, `sportCategory`, `steps` | **Local AsyncStorage Only** (`@lyfeos_activity_logs_v1`) | `context/ActivityContext.tsx` -> `addActivityLog()`, `deleteActivityLog()` |
-| **Daily Steps Logs** | `date`, `steps`, `distanceKm`, `caloriesBurned`, `activeMinutes` | **Local AsyncStorage Only** (`@lyfeos_steps_v1`) | `context/ActivityContext.tsx` -> `logSteps()`, `getStepsForDate()` |
-| **Activity Banner & Insights** | `sport`, `emoji`, `meal`, `loggedAt`, `text`, `generatedAt` | **Local AsyncStorage Only** (`@lyfeos_activity_banner_v1`, `@lyfeos_coach_insight_v1`) | `context/ActivityContext.tsx` -> `setPostActivityBanner()`, `setWeeklyCoachInsight()` |
+| **Sports & Activity Logs** | `id`, `date`, `sport`, `emoji`, `duration`, `intensity`, `caloriesBurned`, `hydrationNeededMl`, `hydrationGlasses`, `proteinNeededG`, `carbsNeededG`, `recoveryTimeHours`, `heartRateZone`, `healthBenefits`, `tips`, `postActivityMeal`, `sportCategory`, `steps`, `updatedAt`, `deletedAt` | AsyncStorage (`@lyfeos_activity_logs_v1`) + Firestore (`users/{uid}/data/activity`) | `context/ActivityContext.tsx` -> `addActivityLog()`, `deleteActivityLog()`, `utils/cloudSync.ts:93` |
+| **Daily Steps Logs** | `date`, `steps`, `distanceKm`, `caloriesBurned`, `activeMinutes`, `updatedAt`, `deletedAt` | AsyncStorage (`@lyfeos_steps_v1`) + Firestore (`users/{uid}/data/activity`) | `context/ActivityContext.tsx` -> `logSteps()`, `getStepsForDate()`, `utils/cloudSync.ts:93` |
+| **Activity Banner & Insights** | `sport`, `emoji`, `meal`, `loggedAt`, `text`, `generatedAt` | Local AsyncStorage (`@lyfeos_activity_banner_v1`) + Firestore for Insights (`users/{uid}/data/activity`) | `context/ActivityContext.tsx` -> `setPostActivityBanner()`, `setWeeklyCoachInsight()` |
 | **Reminders & Notifications** | `morning`, `meal`, `water`, `evening` booleans; in-app notification inbox | **Local AsyncStorage & OS Alarms Only** (`@lyfeos_profile_reminders_v1`, `@lyfeos_notifications_v1`) | `context/ProfileContext.tsx` -> `setReminders()`, `utils/notifications.ts` |
 | **Legal Consent** | `accepted`, `version`, `timestamp` | AsyncStorage (`legalConsent`) + Firestore (`users/{uid}/data/consent`) | `app/legal-consent.tsx:44-65` -> `handleContinue()` |
 | **Ad / Usage Counters** | `habitCompletionCount`, `lastFoodSearchDate`, `foodSearchCount`, `activityLogCount` | **Local AsyncStorage Only** | `context/HabitsContext.tsx:186`, `utils/storage.ts:111-122` |
@@ -212,7 +212,7 @@ users/                         (Collection)
 1. **User Action:** Enters credentials or taps "Sign in with Google" on `app/login.tsx`.
 2. **State Management:** Handled by `context/AuthContext.tsx`.
 3. **Execution:** Invokes `@react-native-firebase/auth` (`signInWithEmailAndPassword` or `signInWithCredential`).
-4. **Guest Migration Check:** `handleGuestMigration(uid)` reads local guest items (`@lyfeos_habits_v2`, `@lyfeos_todos_v2`, `@lyfeos_food_v2`, `@lyfeos_water_v2`) and batches writes to Firestore (`users/{uid}/data/*`).
+4. **Guest Migration Check:** `handleGuestMigration(uid)` reads local guest items (`@lyfeos_habits_v2`, `@lyfeos_todos_v2`, `@lyfeos_food_v2`, `@lyfeos_water_v2`, `@lyfeos_goal_v2`, `@lyfeos_goals_configured_v1`) and batches non-destructive writes to Firestore (`users/{uid}/data/*`).
 5. **Telemetry:** Dispatches `login` event to Firebase Analytics and `fb_mobile_login` to Meta SDK; establishes user ID bindings via `setAnalyticsUser(uid)`.
 6. **Routing:** `app/_layout.tsx` routes user through legal consent gate (`app/legal-consent.tsx`) into main tabs (`app/(tabs)/index.tsx`).
 
@@ -251,14 +251,14 @@ users/                         (Collection)
 4. **Cloud Write:** Bundled into `syncCaloriesToCloud()` and uploaded to `users/{uid}/data/calories`.
 
 ### 8.6 Fitness & Activity Logging
-1. **User Action:** Submits workout form (sport, duration, intensity) in `components/ActivityTracker.tsx`.
+1. **User Action:** Submits workout form (sport, duration, intensity) or logs daily steps in `components/ActivityTracker.tsx`.
 2. **Calculation Pipeline:** Calls `utils/analyzeActivity.ts` -> `analyzeActivity()`.
    * Executes local scientific calculation based on Compendium of Physical Activities MET database.
    * Awaits simulated delay (`300ms–1200ms`).
    * Returns calculated calories, hydration, protein, carbs, recovery hours, heart rate zones, benefits, and tips.
-3. **State Management:** Handled by `context/ActivityContext.tsx` -> `addActivityLog()`.
-4. **Local Write:** Writes to `@lyfeos_activity_logs_v1`. Sets post-activity banner in `@lyfeos_activity_banner_v1`.
-5. **Cloud Write:** **NONE.** No cloud synchronization occurs.
+3. **State Management:** Handled by `context/ActivityContext.tsx` -> `addActivityLog()`, `deleteActivityLog()`, `logSteps()`.
+4. **Local Write:** Generates/updates item with `updatedAt: Date.now()`. Writes to `@lyfeos_activity_logs_v1` or `@lyfeos_steps_v1`. Sets post-activity banner in `@lyfeos_activity_banner_v1`.
+5. **Cloud Write:** Calls `utils/cloudSync.ts` -> `syncActivityToCloud(uid, { activityLogs })` or `syncActivityToCloud(uid, { stepsLogs })` merging into `users/{uid}/data/activity` with `{ merge: true }`. On mount, non-guest authenticated users perform a bidirectional merge via `mergeActivityLogs` and `mergeStepsLogs`. Soft-deleted items are marked with `deletedAt: Date.now()` and purged after 30 days.
 
 ### 8.7 User Profile & Health Settings
 1. **User Action:** Modifies personal name, weight, height, activity level, or reminders in `app/(tabs)/profile.tsx`.
@@ -324,10 +324,15 @@ users/                         (Collection)
 
 ### 10.2 Conflict Resolution Policies
 
-#### Habits & Habit Logs (`utils/cloudSync.ts:62-101`)
-* **Policy:** **Set-Union Deduplication.**
-* Cloud and local habit arrays are combined. Habits with matching IDs or matching normalized names are deduplicated.
-* For habit logs, logs sharing the same `habitId_date` key are merged, keeping `completed = true` if either was completed, and taking the maximum `amount` or `timeSeconds`.
+#### Habits & Habit Logs (`context/HabitsContext.tsx`, `utils/cloudSync.ts`)
+* **Policy:** **Conflict-Aware Bidirectional Merge with Soft-Delete Tombstones (Highest updatedAt Wins, Delete-Wins on Ties).**
+* `[CONFIRMED]` Both local and cloud lists are merged via `mergeHabits()` and `mergeHabitLogs()`. Every synced Habit and HabitLog includes `id: string`, `updatedAt: number`, and optional `deletedAt?: number`.
+* **ID-Based Identity:** Habits are strictly identified by stable unique `id`, never by habit name (habits sharing identical names on different schedules/devices remain distinct and both survive).
+* **Habit Conflict Resolution:** Higher `updatedAt` wins. On exact timestamp ties, deletion wins (`deletedAt` preserved). Stale cloud records can never resurrect deleted local habits.
+* **Habit Logs:** Habit logs are keyed by stable deterministic identity (`id` / `${habitId}_${date}`). Completion state (`completed`) is a mutable field where the newer `updatedAt` wins (eliminating naive OR logic and enabling explicit unchecks to propagate across devices).
+* **Tombstone Retention:** Soft-deleted tombstones are retained for 30 days (`TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000`) before purging.
+* **UI Isolation:** `HabitsContext` exposes only active items (`!h.deletedAt` and `!l.deletedAt`) via memoization.
+* **Pre-logout & Guest Migration:** Both `syncAllUserDataBeforeLogout` and `migrateGuestDataToAccount` perform bidirectional conflict-aware merges with cloud before committing.
 
 #### To-dos (`context/TodosContext.tsx`, `utils/cloudSync.ts`)
 * **Policy:** **Conflict-Aware Bidirectional Merge with Soft-Delete Tombstones (Highest updatedAt Wins, Delete-Wins on Ties).**
@@ -338,11 +343,52 @@ users/                         (Collection)
 * UI exposes only active items (`!t.deletedAt`).
 * Pre-logout sync and guest migration both execute `mergeTodos` before saving.
 
-#### Nutrition & Calories (`context/CaloriesContext.tsx:143-182`)
-* **Policy:** **Timestamp-Guarded Last-Write-Wins.**
-* Local metadata key `@lyfeos_food_meta_v1` tracks `lastModified` timestamp ms.
-* If `cloudLastModified > localLastModified`, cloud data is accepted and written to AsyncStorage.
-* If `localLastModified >= cloudLastModified`, local data is retained and automatically re-pushed to the cloud to repair stale remote records.
+#### Nutrition & Water (`context/CaloriesContext.tsx`, `utils/cloudSync.ts`)
+* **Policy:** **Conflict-Aware Bidirectional Item Merge with Soft-Delete Tombstones (Highest updatedAt Wins, Delete-Wins on Ties, Water Max on Active Ties).**
+* `[CONFIRMED]` Monolithic whole-document overwrites eliminated. Food items and water logs are merged at the item level via `mergeFoodItems()` and `mergeWaterLogs()`.
+* **Food Item Conflict Resolution:** Every `FoodItem` schema entity maintains `updatedAt: number` and optional `deletedAt?: number`. Merging keys on stable food `id`. Newer `updatedAt` wins; exact timestamp ties apply Delete-Wins. Soft-deleted tombstones are retained for 30 days (`TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000`) before automatic pruning.
+* **Water Log Semantics & Conflict Resolution:** LyfeOS maintains strictly one aggregate water log per calendar date (`YYYY-MM-DD`). Merging keys on `date`. Newer `updatedAt` wins (allowing explicit decrements via the `-` button to propagate across devices). On exact timestamp ties, Delete-Wins takes precedence; if both records are active, `Math.max(local.glasses, cloud.glasses)` is applied to guarantee concurrent increments are never lost.
+* **UI Isolation:** `CaloriesContext` maintains `rawFoodItems` and `rawWaterLogs` in local storage and cloud payloads while exposing memoized active items (`!f.deletedAt` and `!w.deletedAt`) to UI consumers (`foodItems`, `waterLogs`, `getDayStats()`, `getWaterForDate()`).
+* **Pre-logout & Sync Safety:** `syncAllUserDataBeforeLogout` merges food and water bidirectionally before committing batch writes with `{ merge: true }`, preserving existing account goals (`dailyGoal`, `goalsConfigured`) and arbitrary top-level fields.
+* **Notification Isolation:** `loadStoredNotificationContext` in `utils/notifications.ts` filters out tombstoned food and water items to prevent ghost meal or hydration triggers.
+
+#### Guest Migration Nutrition Safety (`utils/cloudSync.ts:mergeCaloriesMigrationData`)
+* **Policy:** **Non-Destructive Safe Merge with Goal Preservation.**
+* In `migrateGuestDataToAccount()`, nutrition data is processed via `mergeCaloriesMigrationData()`.
+* Authenticated account existing goals (`dailyGoal`, `goalsConfigured`) and arbitrary top-level fields on `users/{uid}/data/calories` are strictly preserved.
+* Guest food items are deduplicated by ID against cloud food items, and water logs take the maximum glasses per date.
+* Firestore write commits via `batch.set(caloriesRef, caloriesPayload, { merge: true })`, eliminating destructive overwrites.
+
+#### Activity & Steps (`context/ActivityContext.tsx`, `utils/cloudSync.ts`)
+* **Policy:** **Conflict-Aware Bidirectional Item Merge with Soft-Delete Tombstones (Highest updatedAt Wins, Delete-Wins on Ties, Cloud-Wins on Active Steps Ties).**
+* `[CONFIRMED]` Activity logs and daily steps logs are synchronized to Firestore (`users/{uid}/data/activity`) and merged bidirectionally via `mergeActivityLogs()` and `mergeStepsLogs()`.
+* **ActivityLog (Workouts) Conflict Resolution:** Keyed by unique `id`. Every workout event maintains `updatedAt: number` and optional `deletedAt?: number`. Higher `updatedAt` wins; exact timestamp ties apply Delete-Wins (`deletedAt` preserved). Multiple workouts logged on the same date with different or identical sports have distinct IDs and both survive. Soft-deleted tombstones are retained for 30 days (`TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000`) before automatic pruning.
+* **StepsLog (Daily Steps) Conflict Resolution (Approved Alternative 1):** LyfeOS maintains strictly one aggregate steps log per calendar date (`date: YYYY-MM-DD`). Keyed by `date`. Higher `updatedAt` wins (allowing both increments and downward typo corrections to propagate across devices; `Math.max()` is strictly avoided). On exact timestamp ties where either record is deleted, Delete-Wins is enforced. On exact timestamp ties where both records are active and values differ, **Cloud-Wins deterministically** resolves the conflict. All derived metrics (`distanceKm`, `caloriesBurned`, `activeMinutes`) are retained intact from the winning record.
+* **UI Isolation:** `ActivityContext` maintains `rawActivityLogs` and `rawStepsLogs` in local storage and cloud payloads while exposing memoized active items (`!l.deletedAt` and `!s.deletedAt`) to UI consumers (`activityLogs`, `stepsLogs`, `getStepsForDate()`, `getDailyActivityCalories()`, `getDailyActivityMinutes()`, `getBestStreak()`, `getWeeklySports()`).
+* **Notification Isolation:** `loadStoredNotificationContext` in `utils/notifications.ts` filters out tombstoned activity logs to prevent ghost activity reminder evaluations.
+* **Pre-logout & Guest Migration:** Both `syncAllUserDataBeforeLogout` and `migrateGuestDataToAccount` perform bidirectional conflict-aware merges with cloud before committing batch writes with `{ merge: true }`.
+
+#### Profile & Health Profile (`context/ProfileContext.tsx`, `utils/cloudSync.ts`)
+* **Policy:** **Section-Aware Bidirectional Merge with Independent Section Timestamps & Blank-Field Fallback.**
+* `[CONFIRMED]` Monolithic whole-document overwrites eliminated. Profile and Health Profile data are synchronized to Firestore (`users/{uid}/data/profile`) and merged bidirectionally via `mergeProfileData()`.
+* **Independent Section Conflict Granularity:** Rather than coupling the entire profile under a single global timestamp, the system isolates conflict resolution across 6 independent domains:
+  1. `userName` (Independent Field Level, tracked via `userNameUpdatedAt`)
+  2. `habitGoal` (Independent Field Level, tracked via `habitGoalUpdatedAt`)
+  3. `activityGoal` (Independent Field Level, tracked via `activityGoalUpdatedAt`)
+  4. `healthProfile` (Group Level with blank-field fallbacks, tracked via `healthProfileUpdatedAt`)
+  5. `reminders` (Group Level, tracked via `remindersUpdatedAt`)
+  6. `preferences` (Group Level, tracked via `preferencesUpdatedAt`)
+* **Timestamp Strategy:** Timestamps are tracked locally in `@lyfeos_profile_meta_v1` (`sectionTimestamps`) and in Firestore as top-level properties (`*UpdatedAt`). Updating any one section only sets its corresponding value and section timestamp with `{ merge: true }`, ensuring cross-section mutations never overwrite one another.
+* **Intentional Changes vs. Legacy Records:**
+  * When timestamps exist ($T > 0$), newer timestamp wins unconditionally. Intentional changes to default values (e.g. setting habit goal to 5 or turning off a reminder) with a newer timestamp correctly take precedence over older non-default values.
+  * When timestamps tie on active records, **Cloud-Wins deterministically**.
+  * When records lack timestamps (legacy state), configured cloud data is preserved against uninitialized local defaults.
+* **Health Profile Non-Destructive Blank-Field Fallback:** When a record with a newer timestamp wins for `healthProfile`, any fields left blank (`""`) in the winning record inherit non-empty values from the alternate record. This prevents unentered fields from wiping previously configured metrics.
+* **Immutable `joinDate` Seniority Preservation:** Confirmed immutable account creation metadata. Resolved via earliest valid ISO date to strictly preserve earliest account creation date.
+* **Pre-logout & Guest Migration Safety:**
+  * `syncAllUserDataBeforeLogout` fetches and merges the existing cloud profile before writing, eliminating destructive `null` writes for unconfigured local profile keys.
+  * `handleGuestMigration` in `context/AuthContext.tsx` reads all local profile keys and invokes `migrateGuestDataToAccount`, merging guest health metrics, preferences, and goals into the authenticated cloud account non-destructively.
+  * All Firestore writes utilize `{ merge: true }` and strictly preserve arbitrary unknown top-level cloud document fields.
 
 ### 10.3 Behavior Under Environmental Transitions
 
@@ -353,8 +399,9 @@ users/                         (Collection)
 5. **App is restarted:** AsyncStorage is loaded synchronously into state. If authenticated, cloud record is fetched and merged.
 6. **User logs out:** Firebase Auth session terminates; local data **persists in AsyncStorage**.
 7. **User logs in on another device:**
-   * Habits, to-dos, and calories download from Firestore.
-   * Health profile, user name, goals, preferences, workout activities, and steps **do not download** because they are never synced. The new device initializes with empty/default profile and fitness values.
+   * Habits, to-dos, calories, food items, water logs, workout activity logs, steps logs, and weekly coach insights download from Firestore and merge bidirectionally.
+   * Health profile, user name, goals, and preferences are restored via cloud profile document where configured.
+
 
 ---
 

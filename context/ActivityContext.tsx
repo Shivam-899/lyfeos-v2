@@ -3,12 +3,20 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { getLocalDateString } from "@/utils/date";
 import { getStoredJson, removeStoredItem, setStoredJson } from "@/utils/storage";
-import { fetchActivityFromCloud, syncActivityToCloud } from "@/utils/cloudSync";
+import {
+  fetchActivityFromCloud,
+  syncActivityToCloud,
+  normalizeActivityLog,
+  normalizeStepsLog,
+  mergeActivityLogs,
+  mergeStepsLogs,
+} from "@/utils/cloudSync";
 import { logError } from "@/utils/analytics";
 import { useAuth } from "./AuthContext";
 
@@ -32,6 +40,8 @@ export interface ActivityLog {
   postActivityMeal: string;
   sportCategory: string;
   steps?: number;
+  updatedAt?: number;
+  deletedAt?: number;
 }
 
 export interface StepsLog {
@@ -40,6 +50,8 @@ export interface StepsLog {
   distanceKm: number;
   caloriesBurned: number;
   activeMinutes: number;
+  updatedAt?: number;
+  deletedAt?: number;
 }
 
 export interface PostActivityBanner {
@@ -59,9 +71,9 @@ interface ActivityContextType {
   stepsLogs: StepsLog[];
   postActivityBanner: PostActivityBanner | null;
   weeklyCoachInsight: WeeklyCoachInsight | null;
-  addActivityLog: (log: Omit<ActivityLog, "id">) => void;
+  addActivityLog: (log: Omit<ActivityLog, "id" | "updatedAt" | "deletedAt"> | ActivityLog) => void;
   deleteActivityLog: (id: string) => void;
-  logSteps: (steps: StepsLog) => void;
+  logSteps: (steps: StepsLog | Omit<StepsLog, "updatedAt" | "deletedAt">) => void;
   getStepsForDate: (date: string) => StepsLog | null;
   setPostActivityBanner: (b: PostActivityBanner | null) => void;
   setWeeklyCoachInsight: (insight: WeeklyCoachInsight) => void;
@@ -93,90 +105,112 @@ function last7Days(): string[] {
 }
 
 export function ActivityProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const userRef = useRef(user);
-  useEffect(() => { userRef.current = user; }, [user]);
+  const { user, isGuest } = useAuth();
+  const authRef = useRef({ user, isGuest });
+  useEffect(() => { authRef.current = { user, isGuest }; }, [user, isGuest]);
 
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [stepsLogs, setStepsLogs] = useState<StepsLog[]>([]);
+  const [rawActivityLogs, setRawActivityLogs] = useState<ActivityLog[]>([]);
+  const [rawStepsLogs, setRawStepsLogs] = useState<StepsLog[]>([]);
   const [postActivityBanner, setPostActivityBannerState] = useState<PostActivityBanner | null>(null);
   const [weeklyCoachInsight, setWeeklyCoachInsightState] = useState<WeeklyCoachInsight | null>(null);
+
+  // Public activity and steps logs exposed to UI contain only active (non-tombstoned) items
+  const activityLogs = useMemo(() => rawActivityLogs.filter((l) => !l.deletedAt), [rawActivityLogs]);
+  const stepsLogs = useMemo(() => rawStepsLogs.filter((s) => !s.deletedAt), [rawStepsLogs]);
 
   // ── Load from storage & Cloud sync ──────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      const [logs, steps, banner, insight] = await Promise.all([
-        getStoredJson<ActivityLog[]>(LOGS_KEY, []),
-        getStoredJson<StepsLog[]>(STEPS_KEY, []),
-        getStoredJson<PostActivityBanner | null>(BANNER_KEY, null),
-        getStoredJson<WeeklyCoachInsight | null>(INSIGHT_KEY, null),
-      ]);
-      setActivityLogs(logs);
-      setStepsLogs(steps);
-
       try {
-        if (banner) {
-          const hoursOld = (Date.now() - banner.loggedAt) / 3_600_000;
-          if (hoursOld < 2) setPostActivityBannerState(banner);
-          else void removeStoredItem(BANNER_KEY);
-        }
-        if (insight) setWeeklyCoachInsightState(insight);
-      } catch {}
+        const [logs, steps, banner, insight] = await Promise.all([
+          getStoredJson<ActivityLog[]>(LOGS_KEY, []),
+          getStoredJson<StepsLog[]>(STEPS_KEY, []),
+          getStoredJson<PostActivityBanner | null>(BANNER_KEY, null),
+          getStoredJson<WeeklyCoachInsight | null>(INSIGHT_KEY, null),
+        ]);
 
-      // ── Cloud restore on login for authenticated non-guest users ──────
-      if (user && !user.isAnonymous) {
+        const localNormalizedLogs: ActivityLog[] = (logs || []).map(normalizeActivityLog);
+        const localNormalizedSteps: StepsLog[] = (steps || []).map(normalizeStepsLog);
+
+        setRawActivityLogs(localNormalizedLogs);
+        setRawStepsLogs(localNormalizedSteps);
+
         try {
-          const cloudActivity = await fetchActivityFromCloud(user.uid);
-          if (cloudActivity) {
-            if (Array.isArray(cloudActivity.activityLogs) && cloudActivity.activityLogs.length > 0) {
-              if (logs.length === 0) {
-                setActivityLogs(cloudActivity.activityLogs);
-                await setStoredJson(LOGS_KEY, cloudActivity.activityLogs);
-              } else {
-                const existingIds = new Set(logs.map((l) => l.id));
-                const toAdd = cloudActivity.activityLogs.filter((l: ActivityLog) => !existingIds.has(l.id));
-                if (toAdd.length > 0) {
-                  const merged = [...logs, ...toAdd];
-                  setActivityLogs(merged);
-                  await setStoredJson(LOGS_KEY, merged);
-                }
-              }
-            }
-            if (Array.isArray(cloudActivity.stepsLogs) && cloudActivity.stepsLogs.length > 0) {
-              if (steps.length === 0) {
-                setStepsLogs(cloudActivity.stepsLogs);
-                await setStoredJson(STEPS_KEY, cloudActivity.stepsLogs);
-              } else {
-                const stepMap = new Map(steps.map((s) => [s.date, s]));
-                for (const s of cloudActivity.stepsLogs) {
-                  if (!stepMap.has(s.date)) {
-                    stepMap.set(s.date, s);
-                  }
-                }
-                const mergedSteps = Array.from(stepMap.values());
-                setStepsLogs(mergedSteps);
-                await setStoredJson(STEPS_KEY, mergedSteps);
-              }
-            }
-            if (cloudActivity.coachInsight && !insight) {
-              setWeeklyCoachInsightState(cloudActivity.coachInsight);
-              await setStoredJson(INSIGHT_KEY, cloudActivity.coachInsight);
-            }
+          if (banner) {
+            const hoursOld = (Date.now() - banner.loggedAt) / 3_600_000;
+            if (hoursOld < 2) setPostActivityBannerState(banner);
+            else void removeStoredItem(BANNER_KEY);
           }
-        } catch (e) {
-          logError(e as Error, "fetchActivityFromCloud_onMount");
+          if (insight) setWeeklyCoachInsightState(insight);
+        } catch {}
+
+        // ── Cloud restore & merge on mount for authenticated non-guest users ──────
+        if (user && !isGuest) {
+          try {
+            const cloudActivity = await fetchActivityFromCloud(user.uid);
+            if (cloudActivity) {
+              const cloudLogs: any[] = Array.isArray(cloudActivity.activityLogs) ? cloudActivity.activityLogs : [];
+              const cloudSteps: any[] = Array.isArray(cloudActivity.stepsLogs) ? cloudActivity.stepsLogs : [];
+
+              const mergedLogs: ActivityLog[] = mergeActivityLogs(localNormalizedLogs, cloudLogs);
+              const mergedSteps: StepsLog[] = mergeStepsLogs(localNormalizedSteps, cloudSteps);
+
+              const logsChanged = JSON.stringify(mergedLogs) !== JSON.stringify(localNormalizedLogs);
+              const stepsChanged = JSON.stringify(mergedSteps) !== JSON.stringify(localNormalizedSteps);
+
+              if (logsChanged || stepsChanged) {
+                setRawActivityLogs(mergedLogs);
+                setRawStepsLogs(mergedSteps);
+                await Promise.all([
+                  setStoredJson(LOGS_KEY, mergedLogs),
+                  setStoredJson(STEPS_KEY, mergedSteps),
+                ]);
+              }
+
+              // Check if cloud needs sync
+              const cloudNormalizedLogs = cloudLogs.map(normalizeActivityLog);
+              const cloudNormalizedSteps = cloudSteps.map(normalizeStepsLog);
+              const cloudNeedsSync =
+                mergedLogs.length !== cloudNormalizedLogs.length ||
+                mergedSteps.length !== cloudNormalizedSteps.length ||
+                JSON.stringify(mergedLogs) !== JSON.stringify(cloudNormalizedLogs) ||
+                JSON.stringify(mergedSteps) !== JSON.stringify(cloudNormalizedSteps);
+
+              if (cloudNeedsSync) {
+                syncActivityToCloud(user.uid, {
+                  activityLogs: mergedLogs,
+                  stepsLogs: mergedSteps,
+                });
+              }
+
+              if (cloudActivity.coachInsight && !insight) {
+                setWeeklyCoachInsightState(cloudActivity.coachInsight);
+                await setStoredJson(INSIGHT_KEY, cloudActivity.coachInsight);
+              }
+            }
+          } catch (e) {
+            logError(e as Error, "fetchActivityFromCloud_onMount");
+          }
         }
+      } catch (e) {
+        logError(e as Error, "ActivityContext_mount_error");
       }
     })();
-  }, [user]);
+  }, [user, isGuest]);
 
-  const addActivityLog = useCallback((log: Omit<ActivityLog, "id">) => {
-    setActivityLogs(prev => {
-      const newLog: ActivityLog = { ...log, id: Date.now().toString() + Math.random().toString(36).slice(2, 7) };
+  const addActivityLog = useCallback((log: Omit<ActivityLog, "id" | "updatedAt" | "deletedAt"> | ActivityLog) => {
+    setRawActivityLogs(prev => {
+      const now = Date.now();
+      const newLog: ActivityLog = {
+        ...log,
+        id: ('id' in log && log.id) ? log.id : (now.toString() + Math.random().toString(36).slice(2, 7)),
+        updatedAt: ('updatedAt' in log && typeof log.updatedAt === 'number') ? log.updatedAt : now,
+      };
+      delete (newLog as any).deletedAt;
       const next = [...prev, newLog];
       void setStoredJson(LOGS_KEY, next);
-      const currentUser = userRef.current;
-      if (currentUser && !currentUser.isAnonymous) {
+      const { user: currentUser, isGuest: currentIsGuest } = authRef.current;
+      if (currentUser && !currentIsGuest) {
         syncActivityToCloud(currentUser.uid, { activityLogs: next }).catch((e) => logError(e, "sync_addActivityLog"));
       }
       return next;
@@ -184,23 +218,36 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteActivityLog = useCallback((id: string) => {
-    setActivityLogs(prev => {
-      const next = prev.filter(l => l.id !== id);
+    setRawActivityLogs(prev => {
+      const now = Date.now();
+      const next = prev.map(l => {
+        if (l.id === id) {
+          return { ...l, deletedAt: now, updatedAt: now };
+        }
+        return l;
+      });
       void setStoredJson(LOGS_KEY, next);
-      const currentUser = userRef.current;
-      if (currentUser && !currentUser.isAnonymous) {
+      const { user: currentUser, isGuest: currentIsGuest } = authRef.current;
+      if (currentUser && !currentIsGuest) {
         syncActivityToCloud(currentUser.uid, { activityLogs: next }).catch((e) => logError(e, "sync_deleteActivityLog"));
       }
       return next;
     });
   }, []);
 
-  const logSteps = useCallback((entry: StepsLog) => {
-    setStepsLogs(prev => {
-      const next = [...prev.filter(s => s.date !== entry.date), entry];
+  const logSteps = useCallback((entry: StepsLog | Omit<StepsLog, "updatedAt" | "deletedAt">) => {
+    setRawStepsLogs(prev => {
+      const now = Date.now();
+      const normalizedEntry: StepsLog = {
+        ...entry,
+        updatedAt: ('updatedAt' in entry && typeof entry.updatedAt === 'number') ? entry.updatedAt : now,
+      };
+      delete (normalizedEntry as any).deletedAt;
+      const filtered = prev.filter(s => s.date !== entry.date);
+      const next = [...filtered, normalizedEntry];
       void setStoredJson(STEPS_KEY, next);
-      const currentUser = userRef.current;
-      if (currentUser && !currentUser.isAnonymous) {
+      const { user: currentUser, isGuest: currentIsGuest } = authRef.current;
+      if (currentUser && !currentIsGuest) {
         syncActivityToCloud(currentUser.uid, { stepsLogs: next }).catch((e) => logError(e, "sync_logSteps"));
       }
       return next;
@@ -220,8 +267,8 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const setWeeklyCoachInsight = useCallback((insight: WeeklyCoachInsight) => {
     setWeeklyCoachInsightState(insight);
     void setStoredJson(INSIGHT_KEY, insight);
-    const currentUser = userRef.current;
-    if (currentUser && !currentUser.isAnonymous) {
+    const { user: currentUser, isGuest: currentIsGuest } = authRef.current;
+    if (currentUser && !currentIsGuest) {
       syncActivityToCloud(currentUser.uid, { coachInsight: insight }).catch((e) => logError(e, "sync_weeklyCoachInsight"));
     }
   }, []);

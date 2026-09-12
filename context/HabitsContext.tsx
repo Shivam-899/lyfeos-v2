@@ -3,12 +3,13 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import { getStoredJson, getStoredString, removeStoredItems, setStoredJson, setStoredString } from "@/utils/storage";
 import { logEvent, logError } from "@/utils/analytics";
-import { syncHabitsToCloud, fetchHabitsFromCloud, fetchHabitLogsFromCloud, mergeHabits, mergeHabitLogs } from "@/utils/cloudSync";
+import { syncHabitsToCloud, fetchHabitsFromCloud, fetchHabitLogsFromCloud, mergeHabits, mergeHabitLogs, normalizeHabit, normalizeHabitLog } from "@/utils/cloudSync";
 import { useAuth } from "@/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { showInterstitialAd } from "../utils/ads";
@@ -65,6 +66,8 @@ export interface Habit {
   weekDays: number[];    // Array of weekday numbers 0–6 (0=Sun)
   createdAt: string;
   description?: string; // Optional short note/description
+  updatedAt: number;
+  deletedAt?: number;
 }
 
 export interface HabitLog {
@@ -74,13 +77,15 @@ export interface HabitLog {
   completed: boolean;
   amount?: number;
   timeSeconds?: number;
+  updatedAt: number;
+  deletedAt?: number;
 }
 
 interface HabitsContextType {
   habits: Habit[];
   habitLogs: HabitLog[];
-  addHabit: (habit: Omit<Habit, "id" | "createdAt">) => void;
-  updateHabit: (habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt">>) => void;
+  addHabit: (habit: Omit<Habit, "id" | "createdAt" | "updatedAt"> & { updatedAt?: number }) => void;
+  updateHabit: (habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt" | "updatedAt">>) => void;
   deleteHabit: (habitId: string) => void;
   logHabit: (habitId: string, date: string, data: Partial<HabitLog>) => void;
   getHabitLog: (habitId: string, date: string) => HabitLog | undefined;
@@ -103,9 +108,13 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   const authRef = React.useRef({ user, isGuest });
   React.useEffect(() => { authRef.current = { user, isGuest }; }, [user, isGuest]);
 
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
+  const [rawHabits, setRawHabits] = useState<Habit[]>([]);
+  const [rawHabitLogs, setRawHabitLogs] = useState<HabitLog[]>([]);
   const [loaded, setLoaded] = useState(false);
+
+  // Public habits and logs exposed to UI contain only active (non-tombstoned) items
+  const habits = useMemo(() => rawHabits.filter((h) => !h.deletedAt), [rawHabits]);
+  const habitLogs = useMemo(() => rawHabitLogs.filter((l) => !l.deletedAt), [rawHabitLogs]);
 
   useEffect(() => {
     (async () => {
@@ -121,15 +130,17 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
             "@lyfeos_water",
           ]);
           await setStoredString(VERSION_KEY, DATA_VERSION);
-          setHabits([]);
-          setHabitLogs([]);
+          setRawHabits([]);
+          setRawHabitLogs([]);
         } else {
           const [storedHabits, storedLogs] = await Promise.all([
-            getStoredJson<Habit[]>(HABITS_KEY, []),
-            getStoredJson<HabitLog[]>(HABIT_LOGS_KEY, []),
+            getStoredJson<any[]>(HABITS_KEY, []),
+            getStoredJson<any[]>(HABIT_LOGS_KEY, []),
           ]);
-          setHabits(storedHabits);
-          setHabitLogs(storedLogs);
+          const localNormalizedHabits: Habit[] = (storedHabits || []).map(normalizeHabit);
+          const localNormalizedLogs: HabitLog[] = (storedLogs || []).map(normalizeHabitLog);
+          setRawHabits(localNormalizedHabits);
+          setRawHabitLogs(localNormalizedLogs);
 
           // Cloud sync: fetch from Firestore if logged-in non-guest user
           if (user && !isGuest) {
@@ -138,34 +149,40 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
               fetchHabitLogsFromCloud(user.uid),
             ]);
 
-            const mergedHabits = mergeHabits(storedHabits, cloudHabits || []);
-            const mergedLogs = mergeHabitLogs(storedLogs, cloudLogs || []);
+            if (cloudHabits !== null && cloudLogs !== null) {
+              const mergedHabits: Habit[] = mergeHabits(localNormalizedHabits, cloudHabits);
+              const mergedLogs: HabitLog[] = mergeHabitLogs(localNormalizedLogs, cloudLogs);
 
-            const habitsChanged = JSON.stringify(mergedHabits) !== JSON.stringify(storedHabits);
-            const logsChanged = JSON.stringify(mergedLogs) !== JSON.stringify(storedLogs);
+              const habitsChanged = JSON.stringify(mergedHabits) !== JSON.stringify(localNormalizedHabits);
+              const logsChanged = JSON.stringify(mergedLogs) !== JSON.stringify(localNormalizedLogs);
 
-            if (habitsChanged || logsChanged) {
-              setHabits(mergedHabits);
-              setHabitLogs(mergedLogs);
-              await Promise.all([
-                setStoredJson(HABITS_KEY, mergedHabits),
-                setStoredJson(HABIT_LOGS_KEY, mergedLogs),
-              ]);
-            }
+              if (habitsChanged || logsChanged) {
+                setRawHabits(mergedHabits);
+                setRawHabitLogs(mergedLogs);
+                await Promise.all([
+                  setStoredJson(HABITS_KEY, mergedHabits),
+                  setStoredJson(HABIT_LOGS_KEY, mergedLogs),
+                ]);
+              }
 
-            // If local had items not yet in cloud, or cloud was empty/incomplete, push merged state to cloud
-            const cloudNeedsSync =
-              (storedHabits.length > 0 && (!cloudHabits || cloudHabits.length < mergedHabits.length)) ||
-              (storedLogs.length > 0 && (!cloudLogs || cloudLogs.length < mergedLogs.length));
+              // Check if cloud needs sync
+              const cloudNormalizedHabits = cloudHabits.map(normalizeHabit);
+              const cloudNormalizedLogs = cloudLogs.map(normalizeHabitLog);
+              const cloudNeedsSync =
+                mergedHabits.length !== cloudNormalizedHabits.length ||
+                mergedLogs.length !== cloudNormalizedLogs.length ||
+                JSON.stringify(mergedHabits) !== JSON.stringify(cloudNormalizedHabits) ||
+                JSON.stringify(mergedLogs) !== JSON.stringify(cloudNormalizedLogs);
 
-            if (cloudNeedsSync) {
-              syncHabitsToCloud(user.uid, mergedHabits, mergedLogs);
+              if (cloudNeedsSync) {
+                syncHabitsToCloud(user.uid, mergedHabits, mergedLogs);
+              }
             }
           }
         }
       } catch {
-        setHabits([]);
-        setHabitLogs([]);
+        setRawHabits([]);
+        setRawHabitLogs([]);
       } finally {
         setLoaded(true);
       }
@@ -193,16 +210,17 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addHabit = useCallback((habit: Omit<Habit, "id" | "createdAt">) => {
+  const addHabit = useCallback((habit: Omit<Habit, "id" | "createdAt" | "updatedAt"> & { updatedAt?: number }) => {
+    const now = Date.now();
     const newHabit: Habit = {
       ...habit,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString(),
+      id: now.toString() + Math.random().toString(36).substr(2, 9),
+      createdAt: new Date(now).toISOString(),
+      updatedAt: now,
     };
-    // Bug 3 fix: read latest habitLogs from inside setHabitLogs updater to avoid stale closure
-    setHabits((prevHabits) => {
+    setRawHabits((prevHabits) => {
       const next = [...prevHabits, newHabit];
-      setHabitLogs((prevLogs) => {
+      setRawHabitLogs((prevLogs) => {
         persist(next, prevLogs);
         const { user: u, isGuest: g } = authRef.current;
         if (u && !g) { syncHabitsToCloud(u.uid, next, prevLogs); }
@@ -210,15 +228,20 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
       });
       return next;
     });
-    // Fire analytics event (non-blocking)
-    logEvent("habit_created", { habitName: habit.name }).catch(() => { });
+    // Fire analytics event with strictly structural metadata (zero PII / no user text)
+    logEvent("habit_created", {
+      habitId: newHabit.id,
+      trackMethod: newHabit.trackMethod,
+      colorId: newHabit.colorId,
+      habitType: newHabit.type,
+    }).catch(() => { });
   }, [persist]);
 
-  const updateHabit = useCallback((habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt">>) => {
-    // Bug 3 fix: read latest habitLogs from inside setHabitLogs updater to avoid stale closure
-    setHabits((prevHabits) => {
-      const next = prevHabits.map((h) => h.id === habitId ? { ...h, ...updates } : h);
-      setHabitLogs((prevLogs) => {
+  const updateHabit = useCallback((habitId: string, updates: Partial<Omit<Habit, "id" | "createdAt" | "updatedAt">>) => {
+    const now = Date.now();
+    setRawHabits((prevHabits) => {
+      const next = prevHabits.map((h) => h.id === habitId ? { ...h, ...updates, updatedAt: now } : h);
+      setRawHabitLogs((prevLogs) => {
         persist(next, prevLogs);
         const { user: u, isGuest: g } = authRef.current;
         if (u && !g) { syncHabitsToCloud(u.uid, next, prevLogs); }
@@ -229,10 +252,13 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, [persist]);
 
   const deleteHabit = useCallback((habitId: string) => {
-    setHabits((prev) => {
-      const next = prev.filter((h) => h.id !== habitId);
-      setHabitLogs((logs) => {
-        const nextLogs = logs.filter((l) => l.habitId !== habitId);
+    const now = Date.now();
+    setRawHabits((prev) => {
+      // Soft-delete habit with tombstone
+      const next = prev.map((h) => h.id === habitId ? { ...h, deletedAt: now, updatedAt: now } : h);
+      setRawHabitLogs((logs) => {
+        // Soft-delete associated logs
+        const nextLogs = logs.map((l) => (l.habitId === habitId && !l.deletedAt) ? { ...l, deletedAt: now, updatedAt: now } : l);
         persist(next, nextLogs);
         const { user: u, isGuest: g } = authRef.current;
         if (u && !g) { syncHabitsToCloud(u.uid, next, nextLogs); }
@@ -243,29 +269,47 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, [persist]);
 
   const logHabit = useCallback((habitId: string, date: string, data: Partial<HabitLog>) => {
-    setHabitLogs((prev) => {
+    const now = Date.now();
+    setRawHabitLogs((prev) => {
       const existingIdx = prev.findIndex((l) => l.habitId === habitId && l.date === date);
       let next: HabitLog[];
       if (existingIdx >= 0) {
         next = [...prev];
-        next[existingIdx] = { ...next[existingIdx], ...data };
+        const existing = next[existingIdx];
+        const updatedLog: HabitLog = {
+          ...existing,
+          ...data,
+          updatedAt: now,
+        };
+        // Un-tombstone if it was previously deleted
+        delete updatedLog.deletedAt;
+        next[existingIdx] = updatedLog;
       } else {
         const newLog: HabitLog = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          id: `${habitId}_${date}`,
           habitId,
           date,
           completed: false,
           ...data,
+          updatedAt: now,
         };
+        delete newLog.deletedAt;
         next = [...prev, newLog];
       }
-      persist(habits, next);
-      const { user: u, isGuest: g } = authRef.current;
-      if (u && !g) { syncHabitsToCloud(u.uid, habits, next); }
-      // Fire analytics when habit is completed
+      setRawHabits((currentHabits) => {
+        persist(currentHabits, next);
+        const { user: u, isGuest: g } = authRef.current;
+        if (u && !g) { syncHabitsToCloud(u.uid, currentHabits, next); }
+        return currentHabits;
+      });
+      // Fire analytics when habit is completed with strictly structural metadata (zero PII / no user text)
       if (data.completed === true) {
         const habit = habits.find((h) => h.id === habitId);
-        logEvent("habit_completed", { habitName: habit?.name ?? habitId }).catch(() => { });
+        logEvent("habit_completed", {
+          habitId,
+          trackMethod: habit?.trackMethod ?? "task",
+          colorId: habit?.colorId ?? "unknown",
+        }).catch(() => { });
         // Show interstitial ad every 3rd completion (non-blocking, fire-and-forget)
         maybeShowCompletionAd();
       }
@@ -350,14 +394,18 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, [habitLogs]);
 
   const clearTodayHabitLogs = useCallback((date: string) => {
-    setHabitLogs((prev) => {
-      const next = prev.filter((l) => l.date !== date);
-      persist(habits, next);
-      const { user: u, isGuest: g } = authRef.current;
-      if (u && !g) { syncHabitsToCloud(u.uid, habits, next); }
+    const now = Date.now();
+    setRawHabitLogs((prev) => {
+      const next = prev.map((l) => (l.date === date && !l.deletedAt) ? { ...l, deletedAt: now, updatedAt: now } : l);
+      setRawHabits((currentHabits) => {
+        persist(currentHabits, next);
+        const { user: u, isGuest: g } = authRef.current;
+        if (u && !g) { syncHabitsToCloud(u.uid, currentHabits, next); }
+        return currentHabits;
+      });
       return next;
     });
-  }, [habits, persist]);
+  }, [persist]);
 
   if (!loaded) return null;
 

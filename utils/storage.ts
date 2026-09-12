@@ -103,6 +103,7 @@ export const LYFEOS_STORAGE_KEYS = [
   "@lyfeos_rate_reminder_v1",
   "@lyfeos_last_timezone_v1",
   "@lyfeos_confetti_date_v1",
+  "@lyfeos_pending_migration_v1",
   // Legacy keys
   "@lyfeos_habits",
   "@lyfeos_habit_logs",
@@ -148,3 +149,134 @@ export async function clearAllLyfeOSLocalData(): Promise<boolean> {
   }
 }
 
+/**
+ * Inspects local AsyncStorage to determine if the device contains genuine,
+ * meaningful user data created during a guest session.
+ *
+ * Strict deterministic criteria (P1-9 Phase 2B-1):
+ * - Returns FALSE if local storage only contains default preferences, joinDate,
+ *   legal consent, empty arrays, or soft-deleted tombstones.
+ * - Returns TRUE if at least one active habit, active habit log, active todo,
+ *   active food item, water log (>0 glasses), active workout, steps record (>0 steps),
+ *   custom health profile metric, custom calorie goal, or custom profile name exists.
+ */
+export async function hasMeaningfulGuestData(): Promise<boolean> {
+  try {
+    const [
+      localHabits,
+      localHabitLogs,
+      localTodos,
+      localFood,
+      localWater,
+      localActivityLogs,
+      localStepsLogs,
+      localHealth,
+      localGoalsConfigured,
+      localProfileName,
+    ] = await Promise.all([
+      getStoredJson<any[]>("@lyfeos_habits_v2", []),
+      getStoredJson<any[]>("@lyfeos_habit_logs_v2", []),
+      getStoredJson<any[]>("@lyfeos_todos_v2", []),
+      getStoredJson<any[]>("@lyfeos_food_v2", []),
+      getStoredJson<any[]>("@lyfeos_water_v2", []),
+      getStoredJson<any[]>("@lyfeos_activity_logs_v1", []),
+      getStoredJson<any[]>("@lyfeos_steps_v1", []),
+      getStoredJson<any>("@lyfeos_profile_health_v1", null),
+      getStoredString("@lyfeos_goals_configured_v1"),
+      getStoredString("@lyfeos_profile_name_v1"),
+    ]);
+
+    // 1. Active habit (not soft-deleted)
+    if (Array.isArray(localHabits) && localHabits.some((h) => h && !h.deletedAt)) {
+      return true;
+    }
+
+    // 2. Active habit log (not soft-deleted)
+    if (Array.isArray(localHabitLogs) && localHabitLogs.some((l) => l && !l.deletedAt)) {
+      return true;
+    }
+
+    // 3. Active todo (not soft-deleted)
+    if (Array.isArray(localTodos) && localTodos.some((t) => t && !t.deletedAt)) {
+      return true;
+    }
+
+    // 4. Active food item (not soft-deleted)
+    if (Array.isArray(localFood) && localFood.some((f) => f && !f.deletedAt)) {
+      return true;
+    }
+
+    // 5. Water with glasses > 0 (not soft-deleted)
+    if (
+      Array.isArray(localWater) &&
+      localWater.some((w) => w && !w.deletedAt && typeof w.glasses === "number" && w.glasses > 0)
+    ) {
+      return true;
+    }
+
+    // 6. Active workout / activity record (not soft-deleted)
+    if (Array.isArray(localActivityLogs) && localActivityLogs.some((a) => a && !a.deletedAt)) {
+      return true;
+    }
+
+    // 7. Active steps record with steps > 0 (not soft-deleted)
+    if (
+      Array.isArray(localStepsLogs) &&
+      localStepsLogs.some((s) => s && !s.deletedAt && typeof s.steps === "number" && s.steps > 0)
+    ) {
+      return true;
+    }
+
+    // 8. Custom health profile metrics differing from empty/default
+    if (localHealth && typeof localHealth === "object") {
+      const meaningfulHealthFields = ["age", "sex", "height", "weight", "activityLevel", "goal"];
+      const hasCustomHealth = meaningfulHealthFields.some((field) => {
+        const val = localHealth[field];
+        return typeof val === "string" && val.trim() !== "";
+      });
+      if (hasCustomHealth) {
+        return true;
+      }
+    }
+
+    // 9. Configured custom calorie goal
+    if (localGoalsConfigured === "true") {
+      return true;
+    }
+
+    // 10. Custom profile name differing from default
+    if (
+      typeof localProfileName === "string" &&
+      localProfileName.trim() !== "" &&
+      localProfileName !== "LyfeOS User"
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    logStorageError("hasMeaningfulGuestData", "all", error);
+    return false;
+  }
+}
+
+export interface PendingMigrationCheckpoint {
+  version: 1;
+  targetUid: string;
+  createdAt: number;
+  status: "pending" | "cloud_merged";
+}
+
+export const PENDING_MIGRATION_KEY = "@lyfeos_pending_migration_v1";
+
+export async function getPendingMigrationCheckpoint(): Promise<PendingMigrationCheckpoint | null> {
+  return await getStoredJson<PendingMigrationCheckpoint | null>(PENDING_MIGRATION_KEY, null);
+}
+
+export async function setPendingMigrationCheckpoint(checkpoint: PendingMigrationCheckpoint): Promise<boolean> {
+  return await setStoredJson(PENDING_MIGRATION_KEY, checkpoint);
+}
+
+export async function clearPendingMigrationCheckpoint(): Promise<boolean> {
+  return await removeStoredItem(PENDING_MIGRATION_KEY);
+}

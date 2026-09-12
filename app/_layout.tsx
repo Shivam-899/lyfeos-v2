@@ -39,7 +39,7 @@ import {
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { user, isInitializing, isGuest } = useAuth();
+  const { user, isInitializing, isGuest, isPendingMigrationResolution } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null);
@@ -71,8 +71,20 @@ function RootLayoutNav() {
   }, [segments]); // re-read on every segment change
 
   React.useEffect(() => {
-    // Wait until auth, onboarding, AND consent states are all resolved
+    // Wait until auth, onboarding, and consent states are resolved
     if (isInitializing || hasSeenOnboarding === null || legalConsentAccepted === null) return;
+
+    // Phase 2B-1 / 2B-3: If existing-account guest migration resolution is pending,
+    // route to login immediately if not already there, hide splash, and block all other navigation.
+    if (isPendingMigrationResolution) {
+      if (segments[0] !== ("login" as any)) {
+        router.replace("/login" as any);
+      }
+      setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => { });
+      }, 100);
+      return;
+    }
 
     const inTabsGroup = segments[0] === "(tabs)";
     const inLegalConsent = segments[0] === ("legal-consent" as any);
@@ -118,7 +130,7 @@ function RootLayoutNav() {
     // NOTE: `segments` is intentionally NOT in the dependency array.
     // We only want to re-route when auth/onboarding/consent state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isInitializing, isGuest, hasSeenOnboarding, legalConsentAccepted]);
+  }, [user, isInitializing, isGuest, hasSeenOnboarding, legalConsentAccepted, isPendingMigrationResolution]);
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>

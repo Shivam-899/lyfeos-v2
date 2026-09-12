@@ -363,14 +363,63 @@ interface AuthContextType {
 
 Deletes anonymous Firebase Auth session (or signs out), then runs steps 4 and 5 above.
 
-### Guest -> Account Migration (`handleGuestMigration()`)
+### Guest -> Account Conversion & Migration (`linkWithCredential` & `handleGuestMigration()`)
 
-Reads all local guest data using **correct versioned keys** (`@lyfeos_habits_v2`, `@lyfeos_habit_logs_v2`, `@lyfeos_todos_v2`, `@lyfeos_food_v2`, `@lyfeos_water_v2`, `@lyfeos_food_meta_v1`, `@lyfeos_goal_v2`, `@lyfeos_goals_configured_v1`) then calls `migrateGuestDataToAccount()` in `cloudSync.ts` which:
-- Fetches existing cloud data for habits, todos, calories in parallel
-- Merges: habits (set-union by ID + name), habit logs (keep true + max amount/time), todos (cloud-first union with re-indexing), food (dedup by ID), water (max glasses per date)
-- Merges nutrition via `mergeCaloriesMigrationData()`, strictly preserving existing authenticated account `dailyGoal`, `goalsConfigured`, and arbitrary top-level fields
-- Writes all merged data in a single atomic Firestore batch using `{ merge: true }` for calories to eliminate destructive overwrites
-- Updates local AsyncStorage with the merged result (including existing account goals) so device stays consistent
+- **Anonymous -> New Account Conversion (Phase 2A):**
+  - When an active guest creates a new email account (`signUpWithEmail`) or links a new Google account (`signInWithGoogle`), LyfeOS invokes `anonUser.linkWithCredential(credential)`.
+  - **UID Preservation:** The anonymous UID is preserved as the permanent account UID (`result.user.uid === anonUser.uid`), and `user.isAnonymous` transitions to `false`.
+  - **Zero Orphan Accounts:** No abandoned anonymous Firebase Auth records are left behind.
+  - **Duplicate Migration Prevention:** Because the UID is identical and all local `AsyncStorage` data is already attached to this session, `handleGuestMigration()` is intentionally skipped on successful linking. The app's standard context providers mount, detect `user && !isGuest`, and naturally synchronize the local data to Firestore under the permanent UID.
+  - **Known Limitation / Existing Account Guard:** If the credential belongs to an existing account, Firebase throws `auth/credential-already-in-use`. In Phase 2A, the anonymous user is **not** deleted, no silent account switch or blind data merge occurs, and the guest session is preserved. Resolution via user prompt (Merge vs. Discard) is deferred to Phase 2B/2C.
+
+- **Existing Account Guest Migration Gate & Resolution State (Phase 2B-1):**
+  - **Vulnerability Remediated:** Previously, when a guest user signed into an existing account (`signInWithEmail` or Google `signInWithCredential` after `auth/credential-already-in-use`), `handleGuestMigration()` was called unconditionally, silently injecting transient guest data into the existing account without user consent.
+  - **`hasMeaningfulGuestData()` Helper (`utils/storage.ts`):** Evaluates 10 deterministic criteria for genuine user activity (active habits, habit logs, todos, food items, water >0, activity logs, steps >0, custom health profile, custom calorie goals, custom profile name). Strictly ignores default preferences, `joinDate`, onboarding state, legal consent, empty arrays, and soft-deleted tombstones (`deletedAt`).
+  - **`isPendingMigrationResolution` in `AuthContext`:** Tracks whether an existing account has authenticated from an anonymous guest session containing meaningful guest data. Exposed via `useAuth()` along with `setPendingMigrationResolution`.
+  - **Authentication Gate (`signInWithEmail` & `signInWithGoogle`):**
+    - If `wasAnonymous && !isNewUser && hasMeaningfulGuestData()` is detected, `isPendingMigrationResolution` is set to `true`, and `handleGuestMigration()` is completely suppressed.
+    - If no meaningful guest data exists, `clearAllLyfeOSLocalData()` runs to purge transient guest state, and normal login proceeds.
+  - **Navigation Gate (`app/_layout.tsx`):** `RootLayoutNav` checks `if (... || isPendingMigrationResolution) return;` preventing premature redirection to `/(tabs)`. The user remains on `app/login.tsx` while migration resolution is pending.
+  - **Native Client Deletion Safety:** Reaffirms that `anonUser.delete()` must NEVER be invoked on the client after authenticating an existing account because `@react-native-firebase/auth` always executes `delete()` against `getCurrentUser()`, which would permanently delete the user's permanent account. Client-side discard must only clear local state via `clearAllLyfeOSLocalData()`.
+
+- **Existing-Account Guest Data Resolution (Phase 2B-2):**
+  - **Persistent Checkpoint (`@lyfeos_pending_migration_v1`):** Stores `{ version: 1, targetUid, createdAt, status: "pending" | "cloud_merged" }`. Written in `signInWithEmail` and `signInWithGoogle` only after confirming meaningful guest data. Never stores tokens or sensitive credentials.
+  - **Cold-Start Recovery & UID Mismatch Protection:** On startup, `AuthProvider` verifies that the active authenticated UID matches `checkpoint.targetUid`. If matched, `isPendingMigrationResolution = true` is restored, preventing `_layout.tsx` from redirecting into `/(tabs)`. If mismatched or user is logged out, the stale checkpoint is safely invalidated and removed without modifying either account or data.
+  - **Discard Action (`discardGuestDataAndProceed()`):** Verifies authenticated target UID matches checkpoint, clears local guest data from AsyncStorage via `clearAllLyfeOSLocalData()`, cancels guest notifications, clears checkpoint, resets `isPendingMigrationResolution(false)`, updates analytics identity to target UID, and unblocks navigation. Target-account Firestore data is 100% untouched.
+  - **Merge Action (`mergeGuestDataAndProceed()`):** Verifies target UID matches checkpoint, reads local guest data, merges into existing cloud account via `migrateGuestDataToAccount()`, atomically batches writes with `{ merge: true }`, updates local storage, marks checkpoint `status: "cloud_merged"` to ensure idempotency on retry, clears checkpoint, resets `isPendingMigrationResolution(false)`, sets `migrationDone = true`, updates analytics identity, and unblocks navigation.
+  - **Failure & Retry Safety:** If merge fails (e.g. offline/network), local guest data is preserved, checkpoint remains intact in AsyncStorage, and pending state remains true. Retrying merge is idempotent and does not create duplicate records or corrupt cloud state. If local cleanup fails during discard, error is thrown and checkpoint is preserved.
+  - **Child Provider Sync Dormancy:** While `isPendingMigrationResolution === true`, `AuthProvider` masks `user` as `null` to child context providers (`Habits`, `Calories`, `Todos`, `Activity`, `Profile`), preventing them from prematurely fetching from cloud and syncing local guest data to Firestore before the user decides. Once resolution completes, `user` is unmasked, and providers hydrate correctly.
+- **Existing-Account Guest Data Resolution UI & Cold-Start Routing (Phase 2B-3):**
+  - **Cold-Start Routing Guard (`app/_layout.tsx`):** If `isPendingMigrationResolution === true` on cold-start or app resume, `RootLayoutNav` immediately calls `router.replace("/login")` if not already on the login route, hides the splash screen via `SplashScreen.hideAsync()`, and returns early. This guarantees the user is routed to `app/login.tsx` to resolve the pending migration rather than getting stuck on a blank screen.
+  - **`GuestDataResolutionModal` Component (`app/login.tsx`):**
+    - Renders automatically whenever `isPendingMigrationResolution === true` using standard theme tokens (`#0F0F0F`, `#1A1A1A`, `#FF6B35`, `#EF4444`).
+    - **Decision View:**
+      - Header icon badge with `cloud-download-outline` in accent tint.
+      - Exact title: `"Guest Data Found"`.
+      - Exact body: `"We found data you created on this device while using LyfeOS as a guest. You can add it to your account or discard it."`.
+      - Reassurance box with `shield-checkmark-outline`: `"Your existing account data is safe and won't be overwritten."`.
+      - Primary CTA: `"Keep & Merge Data"` with subtext `"Adds your guest data to this account"`. Triggers `mergeGuestDataAndProceed()`.
+      - Secondary CTA: `"Discard Guest Data"` with subtext `"Permanently removes data from your guest session"`. Transitions view to Discard Confirmation.
+    - **Discard Confirmation View:**
+      - Header badge with `trash-outline` in red error tint.
+      - Exact title: `"Permanently Discard Guest Data?"`.
+      - Exact body: `"This will permanently remove the data created during your guest session. This action cannot be undone.\n\nYour existing account data will remain completely untouched."`.
+      - Destructive Primary CTA: `"Yes, Permanently Discard"`. Triggers `discardGuestDataAndProceed()`.
+      - Secondary Cancel CTA: `"No, Keep Data"`. Returns to Decision view.
+    - **Loading States:** Displays large activity indicator with `"Merging your guest data..."` during merge and `"Discarding guest data..."` during discard.
+    - **Error & Retry States:** Displays inline error banner (`"Unable to Merge Data"` or `"Unable to Discard Data"`) with a `"Try Again"` button.
+    - **Double-Tap Lockout:** All modal buttons are disabled when an operation is in-flight (`resolutionLoading !== null`), preventing concurrent or duplicate calls.
+    - **Strict Non-Dismissibility & Android Back Handling:** The modal overlay does not dismiss on tap-outside. Android back button on Discard Confirmation safely returns to the Decision view; on Decision view or during loading, Android back is strictly blocked until the user makes an explicit choice.
+    - **Copy Hygiene:** Zero technical jargon (no mention of AsyncStorage, Firebase, Firestore, UID, checkpoint, migration, tokens). Uses generic "Guest Data" terminology across all user-facing text.
+
+- **Legacy / Direct Guest Migration (`handleGuestMigration()`):**
+  - For non-linked migrations, reads all local guest data using **correct versioned keys** (`@lyfeos_habits_v2`, `@lyfeos_habit_logs_v2`, `@lyfeos_todos_v2`, `@lyfeos_food_v2`, `@lyfeos_water_v2`, `@lyfeos_food_meta_v1`, `@lyfeos_goal_v2`, `@lyfeos_goals_configured_v1`, plus profile and activity keys) then calls `migrateGuestDataToAccount()` in `cloudSync.ts` which:
+  - Fetches existing cloud data for habits, todos, calories, activity, profile in parallel
+  - Merges: habits (set-union by ID + name), habit logs (keep true + max amount/time), todos (cloud-first union with re-indexing), food (dedup by ID), water (max glasses per date)
+  - Merges nutrition via `mergeCaloriesMigrationData()`, strictly preserving existing authenticated account `dailyGoal`, `goalsConfigured`, and arbitrary top-level fields
+  - Writes all merged data in an atomic Firestore batch
+  - Updates local AsyncStorage with the merged result so device stays consistent
+
 
 ---
 
@@ -899,16 +948,37 @@ interface FoodAnalysisResult {
 <string name="fb_login_protocol_scheme">fb1369488158633446</string>
 ```
 
-| Firebase Event | Meta Event |
-|---|---|
-| `login` | `fb_mobile_login` |
-| `sign_up` | `AppEventsLogger.AppEvents.CompletedRegistration` |
-| `habit_completed` | `HabitCompleted` |
-| `meal_logged` | `MealLogged` |
+| Firebase Event | Meta Event | Payload Details |
+|---|---|---|
+| `login` | `fb_mobile_login` | Method (`google`, `email`, `guest`) |
+| `sign_up` | `AppEventsLogger.AppEvents.CompletedRegistration` | Method (`email`) |
+| `habit_completed` | `HabitCompleted` | **Zero-PII:** Meta receives strictly `AppEventsLogger.logEvent("HabitCompleted")` with **zero parameters** or custom habit names. |
+| `meal_logged` | `MealLogged` | `mealType` (predefined enum string: `"breakfast"`, `"lunch"`, etc.) |
 
 `setAnalyticsUser(userId)` calls `AppEventsLogger.setUserID(userId)` unconditionally (no null coercion, no environment gate).
 
 Meta SDK initialised via `initializeMetaSDK()` → `Settings.initializeSDK()` (called from `app/_layout.tsx` on auth state change — no `isMetaEnabled()` guard).
+
+#### P1-9 Phase 1 Privacy & Telemetry Hardening (Remediated 2026-09-12)
+1. **Zero-PII Telemetry Rule for Meta:**
+   - Meta App Events MUST NEVER receive free-form user-generated strings, habit titles, descriptions, or medical/health habit names (e.g. medication reminders).
+   - In `utils/analytics.ts`, `eventName === "habit_completed"` triggers `AppEventsLogger.logEvent("HabitCompleted")` without forwarding `metaParams`.
+2. **Sanitized Firebase Analytics Habit Telemetry:**
+   - In `context/HabitsContext.tsx`, `habit_created` and `habit_completed` dispatches have removed raw `habitName`.
+   - Only strictly non-sensitive structural attributes are sent: `{ habitId, trackMethod, colorId, habitType }`.
+3. **Centralized Identity Reset (`clearAllAnalyticsAndCrashlyticsIdentity()`):**
+   - Implemented in `utils/analytics.ts` and called during:
+     - Normal sign-out (`AuthContext.tsx` -> `signOut()`)
+     - Account deletion (`AuthContext.tsx` -> `deleteAccountAndData()`)
+     - Guest data deletion (`AuthContext.tsx` -> `deleteGuestData()`)
+   - Performs isolated cleanup across:
+     - Firebase Analytics: `analytics().setUserId(null)` + `analytics().resetAnalyticsData()`
+     - Meta SDK: `AppEventsLogger.setUserID(null)`
+     - Crashlytics: `crashlytics().setUserId("")` + resets dynamic attributes (`current_screen`, `last_error_context`)
+   - Each SDK cleanup is wrapped in an independent `try/catch` block so failures in one SDK never prevent other cleanups or interrupt auth flows.
+4. **Important Technical Distinction (Client SDK Reset vs Server-Side Deletion):**
+   - Client SDK identity resets (`setUserId(null)`, `resetAnalyticsData()`, `setUserID(null)`, `setUserId("")`) disassociate active device identity and rotate local instance IDs.
+   - They **do NOT** trigger retrospective historical telemetry deletion on Google Analytics or Meta cloud servers (which requires backend User Deletion APIs under GDPR Article 17). Server-side historical telemetry deletion remains out-of-scope for client-only releases.
 
 ### Firebase Observability & Production Monitoring — ACTIVE
 
@@ -1190,7 +1260,103 @@ Before completing any future development task, check whether `PROJECT_KNOWLEDGE.
 
 > Format: Date — Summary — Area affected — Migration/deployment implications
 
-### 2026-09-11 — P1-8 Notification / Permission State Consistency Remediation (Phase 2: P2 State Reconciliation)
+### 2026-09-12 — P1-9 Phase 2B-3: Existing-Account Guest Data Resolution UI & Cold-Start Routing
+
+**What:** Implemented non-dismissible resolution UI (`GuestDataResolutionModal`) in `app/login.tsx` and cold-start route gating in `app/_layout.tsx`:
+- **Cold-Start Routing Guard (`app/_layout.tsx`):** If `isPendingMigrationResolution === true`, immediately redirects to `/login` via `router.replace("/login")`, hides splash screen via `SplashScreen.hideAsync()`, and returns early to prevent the app from hanging on a blank screen.
+- **`GuestDataResolutionModal` in `app/login.tsx`:**
+  - Automatically displayed when `isPendingMigrationResolution === true`.
+  - **Decision View:**
+    - Header icon: Accent-tinted badge with `cloud-download-outline`.
+    - Exact approved copy: Title `"Guest Data Found"`, Body `"We found data you created on this device while using LyfeOS as a guest. You can add it to your account or discard it."`.
+    - Reassurance card: `"Your existing account data is safe and won't be overwritten."`.
+    - Primary CTA: `"Keep & Merge Data"` (Helper: `"Adds your guest data to this account"`), triggers `mergeGuestDataAndProceed()`.
+    - Secondary CTA: `"Discard Guest Data"` (Helper: `"Permanently removes data from your guest session"`), transitions view to Discard Confirmation.
+  - **Discard Confirmation View:**
+    - Header icon: Red error badge with `trash-outline`.
+    - Exact approved copy: Title `"Permanently Discard Guest Data?"`, Body `"This will permanently remove the data created during your guest session. This action cannot be undone.\n\nYour existing account data will remain completely untouched."`.
+    - Destructive CTA: `"Yes, Permanently Discard"`, triggers `discardGuestDataAndProceed()`.
+    - Secondary CTA: `"No, Keep Data"`, safely returns to Decision view.
+  - **Loading States:** Displays large activity indicator with `"Merging your guest data..."` and `"Discarding guest data..."`.
+  - **Error & Retry States:** Displays inline error banner (`"Unable to Merge Data"` / `"Unable to Discard Data"`) with actionable `"Try Again"` button.
+  - **Double-Tap Lockout:** Disables all modal buttons while actions are in-flight (`resolutionLoading !== null`).
+  - **Strict Non-Dismissibility & Android Back:** Backdrop is non-clickable; Android back on Discard Confirmation returns to Decision view; Android back on Decision view or loading is blocked.
+  - **Zero Technical Jargon:** Clean copy with generic "Guest Data" terminology; zero leaks of internal architecture terms.
+- **Verification:**
+  - 20-test automated suite in `scripts/test-phase2b3-resolution-ui.js` (20/20 PASS).
+  - Full regression test run: 109/109 tests PASS across all test suites (Phase 2B-3 20/20, Phase 2B-2 20/20, Phase 2B-1 20/20, Phase 2A 8/8, Privacy 6/6, Habits 12/12, Nutrition Sync 12/12, Nutrition Migration 5/5, Activity 16/16, Profile 10/10).
+  - TypeScript typecheck (`tsc -p tsconfig.json --noEmit`): 0 errors.
+  - Strict guardrail verification: `context/TodosContext.tsx` is completely untouched (0 lines changed).
+
+**Area affected:** `app/login.tsx`, `app/_layout.tsx`, `scripts/test-phase2b3-resolution-ui.js`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; zero schema breaks or destructive operations.
+
+---
+
+### 2026-09-12 — P1-9 Phase 2B-2: Existing-Account Guest Data Resolution (Checkpoint + Discard + Merge + Cold-Start)
+
+**What:** Implemented persistent checkpointing, discard, and merge handlers for existing-account guest data resolution:
+- **Persistent Checkpoint (`@lyfeos_pending_migration_v1`):** Created schema `{ version: 1, targetUid, createdAt, status: "pending" | "cloud_merged" }`. Written in `signInWithEmail` and `signInWithGoogle` only after confirming meaningful guest data; cleared on resolution.
+- **Cold-Start Recovery & UID Mismatch Protection:** Restores `isPendingMigrationResolution = true` on startup if `auth().currentUser.uid === checkpoint.targetUid`. If UID mismatches, stale checkpoint is safely invalidated and purged without modifying either account or data.
+- **`discardGuestDataAndProceed()`:** Verifies target UID matches checkpoint, clears local guest data from AsyncStorage via `clearAllLyfeOSLocalData()`, cancels guest notifications, clears checkpoint, unblocks navigation, and leaves cloud account 100% untouched.
+- **`mergeGuestDataAndProceed()`:** Verifies target UID matches checkpoint, merges local guest data into target cloud account via `migrateGuestDataToAccount()`, updates local storage, ensures idempotency on retry via `status: "cloud_merged"`, clears checkpoint, unblocks navigation.
+- **Provider Sync Dormancy:** Masked `user` as `null` to child context providers (`Habits`, `Todos`, `Calories`, `Activity`, `Profile`) while pending resolution to prevent premature cloud synchronization before user decision.
+- **Verification:** 20-test automated suite in `scripts/test-phase2b2-guest-resolution.js` (20/20 PASS). Full regression suite passed (89/89 tests). TypeScript typecheck 0 errors. `context/TodosContext.tsx` strictly untouched (0 lines changed).
+
+**Area affected:** `utils/storage.ts`, `context/AuthContext.tsx`, `scripts/test-phase2b2-guest-resolution.js`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; zero schema breaks.
+
+---
+
+### 2026-09-12 — P1-9 Phase 2B-1: Meaningful Guest Data Detection & Migration Resolution State
+
+**What:** Implemented non-destructive gating architecture to prevent blind guest data migration into existing accounts:
+- **`hasMeaningfulGuestData()` Helper (`utils/storage.ts`):** Added deterministic helper checking 10 distinct activity criteria (active habits, habit logs, todos, food items, water >0 glasses, activity logs, steps >0, custom health profile, custom calorie goals, custom profile name). Ignores default preferences, `joinDate`, onboarding, legal consent, empty collections, and soft-deleted tombstones (`deletedAt`).
+- **Migration Resolution State (`context/AuthContext.tsx`):** Added `isPendingMigrationResolution: boolean` and `setPendingMigrationResolution` to `AuthContextType` and `AuthProvider`.
+- **Existing Account Authentication Gate (`context/AuthContext.tsx`):**
+  - Updated `signInWithEmail`: If `wasAnonymous && !isNewUser && hasMeaningfulGuestData()` is detected, sets `isPendingMigrationResolution(true)` and completely suppresses blind `handleGuestMigration()`. If no meaningful data exists, purges empty guest state via `clearAllLyfeOSLocalData()` and proceeds normally.
+  - Updated `signInWithGoogle`: On `auth/credential-already-in-use` during linking, authenticates existing account via `signInWithCredential()`, checks `hasMeaningfulGuestData()`, sets `isPendingMigrationResolution(true)`, and suppresses `handleGuestMigration()`.
+- **Navigation Guard (`app/_layout.tsx`):** Updated `RootLayoutNav` to gate on `isPendingMigrationResolution`. Blocks premature redirect to `/(tabs)`, keeping `app/login.tsx` mounted until the user resolves migration.
+- **Native Deletion Safety:** Affirmed that `anonUser.delete()` must NEVER be called client-side after authenticating an existing user, avoiding native `@react-native-firebase/auth` permanent user account deletion.
+- **Verification:** 20-test automated suite in `scripts/test-phase2b-migration-guard.js` (20/20 PASS). Full regression test run: 118/118 tests PASS across all modules. TypeScript typecheck 0 errors. `TodosContext.tsx` strictly untouched (0 lines changed).
+
+**Area affected:** `utils/storage.ts`, `context/AuthContext.tsx`, `app/_layout.tsx`, `scripts/test-phase2b-migration-guard.js`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; no schema changes or external dependencies.
+
+---
+
+### 2026-09-12 — P1-9 Phase 2A: Anonymous Auth Lifecycle & Safe New Account Conversion
+
+**What:** Remediated P1-9 Finding #3 (Anonymous Firebase Auth Account Abandonment) for new account creation:
+- **Anonymous -> Permanent Credential Linking:** Updated `signUpWithEmail` and `signInWithGoogle` to link credentials to the active anonymous Firebase Auth user via `anonUser.linkWithCredential(credential)`.
+- **UID Preservation:** Preserves the existing anonymous UID as the permanent account UID (`result.user.uid === anonUser.uid`), transitioning `user.isAnonymous` from `true` to `false` without abandoning anonymous accounts in Firebase Authentication.
+- **Eliminated Redundant Migration:** Skipped `handleGuestMigration()` when linking succeeds because local `AsyncStorage` is already bound to that UID.
+- **Existing Account Safety:** When `auth/credential-already-in-use` occurs, the guest session is preserved without deleting the anonymous user or clobbering data.
+- **Verification:** 10-test automated suite in `scripts/test-phase2a-auth-linking.js` (10/10 PASS). Full regression suite passed (98/98 tests). TypeScript typecheck 0 errors.
+
+**Area affected:** `context/AuthContext.tsx`, `scripts/test-phase2a-auth-linking.js`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Fully backward-compatible; zero orphaned anonymous accounts on new account registration.
+
+---
+
+### 2026-09-12 — P1-9 Phase 1: Privacy & Telemetry Hardening
+
+**What:** Remediated P1-9 Finding #4 (Sensitive Habit Names Sent to Meta App Events) and Finding #5 (Analytics / Crashlytics Identity Persistence on Deletion):
+- **Zero-PII Meta Telemetry:** In `utils/analytics.ts`, restricted `habit_completed` to `AppEventsLogger.logEvent("HabitCompleted")` with zero parameters.
+- **Sanitized Firebase Analytics Habits Telemetry:** In `context/HabitsContext.tsx`, removed raw user habit names from `habit_created` and `habit_completed` events, forwarding only non-sensitive structural attributes.
+- **Centralized Identity Reset (`clearAllAnalyticsAndCrashlyticsIdentity()`):** Implemented in `utils/analytics.ts` and integrated into `signOut()`, `deleteAccountAndData()`, and `deleteGuestData()` in `context/AuthContext.tsx`. Clears Firebase Analytics ID, resets instance ID, resets Meta User ID, and clears Crashlytics user identity and custom attributes.
+- **Verification:** 19-test automated suite in `scripts/test-privacy-telemetry.js` (19/19 PASS). Full regression suite passed (88/88 tests). TypeScript typecheck 0 errors.
+
+**Area affected:** `utils/analytics.ts`, `context/HabitsContext.tsx`, `context/AuthContext.tsx`, `scripts/test-privacy-telemetry.js`, `PROJECT_KNOWLEDGE.md`.
+
+**Migration/deployment implications:** Immediate privacy compliance improvement; no schema or database changes.
+
+---
+
 
 **What:** Remediated all 5 confirmed P2 findings from the P1-8 Notification / Permission State Consistency Audit:
 - **P1-8-04 [P2] Profile UI ↔ Real OS Permission State Reconciliation:**

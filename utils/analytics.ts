@@ -86,11 +86,8 @@ export const logEvent = async (
       };
       AppEventsLogger.logEvent(AppEventsLogger.AppEvents.CompletedRegistration, regParams);
     } else if (eventName === "habit_completed") {
-      if (metaParams) {
-        AppEventsLogger.logEvent("HabitCompleted", metaParams);
-      } else {
-        AppEventsLogger.logEvent("HabitCompleted");
-      }
+      // Zero-PII: Meta receives only the structural event with NO custom habit text or parameters
+      AppEventsLogger.logEvent("HabitCompleted");
     } else if (eventName === "meal_logged") {
       if (metaParams) {
         AppEventsLogger.logEvent("MealLogged", metaParams);
@@ -125,6 +122,44 @@ export const setAnalyticsUser = async (
     AppEventsLogger.setUserID(userId || null);
   } catch (e) {
     if (__DEV__) console.warn("[Meta] setUserID failed:", e);
+  }
+};
+
+/**
+ * Centralized telemetry identity reset for logout, account deletion, and guest data deletion.
+ * Clears local SDK user identification across Firebase Analytics, Meta SDK, and Crashlytics.
+ *
+ * IMPORTANT:
+ * Each SDK operation is independently isolated in its own try/catch so that a failure in one
+ * SDK never prevents cleanup in another, and never interrupts the authentication lifecycle.
+ * Note that clearing client SDK identity does NOT delete historical server-side telemetry.
+ */
+export const clearAllAnalyticsAndCrashlyticsIdentity = async (): Promise<void> => {
+  // 1. Firebase Analytics: Clear user ID and reset local app instance analytics identity
+  try {
+    await analytics().setUserId(null);
+    await analytics().resetAnalyticsData();
+    if (__DEV__) console.log("[Analytics] Identity reset successfully");
+  } catch (e) {
+    if (__DEV__) console.warn("[Analytics] clearAllAnalyticsIdentity failed:", e);
+  }
+
+  // 2. Meta (Facebook) App Events: Reset user ID
+  try {
+    AppEventsLogger.setUserID(null);
+    if (__DEV__) console.log("[Meta] User ID reset successfully");
+  } catch (e) {
+    if (__DEV__) console.warn("[Meta] clearAllMetaIdentity failed:", e);
+  }
+
+  // 3. Crashlytics: Reset user ID and clear user-identifying session attributes
+  try {
+    await crashlytics().setUserId("");
+    await crashlytics().setAttribute("current_screen", "");
+    await crashlytics().setAttribute("last_error_context", "");
+    if (__DEV__) console.log("[Crashlytics] User ID and attributes cleared successfully");
+  } catch (e) {
+    if (__DEV__) console.warn("[Crashlytics] clearAllCrashlyticsIdentity failed:", e);
   }
 };
 

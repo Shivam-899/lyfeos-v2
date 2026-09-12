@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -14,7 +15,14 @@ import {
   setStoredString,
 } from "@/utils/storage";
 import { logEvent, logError } from "@/utils/analytics";
-import { syncCaloriesToCloud, fetchCaloriesFromCloud } from "@/utils/cloudSync";
+import {
+  syncCaloriesToCloud,
+  fetchCaloriesFromCloud,
+  normalizeFoodItem,
+  normalizeWaterLog,
+  mergeFoodItems,
+  mergeWaterLogs,
+} from "@/utils/cloudSync";
 import { useAuth } from "@/context/AuthContext";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
@@ -41,6 +49,8 @@ export interface FoodItem {
   vitaminC?: number;
   vitaminD?: number;
   vitaminB12?: number;
+  updatedAt: number;
+  deletedAt?: number;
 }
 
 export interface DailyGoal {
@@ -55,6 +65,8 @@ export interface WaterLog {
   id: string;
   date: string;
   glasses: number;
+  updatedAt: number;
+  deletedAt?: number;
 }
 
 export interface DayStats {
@@ -84,7 +96,7 @@ interface CaloriesContextType {
   goalsConfigured: boolean;
   setDailyGoal: (goal: DailyGoal) => void;
   setGoalsConfigured: (v: boolean) => void;
-  addFoodItem: (item: Omit<FoodItem, "id">) => void;
+  addFoodItem: (item: Omit<FoodItem, "id" | "updatedAt"> & { updatedAt?: number }) => void;
   deleteFoodItem: (id: string) => void;
   logWater: (date: string, delta: number) => void;
   getWaterForDate: (date: string) => number;
@@ -116,22 +128,40 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   const authRef = useRef({ user, isGuest });
   useEffect(() => { authRef.current = { user, isGuest }; }, [user, isGuest]);
 
-  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
-  const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
+  const [rawFoodItems, setRawFoodItems] = useState<FoodItem[]>([]);
+  const [rawWaterLogs, setRawWaterLogs] = useState<WaterLog[]>([]);
   const [dailyGoal, setDailyGoalState] = useState<DailyGoal>(DEFAULT_GOAL);
   const [goalsConfigured, setGoalsConfiguredState] = useState(false);
 
+  // Active items exposed to UI consumers (soft-deleted tombstones are hidden)
+  const foodItems = useMemo(
+    () => rawFoodItems.filter((f) => !f.deletedAt),
+    [rawFoodItems]
+  );
+  const waterLogs = useMemo(
+    () => rawWaterLogs.filter((w) => !w.deletedAt),
+    [rawWaterLogs]
+  );
+
   useEffect(() => {
     (async () => {
-      const [food, water, goal, configured, localMeta] = await Promise.all([
-        getStoredJson<FoodItem[]>(FOOD_KEY, []),
-        getStoredJson<WaterLog[]>(WATER_KEY, []),
+      const [storedFood, storedWater, goal, configured, localMeta] = await Promise.all([
+        getStoredJson<any[]>(FOOD_KEY, []),
+        getStoredJson<any[]>(WATER_KEY, []),
         getStoredJson<DailyGoal>(GOAL_KEY, DEFAULT_GOAL),
         getStoredString(GOALS_CONFIGURED_KEY),
         getStoredJson<{ lastModified: number }>(FOOD_META_KEY, { lastModified: 0 }),
       ]);
-      setFoodItems(food);
-      setWaterLogs(water);
+
+      const initialFood = (storedFood || [])
+        .map((f) => normalizeFoodItem(f, f.updatedAt || localMeta.lastModified || 0))
+        .filter((f): f is FoodItem => f !== null);
+      const initialWater = (storedWater || [])
+        .map((w) => normalizeWaterLog(w, w.updatedAt || localMeta.lastModified || 0))
+        .filter((w): w is WaterLog => w !== null);
+
+      setRawFoodItems(initialFood);
+      setRawWaterLogs(initialWater);
       setDailyGoalState(goal);
       setGoalsConfiguredState(configured === "true");
 
@@ -141,54 +171,47 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
           const cloudCalories = await fetchCaloriesFromCloud(user.uid);
 
           if (cloudCalories) {
-            // "Most recent wins" guard.
-            //
-            // Previously the cloud data was blindly accepted and written back to
-            // local disk. This caused data loss when a cloud upload was
-            // interrupted mid-flight (e.g., user force-closed the app): on next
-            // launch the stale cloud record overwrote the correct local data.
-            //
-            // Timestamp semantics:
-            //   localLastModified  — Date.now() ms written to FOOD_META_KEY every
-            //                        time food or water state is mutated locally.
-            //   cloudLastModified  — same value echoed into the cloud payload by
-            //                        buildCaloriesPayload(); absent on pre-fix docs.
-            //
-            // Safe-side defaults (prefer local when uncertain):
-            //   • Cloud doc has no timestamp  → treat as "unknown age" → keep local.
-            //   • Local meta is 0 (never set) AND cloud has a real timestamp
-            //     → this device never wrote data; cloud wins.
-            const localTs: number = localMeta.lastModified ?? 0;
-            const cloudTs: number = (cloudCalories as any).lastModified ?? 0;
-            const cloudIsNewer = cloudTs > localTs;
+            const cloudFood: any[] = Array.isArray(cloudCalories.foodItems) ? cloudCalories.foodItems : [];
+            const cloudWater: any[] = Array.isArray(cloudCalories.waterLogs) ? cloudCalories.waterLogs : [];
 
-            if (cloudIsNewer) {
-              // Cloud is definitively newer — safe to overwrite local.
-              if (cloudCalories.foodItems) setFoodItems(cloudCalories.foodItems);
-              if (cloudCalories.waterLogs) setWaterLogs(cloudCalories.waterLogs);
-              if (cloudCalories.dailyGoal) {
-                setDailyGoalState(cloudCalories.dailyGoal);
-                await setStoredJson(GOAL_KEY, cloudCalories.dailyGoal);
-              }
-              if (cloudCalories.goalsConfigured !== null && cloudCalories.goalsConfigured !== undefined) {
-                setGoalsConfiguredState(Boolean(cloudCalories.goalsConfigured));
-                await setStoredString(GOALS_CONFIGURED_KEY, String(cloudCalories.goalsConfigured));
-              }
-              if (cloudCalories.foodItems) await setStoredJson(FOOD_KEY, cloudCalories.foodItems);
-              if (cloudCalories.waterLogs) await setStoredJson(WATER_KEY, cloudCalories.waterLogs);
-              // Persist cloud's timestamp locally so future comparisons are accurate.
-              await setStoredJson(FOOD_META_KEY, { lastModified: cloudTs });
-            } else {
-              // Local is newer or age is ambiguous — do NOT overwrite local.
-              // Re-push local data to cloud in the background to repair the
-              // stale cloud record left by the previous interrupted upload.
-              syncCaloriesToCloud(
-                user.uid,
-                buildCaloriesPayload(food, water, localTs || Date.now()),
-                goal,
-                configured === "true",
-              ).catch((e) => logError(e as Error, "reupload_after_stale_cloud"));
+            // Perform item-level bidirectional merge with Delete-Wins and conflict resolution
+            const mergedFood = mergeFoodItems(initialFood, cloudFood) as FoodItem[];
+            const mergedWater = mergeWaterLogs(initialWater, cloudWater) as WaterLog[];
+
+            setRawFoodItems(mergedFood);
+            setRawWaterLogs(mergedWater);
+            await setStoredJson(FOOD_KEY, mergedFood);
+            await setStoredJson(WATER_KEY, mergedWater);
+
+            let finalGoal = goal;
+            if (cloudCalories.dailyGoal) {
+              finalGoal = cloudCalories.dailyGoal;
+              setDailyGoalState(finalGoal);
+              await setStoredJson(GOAL_KEY, finalGoal);
             }
+            let finalConfigured = configured === "true";
+            if (cloudCalories.goalsConfigured !== null && cloudCalories.goalsConfigured !== undefined) {
+              finalConfigured = Boolean(cloudCalories.goalsConfigured);
+              setGoalsConfiguredState(finalConfigured);
+              await setStoredString(GOALS_CONFIGURED_KEY, String(finalConfigured));
+            }
+
+            const mergedLastModified = Math.max(
+              localMeta.lastModified || 0,
+              typeof cloudCalories.lastModified === "number" ? cloudCalories.lastModified : 0,
+              ...mergedFood.map((f) => f.updatedAt || 0),
+              ...mergedWater.map((w) => w.updatedAt || 0),
+              Date.now()
+            );
+            await setStoredJson(FOOD_META_KEY, { lastModified: mergedLastModified });
+
+            // Push merged state back to cloud so both device and cloud stay completely in sync
+            syncCaloriesToCloud(
+              user.uid,
+              buildCaloriesPayload(mergedFood, mergedWater, mergedLastModified),
+              finalGoal,
+              finalConfigured,
+            ).catch((e) => logError(e as Error, "syncCaloriesToCloud_onMountMerge"));
           }
         } catch (e) {
           // Network / Firestore error — silently keep local data, never overwrite.
@@ -198,8 +221,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [user, isGuest]);
 
-  // Builds the Firestore payload. lastModified lives in the wrapper object,
-  // NOT inside FoodItem[], so the FoodItem interface stays unchanged.
+  // Builds the Firestore payload.
   const buildCaloriesPayload = (
     food: FoodItem[],
     water: WaterLog[],
@@ -211,7 +233,7 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   });
 
   // Stamps local metadata (FOOD_META_KEY) and fires a cloud upload.
-  // Called after every food/water mutation so both storage layers stay in sync.
+  // Called after every food/water mutation with the latest raw items.
   const persistAndSync = (food: FoodItem[], water: WaterLog[]) => {
     const lastModified = Date.now();
     void setStoredJson(FOOD_META_KEY, { lastModified });
@@ -237,12 +259,12 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
     if (u && !g) {
       syncCaloriesToCloud(
         u.uid,
-        buildCaloriesPayload(foodItems, waterLogs),
+        buildCaloriesPayload(rawFoodItems, rawWaterLogs),
         goal,
         true,
       ).catch((e) => logError(e as Error, "syncCaloriesToCloud_dailyGoal"));
     }
-  }, [foodItems, waterLogs]);
+  }, [rawFoodItems, rawWaterLogs]);
 
   const setGoalsConfigured = useCallback(async (v: boolean) => {
     setGoalsConfiguredState(v);
@@ -251,22 +273,25 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
     if (u && !g) {
       syncCaloriesToCloud(
         u.uid,
-        buildCaloriesPayload(foodItems, waterLogs),
+        buildCaloriesPayload(rawFoodItems, rawWaterLogs),
         dailyGoal,
         v,
       ).catch((e) => logError(e as Error, "syncCaloriesToCloud_goalsConfigured"));
     }
-  }, [foodItems, waterLogs, dailyGoal]);
+  }, [rawFoodItems, rawWaterLogs, dailyGoal]);
 
-  const addFoodItem = useCallback((item: Omit<FoodItem, "id">) => {
-    setFoodItems((prev) => {
+  const addFoodItem = useCallback((item: Omit<FoodItem, "id" | "updatedAt"> & { updatedAt?: number }) => {
+    const now = Date.now();
+    setRawFoodItems((prev) => {
       const newItem: FoodItem = {
         ...item,
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        updatedAt: item.updatedAt ?? now,
       };
+      delete newItem.deletedAt;
       const next = [...prev, newItem];
       void setStoredJson(FOOD_KEY, next);
-      setWaterLogs((currentWater) => {
+      setRawWaterLogs((currentWater) => {
         persistAndSync(next, currentWater);
         return currentWater;
       });
@@ -277,10 +302,16 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteFoodItem = useCallback((id: string) => {
-    setFoodItems((prev) => {
-      const next = prev.filter((f) => f.id !== id);
+    const now = Date.now();
+    setRawFoodItems((prev) => {
+      const next = prev.map((f) => {
+        if (f.id === id && !f.deletedAt) {
+          return { ...f, deletedAt: now, updatedAt: now };
+        }
+        return f;
+      });
       void setStoredJson(FOOD_KEY, next);
-      setWaterLogs((currentWater) => {
+      setRawWaterLogs((currentWater) => {
         persistAndSync(next, currentWater);
         return currentWater;
       });
@@ -289,17 +320,35 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logWater = useCallback((date: string, delta: number) => {
-    setWaterLogs((prev) => {
+    const now = Date.now();
+    setRawWaterLogs((prev) => {
       const idx = prev.findIndex((w) => w.date === date);
       let next: WaterLog[];
       if (idx >= 0) {
+        const existing = prev[idx];
+        const currentGlasses = existing.deletedAt ? 0 : existing.glasses;
+        const newGlasses = Math.max(0, currentGlasses + delta);
         next = [...prev];
-        next[idx] = { ...next[idx], glasses: Math.max(0, next[idx].glasses + delta) };
+        const updated: WaterLog = {
+          ...existing,
+          glasses: newGlasses,
+          updatedAt: now,
+        };
+        delete updated.deletedAt;
+        next[idx] = updated;
       } else {
-        next = [...prev, { id: Date.now().toString(), date, glasses: Math.max(0, delta) }];
+        next = [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            date,
+            glasses: Math.max(0, delta),
+            updatedAt: now,
+          },
+        ];
       }
       void setStoredJson(WATER_KEY, next);
-      setFoodItems((currentFood) => {
+      setRawFoodItems((currentFood) => {
         persistAndSync(currentFood, next);
         return currentFood;
       });
@@ -341,11 +390,22 @@ export function CaloriesProvider({ children }: { children: React.ReactNode }) {
   }, [foodItems]);
 
   const clearTodayData = useCallback((date: string) => {
-    setFoodItems((prev) => {
-      const next = prev.filter((f) => f.date !== date);
+    const now = Date.now();
+    setRawFoodItems((prev) => {
+      const next = prev.map((f) => {
+        if (f.date === date && !f.deletedAt) {
+          return { ...f, deletedAt: now, updatedAt: now };
+        }
+        return f;
+      });
       void setStoredJson(FOOD_KEY, next);
-      setWaterLogs((prevWater) => {
-        const nextWater = prevWater.filter((w) => w.date !== date);
+      setRawWaterLogs((prevWater) => {
+        const nextWater = prevWater.map((w) => {
+          if (w.date === date && !w.deletedAt) {
+            return { ...w, deletedAt: now, updatedAt: now };
+          }
+          return w;
+        });
         void setStoredJson(WATER_KEY, nextWater);
         persistAndSync(next, nextWater);
         return nextWater;

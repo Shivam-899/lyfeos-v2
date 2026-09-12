@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -33,7 +33,15 @@ const THEME = {
 };
 
 export default function LoginScreen() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, signInAsGuest } = useAuth();
+  const {
+    signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
+    signInAsGuest,
+    isPendingMigrationResolution,
+    mergeGuestDataAndProceed,
+    discardGuestDataAndProceed,
+  } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -51,6 +59,93 @@ export default function LoginScreen() {
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState("");
+
+  // ── Guest Migration Resolution state (Phase 2B-3) ─────────────────────────
+  const [resolutionView, setResolutionView] = useState<"decision" | "confirm_discard">("decision");
+  const [resolutionLoading, setResolutionLoading] = useState<"merge" | "discard" | null>(null);
+  const [resolutionError, setResolutionError] = useState<{
+    title: string;
+    message: string;
+    action: "merge" | "discard";
+  } | null>(null);
+
+  // Reset resolution modal internal state whenever pending migration flag changes
+  useEffect(() => {
+    if (isPendingMigrationResolution) {
+      setResolutionView("decision");
+      setResolutionLoading(null);
+      setResolutionError(null);
+    }
+  }, [isPendingMigrationResolution]);
+
+  const handleMerge = async () => {
+    if (resolutionLoading !== null) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setResolutionLoading("merge");
+    setResolutionError(null);
+    try {
+      await mergeGuestDataAndProceed();
+    } catch (err: any) {
+      if (__DEV__) console.warn("[GuestResolution] Merge failed:", err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setResolutionError({
+        title: "Unable to Merge Data",
+        message: "We encountered an issue while merging your guest data. Please check your connection and try again.",
+        action: "merge",
+      });
+    } finally {
+      setResolutionLoading(null);
+    }
+  };
+
+  const handleStartDiscard = () => {
+    if (resolutionLoading !== null) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setResolutionError(null);
+    setResolutionView("confirm_discard");
+  };
+
+  const handleCancelDiscard = () => {
+    if (resolutionLoading !== null) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setResolutionError(null);
+    setResolutionView("decision");
+  };
+
+  const handleConfirmDiscard = async () => {
+    if (resolutionLoading !== null) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setResolutionLoading("discard");
+    setResolutionError(null);
+    try {
+      await discardGuestDataAndProceed();
+    } catch (err: any) {
+      if (__DEV__) console.warn("[GuestResolution] Discard failed:", err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setResolutionError({
+        title: "Unable to Discard Data",
+        message: "We encountered an issue while discarding your guest data. Please try again.",
+        action: "discard",
+      });
+    } finally {
+      setResolutionLoading(null);
+    }
+  };
+
+  const handleModalRequestClose = () => {
+    // Prevent dismissal while processing
+    if (resolutionLoading !== null) return;
+
+    // Android back on Discard Confirmation returns to Decision view
+    if (resolutionView === "confirm_discard") {
+      Haptics.selectionAsync();
+      setResolutionError(null);
+      setResolutionView("decision");
+      return;
+    }
+
+    // Modal is strictly non-dismissible while pending resolution on Decision view
+  };
 
   const fadeAnim = useState(new Animated.Value(1))[0];
   const formHeight = useState(new Animated.Value(isSignUp ? 380 : 330))[0];
@@ -86,6 +181,7 @@ export default function LoginScreen() {
     setError("");
     try {
       await signInWithGoogle();
+      setLoading(null);
       // Router handles redirection in _layout.tsx based on Auth state
     } catch (err: any) {
       if (err.code === statusCodes.SIGN_IN_CANCELLED) {
@@ -99,6 +195,8 @@ export default function LoginScreen() {
         setError("Sign-in already in progress. Please wait.");
       } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setError("Google Play Services isn't available on this device.");
+      } else if (err.code === "auth/credential-already-in-use" || err.code === "auth/email-already-in-use") {
+        setError("This Google account is already registered. Please sign in with email instead.");
       } else {
         setError("We're having trouble connecting to Google right now. Please try again, or sign in with email instead.");
       }
@@ -125,11 +223,12 @@ export default function LoginScreen() {
       } else {
         await signInWithEmail(email, password);
       }
+      setLoading(null);
     } catch (err: any) {
       let msg = "Authentication failed.";
       if (err.code === "auth/invalid-email") msg = "Invalid email address.";
       if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") msg = "Incorrect email or password.";
-      if (err.code === "auth/email-already-in-use") msg = "Email is already in use.";
+      if (err.code === "auth/email-already-in-use" || err.code === "auth/credential-already-in-use") msg = "Email is already in use.";
       if (err.code === "auth/weak-password") msg = "Password is too weak.";
       setError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -399,6 +498,165 @@ export default function LoginScreen() {
         </View>
       </TouchableWithoutFeedback>
     </Modal>
+
+      {/* ── Guest Data Resolution Modal (Phase 2B-3) ────────────────────────── */}
+      <Modal
+        visible={isPendingMigrationResolution}
+        transparent
+        animationType="fade"
+        onRequestClose={handleModalRequestClose}
+        statusBarTranslucent
+      >
+        <View style={styles.resolutionOverlay}>
+          <View style={styles.resolutionCard}>
+            {resolutionLoading !== null ? (
+              // ── Loading state ──
+              <View style={styles.resolutionLoadingContainer}>
+                <ActivityIndicator size="large" color={THEME.ACCENT} />
+                <Text style={styles.resolutionLoadingText}>
+                  {resolutionLoading === "merge"
+                    ? "Merging your guest data..."
+                    : "Discarding guest data..."}
+                </Text>
+              </View>
+            ) : resolutionView === "decision" ? (
+              // ── View A: Decision View ──
+              <>
+                <View style={styles.resolutionIconBadge}>
+                  <Ionicons name="cloud-download-outline" size={32} color={THEME.ACCENT} />
+                </View>
+
+                <Text style={styles.resolutionTitle}>Guest Data Found</Text>
+
+                <Text style={styles.resolutionSubtitle}>
+                  We found data you created on this device while using LyfeOS as a guest. You can add it to your account or discard it.
+                </Text>
+
+                {/* Reassurance box */}
+                <View style={styles.reassuranceBox}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#22C55E" style={styles.reassuranceIcon} />
+                  <Text style={styles.reassuranceText}>
+                    Your existing account data is safe and won't be overwritten.
+                  </Text>
+                </View>
+
+                {/* Error & Retry Banner */}
+                {resolutionError && (
+                  <View style={styles.resolutionErrorBanner}>
+                    <Ionicons name="alert-circle-outline" size={20} color={THEME.ERROR} />
+                    <View style={styles.resolutionErrorContent}>
+                      <Text style={styles.resolutionErrorTitle}>{resolutionError.title}</Text>
+                      <Text style={styles.resolutionErrorMessage}>{resolutionError.message}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={resolutionError.action === "merge" ? handleMerge : handleConfirmDiscard}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Try Again"
+                    >
+                      <Text style={styles.retryBtnText}>Try Again</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Actions */}
+                <View style={styles.resolutionActions}>
+                  {/* Primary CTA: Keep & Merge */}
+                  <TouchableOpacity
+                    style={styles.resolutionPrimaryBtn}
+                    onPress={handleMerge}
+                    activeOpacity={0.8}
+                    disabled={resolutionLoading !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel="Keep & Merge Data: Adds your guest data to this account"
+                  >
+                    <Text style={styles.resolutionPrimaryBtnText}>Keep & Merge Data</Text>
+                    <Text style={styles.resolutionPrimaryBtnHelper}>
+                      Adds your guest data to this account
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Secondary CTA: Discard */}
+                  <TouchableOpacity
+                    style={styles.resolutionSecondaryBtn}
+                    onPress={handleStartDiscard}
+                    activeOpacity={0.7}
+                    disabled={resolutionLoading !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel="Discard Guest Data: Permanently removes data from your guest session"
+                  >
+                    <Text style={styles.resolutionSecondaryBtnText}>Discard Guest Data</Text>
+                    <Text style={styles.resolutionSecondaryBtnHelper}>
+                      Permanently removes data from your guest session
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              // ── View B: Discard Confirmation View ──
+              <>
+                <View style={styles.resolutionDangerBadge}>
+                  <Ionicons name="trash-outline" size={32} color={THEME.ERROR} />
+                </View>
+
+                <Text style={styles.resolutionTitle}>Permanently Discard Guest Data?</Text>
+
+                <Text style={styles.resolutionSubtitle}>
+                  This will permanently remove the data created during your guest session. This action cannot be undone.{"\n\n"}Your existing account data will remain completely untouched.
+                </Text>
+
+                {/* Error & Retry Banner */}
+                {resolutionError && (
+                  <View style={styles.resolutionErrorBanner}>
+                    <Ionicons name="alert-circle-outline" size={20} color={THEME.ERROR} />
+                    <View style={styles.resolutionErrorContent}>
+                      <Text style={styles.resolutionErrorTitle}>{resolutionError.title}</Text>
+                      <Text style={styles.resolutionErrorMessage}>{resolutionError.message}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={handleConfirmDiscard}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Try Again"
+                    >
+                      <Text style={styles.retryBtnText}>Try Again</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Confirmation Actions */}
+                <View style={styles.resolutionActions}>
+                  {/* Destructive CTA */}
+                  <TouchableOpacity
+                    style={styles.resolutionDestructiveBtn}
+                    onPress={handleConfirmDiscard}
+                    activeOpacity={0.8}
+                    disabled={resolutionLoading !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel="Yes, Permanently Discard"
+                  >
+                    <Text style={styles.resolutionDestructiveBtnText}>Yes, Permanently Discard</Text>
+                  </TouchableOpacity>
+
+                  {/* Cancel / Keep Data CTA */}
+                  <TouchableOpacity
+                    style={styles.resolutionCancelBtn}
+                    onPress={handleCancelDiscard}
+                    activeOpacity={0.7}
+                    disabled={resolutionLoading !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel="No, Keep Data"
+                  >
+                    <Text style={styles.resolutionCancelBtnText}>No, Keep Data</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -645,5 +903,203 @@ const styles = StyleSheet.create({
     color: THEME.MUTED,
     fontSize: 14,
     fontFamily: "Inter_500Medium",
+  },
+  // ── Guest Migration Resolution Modal styles (Phase 2B-3) ───────────────────
+  resolutionOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  resolutionCard: {
+    backgroundColor: THEME.CARD,
+    borderRadius: 24,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: THEME.CARD_BORDER,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  resolutionLoadingContainer: {
+    paddingVertical: 36,
+    alignItems: "center",
+    gap: 16,
+  },
+  resolutionLoadingText: {
+    color: THEME.TEXT,
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+  },
+  resolutionIconBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255, 107, 53, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  resolutionDangerBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  resolutionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: THEME.TEXT,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  resolutionSubtitle: {
+    fontSize: 15,
+    color: THEME.MUTED,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  reassuranceBox: {
+    flexDirection: "row",
+    backgroundColor: "rgba(34, 197, 94, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    alignItems: "flex-start",
+    marginBottom: 20,
+  },
+  reassuranceIcon: {
+    marginTop: 2,
+  },
+  reassuranceText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#E4E4E7",
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
+  },
+  resolutionErrorBanner: {
+    flexDirection: "row",
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  resolutionErrorContent: {
+    flex: 1,
+  },
+  resolutionErrorTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: THEME.ERROR,
+    fontFamily: "Inter_600SemiBold",
+  },
+  resolutionErrorMessage: {
+    fontSize: 12,
+    color: "#D4D4D8",
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  retryBtn: {
+    backgroundColor: THEME.ERROR,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
+  },
+  resolutionActions: {
+    gap: 12,
+    width: "100%",
+  },
+  resolutionPrimaryBtn: {
+    backgroundColor: THEME.ACCENT,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  resolutionPrimaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
+  },
+  resolutionPrimaryBtnHelper: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  resolutionSecondaryBtn: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: THEME.CARD_BORDER,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  resolutionSecondaryBtnText: {
+    color: THEME.TEXT,
+    fontSize: 15,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+  },
+  resolutionSecondaryBtnHelper: {
+    color: THEME.MUTED,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  resolutionDestructiveBtn: {
+    backgroundColor: THEME.ERROR,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  resolutionDestructiveBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "Inter_600SemiBold",
+  },
+  resolutionCancelBtn: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: THEME.CARD_BORDER,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  resolutionCancelBtnText: {
+    color: THEME.TEXT,
+    fontSize: 15,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
 });
